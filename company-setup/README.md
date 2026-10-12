@@ -16,8 +16,7 @@ cd D:\paperclip
 
 数据保存在 `C:\Users\11580\.paperclip\instances\default`。不要删除数据库来排障。普通用户运行；管理员运行会被 PostgreSQL 拒绝。
 
-公司：本地 AI 工程实验室，companyId `5c3b23be-b2a6-47ca-9e71-d0de8e52105e`。
-目标：建立并验证五 Agent 分层研发组织，goalId `6559d6e5-cffd-4c0d-bd07-55e14f79a49b`。
+公司：本地 AI 工程实验室，companyId `f278e2ee-4723-484c-84a7-4e8db38415bf`（2026-10-12 清空测试数据后重建）。
 
 ```text
 Claude 技术总监（claude-opus-5，只拆派与方向验收）
@@ -41,8 +40,9 @@ Claude 技术总监（claude-opus-5，只拆派与方向验收）
 - Kimi 使用 CLI 引擎，需 `KIMI_SHELL_PATH` 指向 Git Bash（本机 `D:\Program Files\Git\bin\bash.exe`，PATH 中的 bash 是 WSL）。不要改用 ACP 引擎：ACP 模式下命令在服务端代开的终端里执行，拿不到本次运行的 Agent 身份。Kimi 登录在 `kimi` 交互界面里输入 `/login`。
 - Agent 运行身份 JWT 与动作签名密钥由源码 CLI 初始化，保存于实例 .env。不要将密钥写入公司说明或日志。
 
-首次测试：<http://127.0.0.1:3100/AI/issues/AI-1>。`06-start-smoke-test.ps1` 创建根任务且避免同标题重复创建。任务只派给 Claude，各层须自行创建下级任务；不能由操作者代造子任务作为验证。
-`node company-setup/inspect-smoke.mjs` 查看简要状态，参数为 runId 时查看经过筛选的运行日志。
+- 暂停/终止 Agent 时，服务端用记录的进程号判断旧进程是否已结束。Windows 会复用进程号；复用者若属于受保护进程，查询会被拒绝访问（EPERM），原逻辑将其视为仍在运行，导致终止永远卡住。现将 Windows 上的 EPERM 视为原进程已结束（Agent 进程与服务端同一用户，不会拒绝访问）。
+
+新任务只派给 Claude，各层须自行创建下级任务；不能由操作者代造子任务作为验证。组织联调已于 2026-10-12 通过，测试任务和产物随后清空。
 
 排障先看实例 logs。开发模式的服务日志也在终端；后台启动脚本的标准输出在 `.paperclip/windows-logs`，Agent run log 可直接从后台任务和 Runs 页面查看。
 

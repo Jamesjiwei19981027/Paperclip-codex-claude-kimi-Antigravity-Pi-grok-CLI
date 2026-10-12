@@ -1,4 +1,4 @@
-$companyId = '5c3b23be-b2a6-47ca-9e71-d0de8e52105e'
+$companyId = 'f278e2ee-4723-484c-84a7-4e8db38415bf'
 $baseUrl = 'http://127.0.0.1:3100/api'
 $name = 'Pi 交叉验证执行者'
 

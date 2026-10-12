@@ -44,6 +44,10 @@ import {
 } from "./probe-diagnostics.js";
 import { buildLocalAdapterTestProbeEnv } from "./probe-env.js";
 
+// Explicit wording: a user CLAUDE.md that mandates another reply language
+// otherwise turns a bare "Respond with hello." into a translated greeting.
+const HELLO_PROBE_PROMPT = "Automated connectivity check: reply with only the English word hello.";
+
 function summarizeStatus(checks: AdapterEnvironmentCheck[]): AdapterEnvironmentTestResult["status"] {
   if (checks.some((check) => check.level === "error")) return "fail";
   if (checks.some((check) => check.level === "warn")) return "warn";
@@ -393,7 +397,7 @@ export async function testEnvironment(
           env: probeEnv,
           timeoutSec: helloProbeTimeoutSec,
           graceSec: 5,
-          stdin: "Respond with hello.",
+          stdin: HELLO_PROBE_PROMPT,
           onLog: async () => {},
         },
       );
@@ -411,7 +415,7 @@ export async function testEnvironment(
           code: "claude_hello_probe_timed_out",
           level: "warn",
           message: "Claude hello probe timed out.",
-          hint: "Retry the probe. If this persists, verify Claude can run `Respond with hello` from this directory manually.",
+          hint: `Retry the probe. If this persists, verify Claude can answer "${HELLO_PROBE_PROMPT}" from this directory manually.`,
         });
       } else if (loginMeta.requiresLogin) {
         // The raw probe output is untrusted. Log only the fixed context and the
@@ -459,7 +463,7 @@ export async function testEnvironment(
           ...(hasHello
             ? {}
             : {
-                hint: "Try the probe manually (`claude --print - --output-format stream-json --verbose`) and prompt `Respond with hello`.",
+                hint: `Try the probe manually (\`claude --print - --output-format stream-json --verbose\`) and prompt "${HELLO_PROBE_PROMPT}".`,
               }),
         });
       } else {
@@ -502,7 +506,7 @@ export async function testEnvironment(
                   code: "claude_hello_probe_failed",
                   level: "error",
                   message: "Claude hello probe failed.",
-                  hint: `Exit code ${probe.exitCode ?? "unknown"}. Run \`claude --print - --output-format stream-json --verbose\` manually in this directory and prompt \`Respond with hello\` to debug.`,
+                  hint: `Exit code ${probe.exitCode ?? "unknown"}. Run \`claude --print - --output-format stream-json --verbose\` manually in this directory and prompt "${HELLO_PROBE_PROMPT}" to debug.`,
                 },
         );
       }

@@ -6,6 +6,24 @@ import { hasNativeLocalProcessStop } from "./native-local-process-stop.js";
 import { hasRemoteTerminationReceipt } from "./remote-execution-termination.js";
 import { isCancelledNativeStartup } from "./cancelled-native-startup.js";
 
+/**
+ * Whether a recorded PID no longer names the process we started. On Windows,
+ * EPERM means the PID now belongs to another security context (a protected
+ * or other-user process): agent processes run as the server's own user, so a
+ * reused PID would otherwise keep pause/terminate pending forever.
+ */
+export function recordedProcessAbsent(
+  pid: number,
+  platform: NodeJS.Platform = process.platform,
+  kill: (pid: number, signal: 0) => unknown = (target, signal) => process.kill(target, signal),
+) {
+  try { kill(pid, 0); return false; }
+  catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    return code === "ESRCH" || (platform === "win32" && code === "EPERM");
+  }
+}
+
 /** Cancellation changes admission. Process and lease evidence controls cleanup. */
 export async function agentExecutionsHaveStopped(db: Db, agentIds: string[]) {
   if (!agentIds.length) return true;
@@ -22,10 +40,7 @@ export async function agentExecutionsHaveStopped(db: Db, agentIds: string[]) {
   const abandoned = coordinators.filter(row => row.leaseOwner);
   if (abandoned.some(row => !row.leaseExpiresAt || row.leaseExpiresAt > now || row.resultId ||
       runs.find(run => run.id === row.runId)?.status !== "cancelled")) return false;
-  const absent = (pid: number) => {
-    try { process.kill(pid, 0); return false; }
-    catch (error) { return (error as NodeJS.ErrnoException).code === "ESRCH"; }
-  };
+  const absent = (pid: number) => recordedProcessAbsent(pid);
   for (const coordinator of abandoned) {
     if (!coordinator.controllerPid || absent(coordinator.controllerPid)) continue;
     const observed = await readProcessStartedAt(coordinator.controllerPid).catch(() => null);

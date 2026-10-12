@@ -3,18 +3,29 @@ import { redactRegisteredSecretValues } from "./run-secret-redaction.js";
 
 /** Keep private material in memory only; do not copy it into run snapshots. */
 export function createAgentIdentityRedactor(privateKeyPem?: string) {
-  const values = privateKeyPem ? [...new Set([
-    privateKeyPem,
-    privateKeyPem.trim(),
-    JSON.stringify(privateKeyPem).slice(1, -1),
-    ...privateKeyPem.split(/\r?\n/).filter(line => line && !line.startsWith("-----")),
-  ])].sort((a, b) => b.length - a.length) : [];
+  const values: string[] = [];
+  const register = (...secrets: Array<string | null | undefined>) => {
+    const next = new Set(values);
+    for (const secret of secrets) {
+      if (!secret) continue;
+      next.add(secret);
+      if (secret.trim()) next.add(secret.trim());
+      next.add(JSON.stringify(secret).slice(1, -1));
+      for (const line of secret.split(/\r?\n/)) {
+        if (line && !line.startsWith("-----")) next.add(line);
+      }
+    }
+    values.splice(0, values.length, ...[...next].filter(Boolean).sort((a, b) => b.length - a.length));
+  };
+  register(privateKeyPem);
   const pending = new Map<string, string>();
   const deltaStreams = new Map<string, {
     scope: string; itemId?: string; payload: Record<string, unknown>; paths: string[];
   }>();
   const redactor = {
     values,
+    /** Register run-scoped credentials before the provider can emit output. */
+    register,
     redact<T>(value: T): T { return redactRegisteredSecretValues(value, values); },
     // Hold only a suffix that could begin a secret. Separate buffers prevent
     // interleaved stdout/stderr from defeating matching across output chunks.

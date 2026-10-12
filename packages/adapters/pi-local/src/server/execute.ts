@@ -58,6 +58,7 @@ import { shellQuote } from "@paperclipai/adapter-utils/ssh";
 import { isPiUnknownSessionError, parsePiJsonl, createPiJsonlParser } from "./parse.js";
 import { ensurePiModelConfiguredAndAvailable } from "./models.js";
 import { preparePiRuntimeConfig } from "./runtime-config.js";
+import { preparePiPromptFiles } from "./prompt-files.js";
 import { SANDBOX_INSTALL_COMMAND } from "../index.js";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
@@ -636,7 +637,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       return notes;
     })();
 
-    const buildArgs = (sessionFile: string, userPrompt: string): string[] => {
+    const buildArgs = (sessionFile: string, userPrompt: string, systemPrompt: string): string[] => {
       const args: string[] = [];
 
       // Use JSON mode for structured output with print mode (non-interactive)
@@ -644,7 +645,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       args.push("-p"); // Non-interactive mode: process prompt and exit
 
       // Use --append-system-prompt to extend Pi's default system prompt
-      args.push("--append-system-prompt", renderedSystemPromptExtension);
+      args.push("--append-system-prompt", systemPrompt);
 
       if (provider) args.push("--provider", provider);
       if (modelId) args.push("--model", modelId);
@@ -699,79 +700,87 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
         sessionHandoffChars: sessionHandoffNote.length,
         heartbeatPromptChars: attemptRenderedHeartbeatPrompt.length,
       };
-      const args = buildArgs(sessionFile, userPrompt);
-      if (onMeta) {
-        await onMeta({
-          adapterType: "pi_local",
-          command: resolvedCommand,
-          cwd: effectiveExecutionCwd,
-          commandNotes,
-          commandArgs: args,
-          env: loggedEnv,
-          prompt: userPrompt,
-          promptMetrics: { ...promptMetrics, promptChars: userPrompt.length },
-          context,
-        });
-      }
-
-      // Buffer stdout by lines to handle partial JSON chunks
-      let stdoutBuffer = "";
-      const bufferedOnLog = async (stream: "stdout" | "stderr", chunk: string) => {
-        if (stream === "stderr") {
-          // Pass stderr through immediately (not JSONL)
-          await onLog(stream, chunk);
-          return;
+      const promptFiles = process.platform === "win32" && !executionTargetIsRemote
+        ? await preparePiPromptFiles(os.tmpdir(), renderedSystemPromptExtension, userPrompt)
+        : null;
+      try {
+        const args = buildArgs(sessionFile, promptFiles?.userArg ?? userPrompt,
+          promptFiles?.systemArg ?? renderedSystemPromptExtension);
+        if (onMeta) {
+          await onMeta({
+            adapterType: "pi_local",
+            command: resolvedCommand,
+            cwd: effectiveExecutionCwd,
+            commandNotes,
+            commandArgs: args,
+            env: loggedEnv,
+            prompt: userPrompt,
+            promptMetrics: { ...promptMetrics, promptChars: userPrompt.length },
+            context,
+          });
         }
 
-        // Buffer stdout and emit only complete lines
-        stdoutBuffer += chunk;
-        const lines = stdoutBuffer.split("\n");
-        // Keep the last (potentially incomplete) line in the buffer
-        stdoutBuffer = lines.pop() || "";
-
-        // Emit complete lines
-        for (const line of lines) {
-          if (line) {
-            await onLog(stream, line + "\n");
+        // Buffer stdout by lines to handle partial JSON chunks
+        let stdoutBuffer = "";
+        const bufferedOnLog = async (stream: "stdout" | "stderr", chunk: string) => {
+          if (stream === "stderr") {
+            // Pass stderr through immediately (not JSONL)
+            await onLog(stream, chunk);
+            return;
           }
+
+          // Buffer stdout and emit only complete lines
+          stdoutBuffer += chunk;
+          const lines = stdoutBuffer.split("\n");
+          // Keep the last (potentially incomplete) line in the buffer
+          stdoutBuffer = lines.pop() || "";
+
+          // Emit complete lines
+          for (const line of lines) {
+            if (line) {
+              await onLog(stream, line + "\n");
+            }
+          }
+        };
+
+        const consumeAccounting = createPiJsonlParser();
+        let hasAccounting = false;
+        const accountingLog = createUsageCheckpointLog(bufferedOnLog, ctx.onUsage ?? (async () => {}), stdout => {
+          hasAccounting = true;
+          const parsed = consumeAccounting(stdout);
+          return { usage: parsed.usage, costUsd: parsed.usage.costUsd, usageBasis: "per_run", provider, biller: resolvePiBiller(runtimeEnv, provider), billingType: "unknown", model, complete: parsed.sawAgentEnd };
+        });
+        const proc = await runAdapterExecutionTargetProcess(runId, runtimeExecutionTarget, command, args, {
+          onProcessStopped: providerStop.beginInvocation(),
+          cwd,
+          env: executionTargetIsRemote ? env : runtimeEnv,
+          timeoutSec,
+          graceSec,
+          onSpawn,
+          onRuntimeProgress: ctx.onRuntimeProgress,
+          onLog: accountingLog,
+          runLogTail: paperclipBridge?.runLogTail,
+          settleRunDisposition: paperclipBridge?.settleRunDisposition,
+        });
+        await accountingLog.flush();
+
+        // Flush any remaining buffer content
+        if (stdoutBuffer) {
+          await onLog("stdout", stdoutBuffer);
         }
-      };
 
-      const consumeAccounting = createPiJsonlParser();
-      let hasAccounting = false;
-      const accountingLog = createUsageCheckpointLog(bufferedOnLog, ctx.onUsage ?? (async () => {}), stdout => {
-        hasAccounting = true;
-        const parsed = consumeAccounting(stdout);
-        return { usage: parsed.usage, costUsd: parsed.usage.costUsd, usageBasis: "per_run", provider, biller: resolvePiBiller(runtimeEnv, provider), billingType: "unknown", model, complete: parsed.sawAgentEnd };
-      });
-      const proc = await runAdapterExecutionTargetProcess(runId, runtimeExecutionTarget, command, args, {
-        onProcessStopped: providerStop.beginInvocation(),
-        cwd,
-        env: executionTargetIsRemote ? env : runtimeEnv,
-        timeoutSec,
-        graceSec,
-        onSpawn,
-        onRuntimeProgress: ctx.onRuntimeProgress,
-        onLog: accountingLog,
-        runLogTail: paperclipBridge?.runLogTail,
-        settleRunDisposition: paperclipBridge?.settleRunDisposition,
-      });
-      await accountingLog.flush();
-
-      // Flush any remaining buffer content
-      if (stdoutBuffer) {
-        await onLog("stdout", stdoutBuffer);
+        // Display output is capped by the process transport. Keep accounting
+        // from the full stream, including when no checkpoint callback is installed.
+        const parsed = parsePiJsonl(proc.stdout);
+        if (hasAccounting) {
+          const retained = consumeAccounting("");
+          parsed.usage = retained.usage;
+          parsed.sawAgentEnd = retained.sawAgentEnd;
+        }
+        return { proc, rawStderr: proc.stderr, parsed };
+      } finally {
+        await promptFiles?.cleanup();
       }
-
-      // Display output is capped by the process transport. Keep accounting
-      // from the full stream, including when no checkpoint callback is installed.
-      const parsed = parsePiJsonl(proc.stdout);
-      if (hasAccounting) {
-        const retained = consumeAccounting("");
-        parsed.usage = retained.usage;
-        parsed.sawAgentEnd = retained.sawAgentEnd;
-      }
-      return { proc, rawStderr: proc.stderr, parsed };
     };
 
     const toResult = (

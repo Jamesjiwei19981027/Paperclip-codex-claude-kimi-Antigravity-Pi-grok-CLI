@@ -125,6 +125,24 @@ export function signalRunningProcess(
   running: Pick<RunningProcess, "child" | "processGroupId">,
   signal: NodeJS.Signals,
 ) {
+  if (process.platform === "win32" && running.child.pid &&
+      running.child.exitCode === null && running.child.signalCode === null) {
+    // npm .cmd launchers own a process tree. Killing only cmd.exe leaves the
+    // CLI and its inherited output pipes alive, so runChildProcess never closes.
+    const killer = spawn(
+      path.join(process.env.SystemRoot || "C:\\Windows", "System32", "taskkill.exe"),
+      ["/pid", String(running.child.pid), "/T", "/F"],
+      { windowsHide: true, stdio: "ignore", shell: false },
+    );
+    const fallback = () => {
+      if (running.child.exitCode === null && running.child.signalCode === null) {
+        running.child.kill(signal);
+      }
+    };
+    killer.once("error", fallback);
+    killer.once("exit", (code) => { if (code !== 0) fallback(); });
+    return;
+  }
   if (
     process.platform !== "win32" &&
     running.processGroupId &&
@@ -3615,6 +3633,51 @@ export function sanitizeSshRemoteEnv(
   return sanitizeRemoteExecutionEnv(env, inheritedEnv);
 }
 
+const NPM_CMD_SHIM_MAX_BYTES = 16 * 1024;
+const NPM_CMD_SHIM_NODE_LINE = /^.*"%_prog%"\s+"%dp0%\\([^"%]+)"\s+%\*\s*$/m;
+const NPM_CMD_SHIM_EXE_LINE = /^\s*"%dp0%\\([^"%]+\.exe)"\s+%\*\s*$/im;
+
+/**
+ * cmd.exe cuts a command line at the first newline, so multiline prompts
+ * cannot pass through an npm .cmd launcher. Recognize the two standard
+ * cmd-shim layouts and return the program they launch, so the CLI is spawned
+ * directly with its argv intact. Any other wrapper returns null and keeps the
+ * cmd.exe path.
+ */
+export async function resolveNpmCmdShimTarget(
+  shimPath: string,
+  cwd: string,
+  env: NodeJS.ProcessEnv,
+): Promise<{ command: string; args: string[] } | null> {
+  let source: string;
+  try {
+    const stats = await fs.stat(shimPath);
+    if (!stats.isFile() || stats.size > NPM_CMD_SHIM_MAX_BYTES) return null;
+    source = await fs.readFile(shimPath, "utf8");
+  } catch {
+    return null;
+  }
+  if (!/^\s*CALL :find_dp0\s*$/im.test(source)) return null;
+  const shimDir = path.dirname(shimPath);
+
+  const exeMatch = NPM_CMD_SHIM_EXE_LINE.exec(source);
+  if (exeMatch) {
+    const target = path.join(shimDir, exeMatch[1]);
+    return (await pathExists(target)) ? { command: target, args: [] } : null;
+  }
+
+  const nodeMatch = NPM_CMD_SHIM_NODE_LINE.exec(source);
+  if (!nodeMatch) return null;
+  const script = path.join(shimDir, nodeMatch[1]);
+  if (!(await pathExists(script))) return null;
+  // Same lookup order as the shim: a node.exe beside it, otherwise PATH.
+  const bundledNode = path.join(shimDir, "node.exe");
+  const node = (await pathExists(bundledNode))
+    ? bundledNode
+    : await resolveCommandPath("node.exe", cwd, env);
+  return node ? { command: node, args: [script] } : null;
+}
+
 function resolveWindowsCmdShell(env: NodeJS.ProcessEnv): string {
   const fallbackRoot =
     env.SystemRoot || process.env.SystemRoot || "C:\\Windows";
@@ -3689,6 +3752,10 @@ async function resolveSpawnTarget(
   }
 
   if (/\.(cmd|bat)$/i.test(executable)) {
+    const shimTarget = await resolveNpmCmdShimTarget(executable, cwd, env);
+    if (shimTarget) {
+      return { command: shimTarget.command, args: [...shimTarget.args, ...args] };
+    }
     // Always use cmd.exe for .cmd/.bat wrappers. Some environments override
     // ComSpec to PowerShell, which breaks cmd-specific flags like /d /s /c.
     const shell = resolveWindowsCmdShell(env);

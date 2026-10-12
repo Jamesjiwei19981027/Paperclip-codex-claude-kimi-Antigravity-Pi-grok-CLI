@@ -28,6 +28,7 @@ function readSessionId(event: Record<string, unknown>): string | null {
     asString(event.session_id, "").trim() ||
     asString(event.sessionId, "").trim() ||
     asString(event.sessionID, "").trim() ||
+    asString(event.conversation_id, "").trim() ||
     asString(event.checkpoint_id, "").trim() ||
     asString(event.thread_id, "").trim() ||
     null
@@ -61,7 +62,8 @@ function accumulateUsage(
   // Gemini CLI's input_tokens is the full prompt; input is uncached input.
   // https://github.com/google-gemini/gemini-cli/blob/main/packages/core/src/output/stream-json-formatter.ts
   const cached = asNumber(source.cached_input_tokens,
-    asNumber(source.cachedInputTokens, asNumber(source.cachedContentTokenCount, asNumber(source.cached, 0))));
+    asNumber(source.cachedInputTokens, asNumber(source.cachedContentTokenCount,
+      asNumber(source.cache_read_tokens, asNumber(source.cached, 0)))));
   const prompt = asNumber(source.input_tokens, asNumber(source.inputTokens, asNumber(source.promptTokenCount, 0)));
   const toolInput = asNumber(source.toolUsePromptTokenCount, 0);
   target.inputTokens += Math.max(0, asNumber(source.input, prompt - cached)) + toolInput;
@@ -84,6 +86,8 @@ export function createGeminiJsonlParser() {
   let errorMessage: string | null = null;
   let costUsd: number | null = null;
   let resultEvent: Record<string, unknown> | null = null;
+  let antigravityStreamText = "";
+  let antigravityFinalText = "";
   let question: { prompt: string; choices: Array<{ key: string; label: string; description?: string }> } | null = null;
   const usage = {
     inputTokens: 0,
@@ -113,6 +117,40 @@ export function createGeminiJsonlParser() {
 
       const foundSessionId = readSessionId(event);
       if (foundSessionId) sessionId = foundSessionId;
+
+      const antigravityEvent = asString(event.event, "").trim().toLowerCase();
+      if (antigravityEvent) {
+        const payload = parseObject(event[antigravityEvent]);
+        const payloadSessionId = readSessionId(payload);
+        if (payloadSessionId) sessionId = payloadSessionId;
+
+        if (antigravityEvent === "step_update") {
+          if (asString(payload.step_type, "").trim() === "agent_response") {
+            antigravityStreamText += asString(payload.text_delta, "");
+          }
+          continue;
+        }
+
+        if (antigravityEvent === "result") {
+          resultEvent = payload;
+          recordAccounting(payload, payload.usage);
+          antigravityFinalText = asString(payload.response, "").trim();
+          const status = asString(payload.status, "").toLowerCase();
+          if (status === "error" || status === "failed" || status === "failure") {
+            const text = asErrorText(payload.error ?? payload.message ?? payload.response).trim();
+            if (text) errorMessage = text;
+          }
+          continue;
+        }
+
+        if (antigravityEvent === "error") {
+          const text = asErrorText(payload.error ?? payload.message ?? payload.detail).trim();
+          if (text) errorMessage = text;
+          continue;
+        }
+
+        if (antigravityEvent === "init") continue;
+      }
 
       const type = asString(event.type, "").trim();
 
@@ -204,7 +242,7 @@ export function createGeminiJsonlParser() {
 
     return {
       sessionId,
-      summary: messages.join("\n\n").trim(),
+      summary: messages.join("\n\n").trim() || antigravityFinalText || antigravityStreamText.trim(),
       usage: { ...usage },
       costUsd,
       errorMessage,

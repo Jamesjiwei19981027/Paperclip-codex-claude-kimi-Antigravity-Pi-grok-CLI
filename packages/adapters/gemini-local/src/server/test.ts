@@ -27,6 +27,7 @@ import {
   resolveGeminiExecutionEngineForRun,
   testGeminiAcpEnvironment,
 } from "./acp.js";
+import { buildGeminiCliArgs, resolveGeminiCliFlavor } from "./cli-args.js";
 
 function summarizeStatus(checks: AdapterEnvironmentCheck[]): AdapterEnvironmentTestResult["status"] {
   if (checks.some((check) => check.level === "error")) return "fail";
@@ -76,7 +77,8 @@ export async function testEnvironment(
 
   const checks: AdapterEnvironmentCheck[] = [];
   const config = parseObject(ctx.config);
-  const command = asString(config.command, "gemini");
+  const cliFlavor = resolveGeminiCliFlavor(config.cliFlavor);
+  const command = asString(config.command, cliFlavor === "antigravity" ? "agy" : "gemini");
   const target = ctx.executionTarget ?? null;
   const targetIsRemote = target?.kind === "remote";
   const cwd = resolveAdapterExecutionTargetCwd(target, asString(config.cwd, ""), process.cwd());
@@ -182,17 +184,17 @@ export async function testEnvironment(
   const canRunProbe =
     checks.every((check) => check.code !== "gemini_cwd_invalid" && check.code !== "gemini_command_unresolvable");
   if (canRunProbe) {
-    if (!commandLooksLike(command, "gemini")) {
+    const expectedCommand = cliFlavor === "antigravity" ? "agy" : "gemini";
+    if (!commandLooksLike(command, expectedCommand)) {
       checks.push({
         code: "gemini_hello_probe_skipped_custom_command",
         level: "info",
-        message: "Skipped hello probe because command is not `gemini`.",
+        message: `Skipped hello probe because command is not \`${expectedCommand}\`.`,
         detail: command,
-        hint: "Use the `gemini` CLI command to run the automatic installation and auth probe.",
+        hint: `Use the \`${expectedCommand}\` CLI command to run the automatic installation and auth probe.`,
       });
     } else {
       const model = asString(config.model, DEFAULT_GEMINI_LOCAL_MODEL).trim();
-      const approvalMode = asString(config.approvalMode, asBoolean(config.yolo, true) ? "yolo" : "default");
       const sandbox = asBoolean(config.sandbox, false);
       const helloProbeTimeoutSec = Math.max(1, asNumber(config.helloProbeTimeoutSec, 60));
       const extraArgs = (() => {
@@ -201,15 +203,15 @@ export async function testEnvironment(
         return asStringArray(config.args);
       })();
 
-      const args = ["--output-format", "stream-json", "--prompt", "Respond with hello."];
-      if (model && model !== DEFAULT_GEMINI_LOCAL_MODEL) args.push("--model", model);
-      if (approvalMode !== "default") args.push("--approval-mode", approvalMode);
-      if (sandbox) {
-        args.push("--sandbox");
-      } else {
-        args.push("--sandbox=none");
-      }
-      if (extraArgs.length > 0) args.push(...extraArgs);
+      const args = buildGeminiCliArgs({
+        flavor: cliFlavor,
+        model,
+        sandbox,
+        extraArgs,
+        resumeSessionId: null,
+        prompt: "Respond with hello.",
+        cwd,
+      });
 
       const probe = await runAdapterExecutionTargetProcess(
         runId,

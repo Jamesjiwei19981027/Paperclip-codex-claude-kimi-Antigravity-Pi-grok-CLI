@@ -30,6 +30,7 @@ import {
   selectInitialCommunicationGuidance,
   hydrateFreshSessionHandoff,
   runningProcesses,
+  resolveNpmCmdShimTarget,
   runChildProcess,
   sanitizeSshRemoteEnv,
   sanitizeInheritedPaperclipEnv,
@@ -588,7 +589,135 @@ describe("adapter skill snapshots", () => {
   });
 });
 
+const NPM_CMD_SHIM_HEAD = ["@ECHO off", "GOTO start", ":find_dp0", "SET dp0=%~dp0", "EXIT /b", ":start", "SETLOCAL", "CALL :find_dp0"];
+const NPM_NODE_SHIM = [
+  ...NPM_CMD_SHIM_HEAD,
+  "",
+  'IF EXIST "%dp0%\\node.exe" (',
+  '  SET "_prog=%dp0%\\node.exe"',
+  ") ELSE (",
+  '  SET "_prog=node"',
+  "  SET PATHEXT=%PATHEXT:;.JS;=;%",
+  ")",
+  "",
+  'endLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%_prog%"  "%dp0%\\node_modules\\fake-cli\\cli.js" %*',
+  "",
+].join("\r\n");
+
+describe.skipIf(process.platform !== "win32")("npm cmd shim launch on Windows", () => {
+  async function withShimDir(run: (dir: string) => Promise<void>) {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-npm-shim-"));
+    try {
+      await run(dir);
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  it("passes a multiline argument through a node-script shim intact", async () => {
+    await withShimDir(async (dir) => {
+      await fs.mkdir(path.join(dir, "node_modules", "fake-cli"), { recursive: true });
+      await fs.writeFile(
+        path.join(dir, "node_modules", "fake-cli", "cli.js"),
+        "process.stdout.write(JSON.stringify(process.argv.slice(2)));",
+        "utf8",
+      );
+      const shim = path.join(dir, "fake-cli.cmd");
+      await fs.writeFile(shim, NPM_NODE_SHIM, "utf8");
+      const prompt = 'line one\nline two "quoted" %PATH% & | < > ^';
+
+      const result = await runChildProcess(randomUUID(), shim, ["-p", prompt], {
+        cwd: dir,
+        env: {},
+        timeoutSec: 20,
+        graceSec: 1,
+        onLog: async () => {},
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(JSON.parse(result.stdout)).toEqual(["-p", prompt]);
+    });
+  });
+
+  it("resolves an exe shim to the bundled executable", async () => {
+    await withShimDir(async (dir) => {
+      const exe = path.join(dir, "node_modules", "tool", "bin", "tool.exe");
+      await fs.mkdir(path.dirname(exe), { recursive: true });
+      await fs.writeFile(exe, "", "utf8");
+      const shim = path.join(dir, "tool.cmd");
+      await fs.writeFile(
+        shim,
+        [...NPM_CMD_SHIM_HEAD, '"%dp0%\\node_modules\\tool\\bin\\tool.exe"   %*', ""].join("\r\n"),
+        "utf8",
+      );
+
+      expect(await resolveNpmCmdShimTarget(shim, dir, process.env)).toEqual({ command: exe, args: [] });
+    });
+  });
+
+  it("leaves hand-written wrappers on the cmd.exe path", async () => {
+    await withShimDir(async (dir) => {
+      const shim = path.join(dir, "custom.cmd");
+      await fs.writeFile(
+        shim,
+        ["@echo off", 'if "%~1"=="--version" (', "  echo 1.0", ")", '"%~dp0tool.exe" %*', ""].join("\r\n"),
+        "utf8",
+      );
+
+      expect(await resolveNpmCmdShimTarget(shim, dir, process.env)).toBeNull();
+    });
+  });
+});
+
 describe("runChildProcess", () => {
+  it.skipIf(process.platform !== "win32")(
+    "terminates descendants when stopping a Windows cmd wrapper",
+    async () => {
+      const root = await fs.mkdtemp(path.join(os.tmpdir(), "paperclip-win-tree-"));
+      const script = path.join(root, "linger.cmd");
+      await fs.writeFile(
+        script,
+        '@echo off\r\nnode -e "process.stdout.write(String(process.pid)); setInterval(() => {}, 1000)"\r\n',
+        "utf8",
+      );
+      let descendantPid: number | null = null;
+      const child = spawn("cmd.exe", ["/d", "/s", "/c", script], {
+        cwd: process.cwd(),
+        stdio: ["ignore", "pipe", "ignore"],
+      });
+      try {
+        descendantPid = await new Promise<number>((resolvePid, rejectPid) => {
+          child.stdout!.on("data", (data) => {
+            const pid = Number.parseInt(String(data).trim(), 10);
+            if (Number.isInteger(pid) && pid > 0) resolvePid(pid);
+          });
+          child.on("error", rejectPid);
+        });
+
+        signalRunningProcess({ child, processGroupId: null }, "SIGKILL");
+
+        expect(await waitForPidExit(descendantPid, 2_000)).toBe(true);
+      } finally {
+        if (child.exitCode === null && child.signalCode === null) {
+          try {
+            signalRunningProcess({ child, processGroupId: null }, "SIGKILL");
+          } catch {
+            /* already gone */
+          }
+        }
+        if (descendantPid && isPidAlive(descendantPid)) {
+          try {
+            process.kill(descendantPid, "SIGKILL");
+          } catch {
+            /* already gone */
+          }
+          await waitForPidExit(descendantPid, 2_000);
+        }
+        await fs.rm(root, { recursive: true, force: true });
+      }
+    },
+  );
+
   it("does not arm a timeout when timeoutSec is 0", async () => {
     const result = await runChildProcess(
       randomUUID(),

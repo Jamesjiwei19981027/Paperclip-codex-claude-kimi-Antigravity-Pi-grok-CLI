@@ -403,6 +403,36 @@ describe("grok_local execute", () => {
     expect(logs.map((entry) => entry.chunk)).not.toEqual([]);
   });
 
+  it.runIf(process.platform === "win32").each(["Agents.md", "AGENTS.md"])(
+    "preserves an existing Windows workspace %s and passes managed instructions with --rules",
+    async (workspaceInstructionsName) => {
+      const root = await makeTempRoot();
+      const workspaceInstructionsPath = path.join(root, workspaceInstructionsName);
+      const managedInstructionsPath = path.join(root, "managed", "AGENTS.md");
+      const workspaceInstructions = "Keep these workspace rules.\n";
+      const managedInstructions = "Use these managed Paperclip rules.\n";
+      await fs.writeFile(workspaceInstructionsPath, workspaceInstructions, "utf8");
+      await fs.mkdir(path.dirname(managedInstructionsPath), { recursive: true });
+      await fs.writeFile(managedInstructionsPath, managedInstructions, "utf8");
+
+      runProcessMock.mockImplementation(async (_runId, _target, _command, args) => {
+        const rulesIndex = args.indexOf("--rules");
+        expect(rulesIndex).toBeGreaterThan(-1);
+        expect(args[rulesIndex + 1]).toBe(`@${managedInstructionsPath}`);
+        expect(await fs.readFile(workspaceInstructionsPath, "utf8")).toBe(workspaceInstructions);
+        return makeSuccessfulRunResult();
+      });
+
+      const ctx = await makeCtx(`run-existing-${workspaceInstructionsName}`, root);
+      ctx.config.instructionsFilePath = managedInstructionsPath;
+
+      await execute(ctx);
+
+      expect(await fs.readFile(workspaceInstructionsPath, "utf8")).toBe(workspaceInstructions);
+      expect(await fs.readFile(managedInstructionsPath, "utf8")).toBe(managedInstructions);
+    },
+  );
+
   it("reports real per-run token usage, marks it as per_run, and only surfaces cost for API billing", async () => {
     runProcessMock.mockImplementation(async () => ({
       exitCode: 0,
@@ -643,6 +673,39 @@ describe("grok_local execute", () => {
     const flagIndex = seenArgs.indexOf("--permission-mode");
     expect(flagIndex).toBeGreaterThan(-1);
     expect(seenArgs[flagIndex + 1]).toBe("bypassPermissions");
+  });
+
+  it.each([
+    ["a comma-separated string", "read_file, write,run_terminal_command"],
+    ["a string array", ["read_file", "write", "run_terminal_command", "read_file"]],
+  ])("passes tools configured as %s through to the CLI", async (_label, tools) => {
+    let seenArgs: string[] = [];
+    runProcessMock.mockImplementation(async (_runId, _target, _command, args) => {
+      seenArgs = args;
+      return makeSuccessfulRunResult();
+    });
+
+    const ctx: AdapterExecutionContext = {
+      runId: "run-tools",
+      agent: {
+        id: "agent-1",
+        companyId: "company-1",
+        name: "Grok Agent",
+        adapterType: "grok_local",
+        adapterConfig: {},
+      },
+      runtime: { sessionId: null, sessionParams: null, sessionDisplayId: null, taskKey: null },
+      config: { cwd: await makeTempRoot(), tools },
+      context: {},
+      authToken: "run-token",
+      onLog: async () => {},
+    };
+
+    await execute(ctx);
+
+    const flagIndex = seenArgs.indexOf("--tools");
+    expect(flagIndex).toBeGreaterThan(-1);
+    expect(seenArgs[flagIndex + 1]).toBe("read_file,write,run_terminal_command");
   });
 
   it("cleans up staged assets when setup fails before the Grok process starts", async () => {
@@ -1077,12 +1140,14 @@ describe("grok_local execute", () => {
       );
     });
 
-    it("delivers the owned assignment and ordered wake comments through --single", async () => {
+    it("delivers the owned assignment and ordered wake comments through the local prompt carrier", async () => {
       const root = await makeTempRoot();
       const fixture = createPromptContextFixture();
       let deliveredPrompt = "";
       runProcessMock.mockImplementation(async (_runId, _target, _command, args) => {
-        deliveredPrompt = String(args.at(-1) ?? "");
+        deliveredPrompt = args.includes("--prompt-file")
+          ? await fs.readFile(args[args.indexOf("--prompt-file") + 1], "utf8")
+          : String(args.at(-1) ?? "");
         return makeSuccessfulRunResult();
       });
 
@@ -1109,7 +1174,9 @@ describe("grok_local execute", () => {
       const fixture = createPromptContextFixture();
       const prompts: string[] = [];
       runProcessMock.mockImplementation(async (_runId, _target, _command, args) => {
-        prompts.push(String(args.at(-1) ?? ""));
+        prompts.push(args.includes("--prompt-file")
+          ? await fs.readFile(args[args.indexOf("--prompt-file") + 1], "utf8")
+          : String(args.at(-1) ?? ""));
         if (prompts.length === 1) {
           return { exitCode: 1, signal: null, timedOut: false, stdout: "", stderr: "unknown session sess-stale" };
         }

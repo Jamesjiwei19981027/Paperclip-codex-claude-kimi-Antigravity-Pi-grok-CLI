@@ -1,8 +1,12 @@
-import { describe, expect, it } from "vitest";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildKimiAcpConfig,
   nodeVersionMeetsKimiAcpMinimum,
   resolveKimiExecutionEngine,
+  testKimiAcpEnvironment,
 } from "./acp.js";
 
 describe("resolveKimiExecutionEngine", () => {
@@ -67,5 +71,45 @@ describe("nodeVersionMeetsKimiAcpMinimum", () => {
   });
   it("rejects Node < 20", () => {
     expect(nodeVersionMeetsKimiAcpMinimum("v18.19.0")).toBe(false);
+  });
+});
+
+describe("testKimiAcpEnvironment credentials", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  async function credentialChecks(kimiCodeHome: string) {
+    vi.stubEnv("KIMI_MODEL_NAME", "");
+    vi.stubEnv("KIMI_MODEL_API_KEY", "");
+    const result = await testKimiAcpEnvironment({
+      companyId: "company-1",
+      adapterType: "kimi_local",
+      config: { engine: "acp", cwd: os.tmpdir(), env: { KIMI_CODE_HOME: kimiCodeHome } },
+    });
+    return result.checks.filter((check) => check.code.startsWith("kimi_acp_credentials"));
+  }
+
+  it("recognizes a local kimi OAuth login", async () => {
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), "kimi-acp-home-"));
+    try {
+      await fs.mkdir(path.join(home, "credentials"));
+      expect(await credentialChecks(home)).toEqual([
+        expect.objectContaining({ code: "kimi_acp_credentials_detected", level: "info" }),
+      ]);
+    } finally {
+      await fs.rm(home, { recursive: true, force: true });
+    }
+  });
+
+  it("warns when no local credentials exist", async () => {
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), "kimi-acp-home-"));
+    try {
+      expect(await credentialChecks(home)).toEqual([
+        expect.objectContaining({ code: "kimi_acp_credentials_not_detected", level: "warn" }),
+      ]);
+    } finally {
+      await fs.rm(home, { recursive: true, force: true });
+    }
   });
 });

@@ -6525,6 +6525,10 @@ export function heartbeatService(
                 localAgentJwtScope,
               )
             : null;
+        // The run JWT is a credential too. Register it before adapter dispatch
+        // so stdout/stderr, structured events, results, and failure reports
+        // cannot persist a provider/tool echo of PAPERCLIP_API_KEY.
+        identityRedactor.register(authToken);
         if (
           nativeRuntimeResolution.kind === "legacy" &&
           adapter.supportsLocalAgentJwt &&

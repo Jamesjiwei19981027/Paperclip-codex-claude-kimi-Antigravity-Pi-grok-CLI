@@ -1,5 +1,3 @@
-import fs from "node:fs/promises";
-import os from "node:os";
 import path from "node:path";
 import type {
   AdapterEnvironmentCheck,
@@ -23,6 +21,7 @@ import {
 } from "@paperclipai/adapter-utils/execution-target";
 import { SANDBOX_INSTALL_COMMAND } from "../index.js";
 import { resolveKimiExecutionEngineForRun, testKimiAcpEnvironment } from "./acp.js";
+import { detectLocalKimiAuth } from "./auth.js";
 import { detectKimiAuthRequired, parseKimiJsonl } from "./parse.js";
 import { firstNonEmptyLine } from "./utils.js";
 
@@ -47,57 +46,6 @@ function summarizeProbeDetail(stdout: string, stderr: string, parsedError: strin
   const clean = raw.replace(/\s+/g, " ").trim();
   const max = 240;
   return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean;
-}
-
-async function pathExists(candidate: string): Promise<boolean> {
-  return fs.access(candidate).then(() => true).catch(() => false);
-}
-
-/**
- * config.toml exists on any configured install and is not by itself proof of
- * auth material. Only treat it as such when a [providers.*] table carries a
- * non-empty api_key (direct API-key auth) — the OAuth dirs are checked
- * separately.
- */
-const PROVIDERS_TABLE_RE = /^\s*\[providers\.[^\]]+\]/m;
-const PROVIDER_API_KEY_RE = /^\s*api_key\s*=\s*"[^"]+"/m;
-
-async function configTomlHasProviderKey(configPath: string): Promise<boolean> {
-  try {
-    const contents = await fs.readFile(configPath, "utf8");
-    return PROVIDERS_TABLE_RE.test(contents) && PROVIDER_API_KEY_RE.test(contents);
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Detect Kimi authentication material on the local host: OAuth credentials
- * under $KIMI_CODE_HOME (default ~/.kimi-code) or a config.toml with a keyed
- * provider, plus the KIMI_MODEL_NAME + KIMI_MODEL_API_KEY env pair (config
- * env or server env).
- */
-async function detectLocalKimiAuth(env: Record<string, string>): Promise<string | null> {
-  if (
-    (isNonEmpty(env.KIMI_MODEL_NAME) || isNonEmpty(process.env.KIMI_MODEL_NAME)) &&
-    (isNonEmpty(env.KIMI_MODEL_API_KEY) || isNonEmpty(process.env.KIMI_MODEL_API_KEY))
-  ) {
-    return "KIMI_MODEL_NAME + KIMI_MODEL_API_KEY environment";
-  }
-  const kimiCodeHome =
-    (isNonEmpty(env.KIMI_CODE_HOME) && env.KIMI_CODE_HOME.trim()) ||
-    (isNonEmpty(process.env.KIMI_CODE_HOME) && process.env.KIMI_CODE_HOME.trim()) ||
-    path.join(os.homedir(), ".kimi-code");
-  for (const candidate of [path.join(kimiCodeHome, "credentials"), path.join(kimiCodeHome, "oauth")]) {
-    if (await pathExists(candidate)) {
-      return `${candidate} (kimi login OAuth)`;
-    }
-  }
-  const configPath = path.join(kimiCodeHome, "config.toml");
-  if (await configTomlHasProviderKey(configPath)) {
-    return `${configPath} ([providers.*] api_key)`;
-  }
-  return null;
 }
 
 export async function testEnvironment(

@@ -134,6 +134,7 @@ describe("agent cryptographic identity", () => {
 
   it("lazily provisions through managed run preparation, exposes only the public API key, and redacts emitted keys", async () => {
     const agent = await oldAgent();
+    vi.stubEnv("PAPERCLIP_AGENT_JWT_SECRET", randomBytes(32).toString("base64url"));
     const app = express();
     app.use(actorMiddleware(db, { deploymentMode: "local_trusted" }));
     app.use("/api", agentRoutes(db));
@@ -144,7 +145,7 @@ describe("agent cryptographic identity", () => {
     const challenge = randomBytes(32).toString("base64");
     await db.update(agents).set({ adapterType: "process", adapterConfig: {
       command: process.execPath, cwd: directory,
-      args: ["-e", `const {sign}=require('node:crypto'); const k=process.env.PAPERCLIP_AGENT_PRIVATE_KEY; console.log('SIGNATURE:'+sign(null,Buffer.from(process.env.CHALLENGE,'base64'),k).toString('base64')); process.stdout.write(k.slice(0,40)); setTimeout(()=>process.stdout.write(k.slice(40)),30);`],
+      args: ["-e", `const {sign}=require('node:crypto'); const k=process.env.PAPERCLIP_AGENT_PRIVATE_KEY; const jwt=process.env.PAPERCLIP_API_KEY; console.log('SIGNATURE:'+sign(null,Buffer.from(process.env.CHALLENGE,'base64'),k).toString('base64')); process.stdout.write(k.slice(0,40)); setTimeout(()=>{process.stdout.write(k.slice(40)); process.stdout.write(String.fromCharCode(10)+'RUN_TOKEN:'+jwt.slice(0,24)); setTimeout(()=>process.stdout.write(jwt.slice(24)),30);},30);`],
       env: { CHALLENGE: challenge, PAPERCLIP_AGENT_PRIVATE_KEY: "ignored override" },
     } }).where(eq(agents.id, agent.id));
     let previousKeyId = "";
@@ -165,8 +166,11 @@ describe("agent cryptographic identity", () => {
         expect(signature).toBeTruthy();
         expect(verify(null, Buffer.from(challenge, "base64"), publicResponse.body.publicKeyPem, Buffer.from(signature!, "base64"))).toBe(true);
         const privateBody = (await agentIdentityService(db).ensureAgentIdentity(companyId, agent.id)).privateKeyPem.split("\n")[1];
-        expect(JSON.stringify(finished)).not.toContain(privateBody);
-        expect(JSON.stringify(await heartbeat.readLog(run!.id))).not.toContain(privateBody);
+        const persistedOutput = JSON.stringify({ finished, log: await heartbeat.readLog(run!.id) });
+        expect(persistedOutput).not.toContain(privateBody);
+        expect(persistedOutput).not.toMatch(/eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/);
+        expect(persistedOutput).toContain("RUN_TOKEN:");
+        expect(persistedOutput).toContain("***REDACTED***");
       } finally {
         await drainHeartbeatRunsToQuiescence(db, heartbeat);
       }
@@ -228,6 +232,18 @@ describe("identity output redaction", () => {
     const redactor = createAgentIdentityRedactor(pem);
     for (const text of [pem, JSON.stringify(pem), pem.split("\n")[1]]) {
       expect(redactor.redact({ output: text }).output).not.toContain(pem.split("\n")[1]);
+    }
+  });
+  it("redacts a run credential registered after identity provisioning, including split output", () => {
+    const runCredential = "header.payload.signature-run-credential";
+    for (let split = 1; split < runCredential.length; split++) {
+      const redactor = createAgentIdentityRedactor(pem);
+      redactor.register(runCredential);
+      expect(redactor.redact({ output: `PAPERCLIP_API_KEY=${runCredential}` }).output).not.toContain(runCredential);
+      const output = redactor.chunk("stdout", runCredential.slice(0, split))
+        + redactor.chunk("stdout", runCredential.slice(split))
+        + redactor.finish("stdout");
+      expect(output).not.toContain(runCredential);
     }
   });
   it("settles ordinary endings and interrupted keys on item and turn completion", () => {

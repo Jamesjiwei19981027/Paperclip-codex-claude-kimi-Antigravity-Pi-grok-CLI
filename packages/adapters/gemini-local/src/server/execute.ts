@@ -71,6 +71,7 @@ import {
   resolveGeminiExecutionEngineForRun,
 } from "./acp.js";
 import { resolveGeminiSkillsHome } from "./skills.js";
+import { buildGeminiCliArgs, resolveGeminiCliFlavor } from "./cli-args.js";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
 const executeGeminiAcp = createGeminiAcpExecutor();
@@ -239,7 +240,8 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       ? DEFAULT_PAPERCLIP_CONVERSATION_PROMPT_TEMPLATE
       : DEFAULT_PAPERCLIP_AGENT_PROMPT_TEMPLATE,
   );
-  const command = asString(config.command, "gemini");
+  const cliFlavor = resolveGeminiCliFlavor(config.cliFlavor);
+  const command = asString(config.command, cliFlavor === "antigravity" ? "agy" : "gemini");
   const model = asString(config.model, DEFAULT_GEMINI_LOCAL_MODEL).trim();
   const sandbox = asBoolean(config.sandbox, false);
 
@@ -527,7 +529,11 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   }
   const commandNotes = (() => {
     const notes: string[] = ["Prompt is passed to Gemini via --prompt for non-interactive execution."];
-    notes.push("Added --approval-mode yolo for unattended execution.");
+    notes.push(
+      cliFlavor === "antigravity"
+        ? "Using Antigravity headless mode with unattended permissions."
+        : "Added --approval-mode yolo for unattended execution.",
+    );
     notes.push("Set headless terminal/browser env so Gemini fails fast instead of opening interactive auth or color prompts.");
     if (executionTargetIsRemote) {
       notes.push("Set GEMINI_CLI_TRUST_WORKSPACE=true for remote headless execution.");
@@ -597,20 +603,16 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     };
   };
 
-  const buildArgs = (resumeSessionId: string | null, prompt: string) => {
-    const args = ["--output-format", "stream-json"];
-    if (resumeSessionId) args.push("--resume", resumeSessionId);
-    if (model && model !== DEFAULT_GEMINI_LOCAL_MODEL) args.push("--model", model);
-    args.push("--approval-mode", "yolo");
-    if (sandbox) {
-      args.push("--sandbox");
-    } else {
-      args.push("--sandbox=none");
-    }
-    if (extraArgs.length > 0) args.push(...extraArgs);
-    args.push("--prompt", prompt);
-    return args;
-  };
+  const buildArgs = (resumeSessionId: string | null, prompt: string) =>
+    buildGeminiCliArgs({
+      flavor: cliFlavor,
+      model,
+      sandbox,
+      extraArgs,
+      resumeSessionId,
+      prompt,
+      cwd: effectiveExecutionCwd,
+    });
 
   const runAttempt = async (resumeSessionId: string | null) => {
     await hydrateFreshSessionHandoff(ctx, { resumedSession: Boolean(resumeSessionId) });

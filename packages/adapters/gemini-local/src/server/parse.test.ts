@@ -94,6 +94,51 @@ describe("parseGeminiJsonl", () => {
     expect(result.usage.cachedInputTokens).toBe(8132);
   });
 
+  it("parses Antigravity conversation, result text, and usage envelopes", () => {
+    const stdout = [
+      JSON.stringify({
+        event: "init",
+        conversation_id: "conversation-123",
+        init: { model: "gemini-3.8-flash-high", cwd: "D:\\paperclip" },
+      }),
+      JSON.stringify({
+        event: "step_update",
+        step_update: {
+          conversation_id: "conversation-123",
+          step_type: "agent_response",
+          state: "ACTIVE",
+          text_delta: "AGY_OK",
+        },
+      }),
+      JSON.stringify({
+        event: "result",
+        result: {
+          conversation_id: "conversation-123",
+          status: "SUCCESS",
+          response: "AGY_OK\n",
+          usage: {
+            input_tokens: 17855,
+            output_tokens: 158,
+            thinking_tokens: 154,
+            cache_read_tokens: 0,
+            total_tokens: 18013,
+          },
+        },
+      }),
+    ].join("\n");
+
+    const result = parseGeminiJsonl(stdout);
+    expect(result.sessionId).toBe("conversation-123");
+    expect(result.summary).toBe("AGY_OK");
+    expect(result.errorMessage).toBeNull();
+    expect(result.usage).toEqual({
+      inputTokens: 17855,
+      cachedInputTokens: 0,
+      outputTokens: 158,
+    });
+    expect(result.resultEvent).toMatchObject({ status: "SUCCESS" });
+  });
+
   it("ignores user messages and only collects assistant content", () => {
     const stdout = [
       JSON.stringify({ type: "message", role: "user", content: "ignore me" }),

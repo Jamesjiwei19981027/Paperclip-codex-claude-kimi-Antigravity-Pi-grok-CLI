@@ -46,7 +46,8 @@ Core fields:
 - model (string, optional): Gemini model id. Defaults to auto.
 - engine (string, optional): defaults to ACP, including legacy unset/"auto" values. Missing prerequisites and execution failures fail the run without changing engines. Set "cli" to explicitly select the CLI engine.
 - sandbox (boolean, optional): run in sandbox mode (default: false, passes --sandbox=none)
-- command (string, optional): defaults to "gemini"
+- cliFlavor (string, optional): "gemini" (default) or "antigravity" for the newer \`agy\` CLI
+- command (string, optional): defaults to "gemini", or "agy" when cliFlavor="antigravity"
 - extraArgs (string[], optional): additional CLI args
 - env (object, optional): KEY=VALUE environment variables
 - agentCommand (string, optional): ACP server command override used only when engine="acp"; defaults to gemini --acp
@@ -66,6 +67,7 @@ Notes:
 - Gemini shell commands may reject command substitution. Build JSON request bodies in workspace files and pass them with \`curl --data-binary @file\`, or use the selected skill's helpers.
 - Gemini ACP is the preferred auto lane when Node >=24.11.0 and the local Gemini CLI command is available. It runs Gemini CLI's native \`gemini --acp\` server through Paperclip's shared ACP engine, including selected skill links, Paperclip runtime prompt/env guidance, model config, and persistent ACP session state. Missing prerequisites fail both default and explicit ACP runs with an actionable setup error; the adapter never switches engines automatically.
 - Runs use --prompt for non-interactive execution, not stdin.
+- Antigravity runs use \`--conversation\` for resume, \`--dangerously-skip-permissions\`, \`--print-timeout 0\`, and \`--add-dir <cwd>\` instead of legacy Gemini approval/sandbox flags.
 - The adapter sets a headless-safe terminal/browser environment for Gemini CLI child processes so unattended runs do not wait on browser auth or 256-color terminal prompts.
 - Sessions resume with --resume when stored session cwd matches the current cwd.
 - Paperclip auto-injects local skills into \`~/.gemini/skills/\` via symlinks, so the CLI can discover both credentials and skills in their natural location.

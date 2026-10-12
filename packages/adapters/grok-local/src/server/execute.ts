@@ -2,6 +2,7 @@ import { createProviderStoppedBoundary } from "@paperclipai/adapter-utils/provid
 import { withWorkspaceRestore } from "@paperclipai/adapter-utils/workspace-restore-result";
 import { cancellableSandboxStartup } from "@paperclipai/adapter-utils/acpx-engine/startup-cancellation";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AdapterExecutionContext, AdapterExecutionResult } from "@paperclipai/adapter-utils";
@@ -49,6 +50,7 @@ import { DEFAULT_GROK_LOCAL_MODEL } from "../index.js";
 import { copyBackGrokAuth } from "./grok-auth-copyback.js";
 import { grokHomeHasSession, grokHomeHasUsableAuth, resolveManagedGrokHomeDir, stageGrokHomeForSync } from "./grok-home.js";
 import { isGrokUnknownSessionError, parseGrokJsonl } from "./parse.js";
+import { prepareGrokPromptFile } from "./prompt-file.js";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -272,6 +274,12 @@ async function executeTurn(ctx: AdapterExecutionContext): Promise<AdapterExecuti
   const maxTurns = asNumber(config.maxTurns, 0);
   const alwaysApprove = asBoolean(config.alwaysApprove, true);
   const disableWebSearch = asBoolean(config.disableWebSearch, true);
+  const allowedTools = (() => {
+    const values = Array.isArray(config.tools)
+      ? asStringArray(config.tools)
+      : asString(config.tools, "").split(",");
+    return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+  })();
 
   const workspaceContext = parseObject(context.paperclipWorkspace);
   const workspaceCwd = asString(workspaceContext.cwd, "");
@@ -524,7 +532,9 @@ async function executeTurn(ctx: AdapterExecutionContext): Promise<AdapterExecuti
     }
 
     const commandNotes = (() => {
-      const notes: string[] = ["Prompt is passed to Grok via --single in headless mode."];
+      const notes: string[] = [process.platform === "win32" && !executionTargetIsRemote
+        ? "Prompt is passed to Grok via --prompt-file to avoid Windows command-line limits."
+        : "Prompt is passed to Grok via --single in headless mode."];
       if (alwaysApprove) notes.push("Added --always-approve for unattended execution.");
       if (stagedAssets.stagedInstructionsPath) {
         notes.push(`Staged project instructions at ${stagedAssets.stagedInstructionsPath} for native Grok discovery.`);
@@ -551,7 +561,7 @@ async function executeTurn(ctx: AdapterExecutionContext): Promise<AdapterExecuti
     const paperclipEnvNote = renderPaperclipEnvNote(env);
     const apiAccessNote = renderApiAccessNote(env);
 
-    const buildArgs = (resumeSessionId: string | null, prompt: string) => {
+    const buildArgs = (resumeSessionId: string | null, promptArgs: string[]) => {
       const args = ["--cwd", effectiveExecutionCwd, "--output-format", "streaming-json"];
       if (resumeSessionId) args.push("--resume", resumeSessionId);
       if (model && model !== DEFAULT_GROK_LOCAL_MODEL) args.push("--model", model);
@@ -560,6 +570,7 @@ async function executeTurn(ctx: AdapterExecutionContext): Promise<AdapterExecuti
       if (permissionMode) args.push("--permission-mode", permissionMode);
       if (alwaysApprove) args.push("--always-approve");
       if (disableWebSearch) args.push("--disable-web-search");
+      if (allowedTools.length > 0) args.push("--tools", allowedTools.join(","));
       if (stagedAssets.rulesFilePath) args.push("--rules", `@${stagedAssets.rulesFilePath}`);
       const extraArgs = (() => {
         const fromExtraArgs = asStringArray(config.extraArgs);
@@ -567,7 +578,7 @@ async function executeTurn(ctx: AdapterExecutionContext): Promise<AdapterExecuti
         return asStringArray(config.args);
       })();
       if (extraArgs.length > 0) args.push(...extraArgs);
-      args.push("--single", prompt);
+      args.push(...promptArgs);
       return args;
     };
 
@@ -603,37 +614,44 @@ async function executeTurn(ctx: AdapterExecutionContext): Promise<AdapterExecuti
         runtimeNoteChars: paperclipEnvNote.length + apiAccessNote.length,
         heartbeatPromptChars: attemptRenderedPrompt.length,
       };
-      const args = buildArgs(resumeSessionId, prompt);
-      if (onMeta) {
-        await onMeta({
-          adapterType: "grok_local",
-          command: resolvedCommand,
-          cwd: effectiveExecutionCwd,
-          commandNotes,
-          commandArgs: args.map((value, index) => (
-            index === args.length - 1 ? `<prompt ${prompt.length} chars>` : value
-          )),
-          env: loggedEnv,
-          prompt,
-          promptMetrics: { ...promptMetrics, promptChars: prompt.length },
-          context,
-        });
-      }
+      const promptFile = process.platform === "win32" && !executionTargetIsRemote
+        ? await prepareGrokPromptFile(os.tmpdir(), prompt)
+        : null;
+      try {
+        const args = buildArgs(resumeSessionId, promptFile?.args ?? ["--single", prompt]);
+        if (onMeta) {
+          await onMeta({
+            adapterType: "grok_local",
+            command: resolvedCommand,
+            cwd: effectiveExecutionCwd,
+            commandNotes,
+            commandArgs: args.map((value, index) => (
+              index === args.length - 1 ? `<prompt ${prompt.length} chars>` : value
+            )),
+            env: loggedEnv,
+            prompt,
+            promptMetrics: { ...promptMetrics, promptChars: prompt.length },
+            context,
+          });
+        }
 
-      const proc = await runAdapterExecutionTargetProcess(runId, runtimeExecutionTarget, command, args, {
-        onProcessStopped: providerStop.beginInvocation(),
-        cwd,
-        env,
-        timeoutSec,
-        graceSec,
-        onSpawn,
-        onRuntimeProgress: ctx.onRuntimeProgress,
-        onLog,
-      });
-      return {
-        proc,
-        parsed: parseGrokJsonl(proc.stdout),
-      };
+        const proc = await runAdapterExecutionTargetProcess(runId, runtimeExecutionTarget, command, args, {
+          onProcessStopped: providerStop.beginInvocation(),
+          cwd,
+          env,
+          timeoutSec,
+          graceSec,
+          onSpawn,
+          onRuntimeProgress: ctx.onRuntimeProgress,
+          onLog,
+        });
+        return {
+          proc,
+          parsed: parseGrokJsonl(proc.stdout),
+        };
+      } finally {
+        await promptFile?.cleanup();
+      }
     };
 
     const toResult = (

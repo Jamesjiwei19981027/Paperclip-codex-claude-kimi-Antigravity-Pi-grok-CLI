@@ -26,6 +26,7 @@ import {
   parseObject,
 } from "@paperclipai/adapter-utils/server-utils";
 import { DEFAULT_KIMI_LOCAL_MODEL } from "../index.js";
+import { detectLocalKimiAuth } from "./auth.js";
 
 const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 const packageRootDir = path.resolve(moduleDir, "../..");
@@ -363,12 +364,23 @@ export async function testKimiAcpEnvironment(
       detail: `KIMI_MODEL_NAME + KIMI_MODEL_API_KEY detected in ${source}.`,
     });
   } else if (!targetIsRemote) {
-    checks.push({
-      code: "kimi_acp_credentials_not_detected",
-      level: "warn",
-      message: "No Kimi ACP credentials were detected.",
-      hint: "Run `kimi login` (OAuth) or set the KIMI_MODEL_NAME + KIMI_MODEL_API_KEY environment pair before starting a Kimi ACP agent.",
-    });
+    // ACP launches the same kimi binary, so a local OAuth login works here too.
+    const authSource = await detectLocalKimiAuth(envConfig);
+    if (authSource) {
+      checks.push({
+        code: "kimi_acp_credentials_detected",
+        level: "info",
+        message: "Kimi credentials are set for ACP authentication.",
+        detail: `Source: ${authSource}.`,
+      });
+    } else {
+      checks.push({
+        code: "kimi_acp_credentials_not_detected",
+        level: "warn",
+        message: "No Kimi ACP credentials were detected.",
+        hint: "Run `kimi login` (OAuth) or set the KIMI_MODEL_NAME + KIMI_MODEL_API_KEY environment pair before starting a Kimi ACP agent.",
+      });
+    }
   }
 
   const mode = firstNonEmptyString(config.mode, config.acpMode) ?? DEFAULT_ACP_ENGINE_MODE;

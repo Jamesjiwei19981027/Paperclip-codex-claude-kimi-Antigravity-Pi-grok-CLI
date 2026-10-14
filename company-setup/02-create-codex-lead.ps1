@@ -73,7 +73,7 @@ $payload = @{
   adapterConfig = @{
     engine = 'cli'
     command = 'C:\Users\11580\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\bin\codex.exe'
-    model = 'gpt-5.6-sol'
+    model = 'gpt-6.1-sol'
     modelReasoningEffort = 'high'
     extraArgs = @('-c', 'model_catalog_json="C:/Users/11580/.codex/cockpit-model-catalog.json"')
     dangerouslyBypassApprovalsAndSandbox = $true

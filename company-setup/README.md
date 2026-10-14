@@ -20,7 +20,7 @@ cd D:\paperclip
 
 ```text
 Claude 技术总监（claude-opus-5-5，只拆派与方向验收）
-└── Codex 技术负责人（gpt-5.6-sol，方案、派工、评审）
+└── Codex 技术负责人（gpt-6.1-sol，方案、派工、评审）
     ├── Pi 交叉验证执行者（Kimi CLI / kimi-code/k3，高级架构与疑难问题；岗位名沿用 Pi）
     ├── Kimi 主实现工程师（kimi-code/kimi-for-coding，CLI 引擎，主实现）
     ├── Gemini 实现执行者（Agy / gemini-3.8-flash-high，验证与辅助实现）

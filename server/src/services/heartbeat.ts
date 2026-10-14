@@ -379,6 +379,7 @@ import {
   desc,
   eq,
   exists,
+  gt,
   inArray,
   isNull,
   notInArray,
@@ -416,6 +417,10 @@ import {
 import { createHostDuplexObservabilityRecorder } from "./duplex-observability-recorder.js";
 import { incrementToolRuntimeMetricCounter } from "./tool-runtime-metrics.js";
 import { logger } from "../middleware/logger.js";
+import {
+  isProviderQuotaResetWakeCandidate,
+  providerQuotaResetDueAt,
+} from "./heartbeat/provider-quota-reset.js";
 import {
   createGitRemoteAuthProvider,
   resolveManagedGitHubIdentitySelection,
@@ -1998,6 +2003,93 @@ export function heartbeatService(
     return recovery.reconcileStrandedAssignedIssues({
       issueCreatedAtGte: await getWorktreeExecutionCutoff(),
     });
+  }
+
+  // Quota failures this process already swept; a restart re-checks each once.
+  const providerQuotaResetHandledRunIds = new Set<string>();
+
+  /**
+   * Wake an agent once its subscription limit resets. Per-task retries cover
+   * only the task whose run failed, and they are suppressed while that task
+   * waits on dependencies; wakes skipped during the outage are otherwise lost.
+   */
+  async function reconcileProviderQuotaResetWakes(now = new Date()) {
+    const result = { agentsWoken: 0, wakesRequested: 0 };
+    const quotaFailures = await db
+      .select()
+      .from(heartbeatRuns)
+      .where(and(
+        eq(heartbeatRuns.status, "failed"),
+        or(
+          eq(heartbeatRuns.errorCode, "provider_quota"),
+          sql`${heartbeatRuns.resultJson} ->> 'errorFamily' = 'provider_quota'`,
+        ),
+        gt(heartbeatRuns.createdAt, new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)),
+      ))
+      .orderBy(desc(heartbeatRuns.createdAt));
+    const latestByAgent = new Map<string, (typeof quotaFailures)[number]>();
+    for (const run of quotaFailures) {
+      if (!latestByAgent.has(run.agentId)) latestByAgent.set(run.agentId, run);
+    }
+
+    for (const run of latestByAgent.values()) {
+      if (providerQuotaResetHandledRunIds.has(run.id)) continue;
+      const dueAt = providerQuotaResetDueAt(run);
+      if (!dueAt || dueAt.getTime() > now.getTime()) continue;
+      providerQuotaResetHandledRunIds.add(run.id);
+
+      // Any later run means the agent is already working again.
+      const [later] = await db
+        .select({ id: heartbeatRuns.id })
+        .from(heartbeatRuns)
+        .where(and(
+          eq(heartbeatRuns.agentId, run.agentId),
+          gt(heartbeatRuns.createdAt, run.createdAt),
+          sql`${heartbeatRuns.status} <> 'scheduled_retry'`,
+        ))
+        .limit(1);
+      if (later) continue;
+      const agent = await getAgent(run.agentId);
+      if (!agent || ["paused", "terminated", "pending_approval"].includes(agent.status)) continue;
+
+      const openIssues = await db
+        .select()
+        .from(issues)
+        .where(and(
+          eq(issues.companyId, run.companyId),
+          isNull(issues.hiddenAt),
+          isNull(issues.assigneeUserId),
+          inArray(issues.status, ["todo", "in_progress", "in_review"]),
+          or(
+            eq(issues.assigneeAgentId, run.agentId),
+            sql`${issues.executionState} -> 'currentParticipant' ->> 'agentId' = ${run.agentId}`,
+          ),
+        ));
+      const targets = openIssues.filter((issue) => isProviderQuotaResetWakeCandidate(issue, run.agentId));
+      for (const issue of targets) {
+        try {
+          await trackWakeup(run.agentId, {
+            source: "automation",
+            triggerDetail: "system",
+            reason: "provider_quota_reset",
+            payload: { issueId: issue.id, taskId: issue.id },
+            contextSnapshot: {
+              issueId: issue.id,
+              taskId: issue.id,
+              wakeReason: "provider_quota_reset",
+              providerQuotaResetOfRunId: run.id,
+            },
+            requestedByActorType: "system",
+            idempotencyKey: `provider_quota_reset:${run.id}:${issue.id}`,
+          });
+          result.wakesRequested += 1;
+        } catch (err) {
+          logger.warn({ err, runId: run.id, issueId: issue.id }, "provider quota reset wake failed");
+        }
+      }
+      if (targets.length > 0) result.agentsWoken += 1;
+    }
+    return result;
   }
 
   async function sweepStaleIssueLocks() {
@@ -8095,6 +8187,7 @@ export function heartbeatService(
     scheduleBoundedRetry,
 
     reconcileStrandedAssignedIssues,
+    reconcileProviderQuotaResetWakes,
     recoverPendingSessionGoalActions,
     recoverActiveSessionGoals,
 

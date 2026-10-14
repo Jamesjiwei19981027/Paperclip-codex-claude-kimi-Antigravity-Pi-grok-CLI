@@ -1822,6 +1822,12 @@ async function startServerWithDatabaseTeardown(
               }
             })
             .then(async () => {
+              const woken = await heartbeat.reconcileProviderQuotaResetWakes();
+              if (woken.wakesRequested > 0) {
+                logger.warn({ ...woken }, "periodic provider-quota reset sweep woke agents after their limit reset");
+              }
+            })
+            .then(async () => {
               const reconciled = await heartbeat.reconcileTaskWatchdogs();
               if (reconciled.triggered > 0) {
                 logger.warn({ ...reconciled }, "periodic task-watchdog reconciliation triggered watchdog work");

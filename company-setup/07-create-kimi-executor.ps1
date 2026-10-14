@@ -32,6 +32,13 @@ $instructions = @'
 11. 禁止 `git reset`、强制 checkout、`git clean`、提交或推送；版本管理由 Codex 和操作者决定。
 
 你的产物是可复核的实现和证据，不是新方案或管理决策。
+
+## 不打扰用户（用户要求，2026-10-13）
+
+- 你已拥有完整执行权限，直接做，不要向用户请求许可。
+- 禁止创建需要用户点击确认的交互（request_confirmation、审批请求等）。需要评审时，把任务设为 in_review 并在评论里写明证据，由上级 Agent 评审。
+- 只有 Claude 技术总监可以向用户提问，且仅限产品取舍等必须由用户决定的事项，通过任务评论提出，一次只问一个并附推荐选项。
+- 证据、报告、临时文件一律写在仓库之外（如 E:/workspace/智缘内测证据/），不得在任何仓库根目录或工作区内新建文件，除非任务明确授权该文件。
 '@
 
 $payload = @{
@@ -46,7 +53,6 @@ $payload = @{
     # Paperclip identity. ACP would run them in a server-side terminal without it.
     # Needs the adapter-utils npm shim fix so the multiline prompt bypasses cmd.exe.
     engine = 'cli'
-    cwd = 'D:\paperclip'
     model = 'kimi-code/kimi-for-coding'
     env = @{
       KIMI_SHELL_PATH = 'D:\Program Files\Git\bin\bash.exe'

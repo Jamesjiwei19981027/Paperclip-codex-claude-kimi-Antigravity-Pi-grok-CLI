@@ -21,10 +21,10 @@ cd D:\paperclip
 ```text
 Claude 技术总监（claude-opus-5，只拆派与方向验收）
 └── Codex 技术负责人（gpt-5.6-sol，方案、派工、评审）
-    ├── Pi 交叉验证执行者（justdowork/claude-opus-4-8，高级架构与疑难问题）
+    ├── Pi 交叉验证执行者（Kimi CLI / kimi-code/k3，高级架构与疑难问题；岗位名沿用 Pi）
     ├── Kimi 主实现工程师（kimi-code/kimi-for-coding，CLI 引擎，主实现）
     ├── Gemini 实现执行者（Agy / gemini-3.8-flash-high，验证与辅助实现）
-    └── Grok 质量与风险审查（grok-build，低优先级可选第二意见）
+    └── Grok 质量与风险审查（grok-build，2026-10-13 起停用：已暂停，不派工）
 ```
 
 01–05、07 创建脚本首行均为当前 companyId；同名角色存在则返回现有角色，不会重复创建或更新。更改脚本后若要更新已创建角色，需在后台或 API 更新配置。
@@ -37,10 +37,15 @@ Claude 技术总监（claude-opus-5，只拆派与方向验收）
 - Codex 直接调用 npm 包内 codex.exe，避开 Windows .cmd 参数转换；extraArgs 使用绝对 model_catalog_json 路径，避免隔离 HOME 后相对文件丢失。
 - Windows CLI 超时/取消会终止 .cmd 及其后代，相关真实进程树回归测试通过。
 - npm 生成的 .cmd 包装文件不再经过 cmd.exe：adapter-utils 识别标准包装模板，直接启动背后的 node 脚本或 exe，多行提示词不会被 cmd 截断；认不出的手写包装（如 agy 目录的 gemini.cmd）仍走 cmd.exe。命令行总长仍受 Windows 约 32K 字符上限约束，Pi、Grok 的提示词文件方案保留。
+- Pi 岗位 2026-10-13 起改用 Kimi CLI（kimi_local，模型 kimi-code/k3）：先后用过的 justdowork/claude-opus-4-8（503 节点耗尽）和 happycoding/glm-5.3-flash（长任务 524 超时、流中断）都不稳定。岗位名、职责和守则不变，守则追加了 Kimi 运行环境要点；与 Kimi 主实现分属两个 Agent，保证实现与复核独立。
 - Kimi 使用 CLI 引擎，需 `KIMI_SHELL_PATH` 指向 Git Bash（本机 `D:\Program Files\Git\bin\bash.exe`，PATH 中的 bash 是 WSL）。不要改用 ACP 引擎：ACP 模式下命令在服务端代开的终端里执行，拿不到本次运行的 Agent 身份。Kimi 登录在 `kimi` 交互界面里输入 `/login`。
 - Agent 运行身份 JWT 与动作签名密钥由源码 CLI 初始化，保存于实例 .env。不要将密钥写入公司说明或日志。
 
+- 额度重置自动叫醒：Agent 的最近一次运行因订阅额度用完失败（provider_quota）后，服务端每 30 秒检查一次；到了报错里的重置时间（没写时间则按失败后 1 小时），且该 Agent 之后没再运行过，就为它名下待办/进行中的任务、以及等它评审的任务各发一次唤醒（每次失败只处理一次）。原有的按任务重试会在任务等待依赖时被跳过，额度期间被跳过的唤醒也不会补发，这里兜底。代码在 server/src/services/heartbeat.ts 的 reconcileProviderQuotaResetWakes。
+
 - 暂停/终止 Agent 时，服务端用记录的进程号判断旧进程是否已结束。Windows 会复用进程号；复用者若属于受保护进程，查询会被拒绝访问（EPERM），原逻辑将其视为仍在运行，导致终止永远卡住。现将 Windows 上的 EPERM 视为原进程已结束（Agent 进程与服务端同一用户，不会拒绝访问）。
+
+Agent 不设默认工作目录（cwd 为空）：任务选了项目就在项目文件夹工作，没选项目则落在实例下各 Agent 自己的空目录 `workspaces\<agentId>`，不会误改本仓库。多仓库项目（如 zhiyuan 前后端）在项目说明里列出各仓库路径；Claude、Codex 的指令含“多仓库项目”一节，要求子任务写明仓库路径、前后端改动以真实联调验收。
 
 新任务只派给 Claude，各层须自行创建下级任务；不能由操作者代造子任务作为验证。组织联调已于 2026-10-12 通过，测试任务和产物随后清空。
 

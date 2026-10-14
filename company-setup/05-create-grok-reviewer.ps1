@@ -69,7 +69,6 @@ $payload = @{
   capabilities = '质量验收、风险分级、安全与回归审查；禁止直接修改实现。'
   adapterType = 'grok_local'
   adapterConfig = @{
-    cwd = 'D:\paperclip'
     model = 'grok-build'
     tools = @('run_terminal_command')
     extraArgs = @(

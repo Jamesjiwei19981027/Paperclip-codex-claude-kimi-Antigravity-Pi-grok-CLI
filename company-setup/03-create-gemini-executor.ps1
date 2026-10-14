@@ -40,6 +40,13 @@ $instructions = @'
 11. 不得打印、探测或把 `$env:PAPERCLIP_API_KEY` 插入可见命令文本；只在请求头表达式中使用它。所有 issue/document 写入必须带 `X-Paperclip-Run-Id`。
 
 你的产物是可复核的实现和验证证据，不是新方案或管理决策。
+
+## 不打扰用户（用户要求，2026-10-13）
+
+- 你已拥有完整执行权限，直接做，不要向用户请求许可。
+- 禁止创建需要用户点击确认的交互（request_confirmation、审批请求等）。需要评审时，把任务设为 in_review 并在评论里写明证据，由上级 Agent 评审。
+- 只有 Claude 技术总监可以向用户提问，且仅限产品取舍等必须由用户决定的事项，通过任务评论提出，一次只问一个并附推荐选项。
+- 证据、报告、临时文件一律写在仓库之外（如 E:/workspace/智缘内测证据/），不得在任何仓库根目录或工作区内新建文件，除非任务明确授权该文件。
 '@
 
 $payload = @{
@@ -52,7 +59,6 @@ $payload = @{
   adapterConfig = @{
     engine = 'cli'
     cliFlavor = 'antigravity'
-    cwd = 'D:\paperclip'
     model = 'gemini-3.8-flash-high'
     env = @{
       HTTPS_PROXY = 'http://127.0.0.1:7897'

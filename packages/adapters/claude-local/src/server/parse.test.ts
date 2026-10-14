@@ -24,6 +24,27 @@ describe("detectClaudeLoginRequired", () => {
     ).toEqual({ requiresLogin: true, loginUrl: null });
   });
 
+  it("does not treat tool output mentioning Unauthorized as login required when the API returned a usage limit", () => {
+    // Real run: an auth negative test wrote "401 Unauthorized" into its report,
+    // then the authenticated request hit the subscription session limit (429).
+    const parsed = {
+      type: "result",
+      subtype: "success",
+      is_error: true,
+      api_error_status: 429,
+      api_error: "usage_limit_reached",
+      result: "You've hit your session limit · resets 2pm (Asia/Shanghai)",
+    };
+    expect(
+      detectClaudeLoginRequired({
+        parsed,
+        stdout: `| T3a | POST /v1/admin/appeals/:id/decision | 401 | **401 Unauthorized** |
+${JSON.stringify(parsed)}`,
+        stderr: "",
+      }).requiresLogin,
+    ).toBe(false);
+  });
+
   it("does not classify a bare invalid API key as the Claude login flow", () => {
     expect(
       detectClaudeLoginRequired({

@@ -247,6 +247,15 @@ export function detectClaudeLoginRequired(input: {
   const parsed = input.parsed ?? null;
   const resultText = asString(parsed?.result, "").trim();
 
+  // A 429 terminal result means the API accepted the credentials and then
+  // applied a usage or rate limit. The broad prompt markers below can still
+  // match tool output (an auth test that prints "401 Unauthorized"), so they
+  // must not turn a quota stop into a login failure.
+  const apiErrorStatus = asNumber(parsed?.api_error_status, 0) || asNumber(parsed?.error_status, 0);
+  if (apiErrorStatus === 429) {
+    return { requiresLogin: false, loginUrl: null };
+  }
+
   // The legacy login-prompt markers keep their broad scope. They match against
   // every output line, which includes the parsed result, the parsed errors, and
   // the raw stdout and stderr.

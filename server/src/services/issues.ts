@@ -2719,6 +2719,37 @@ async function listUnresolvedBlockerDetails(
   });
 }
 
+/**
+ * An in_progress issue cannot have unresolved blockers. `blockedByIssueIds`
+ * replaces the stored blockers when the same update supplies it.
+ */
+async function assertInProgressBlockersResolved(
+  dbOrTx: Pick<Db, "select">,
+  companyId: string,
+  issueId: string,
+  blockedByIssueIds: string[] | undefined,
+) {
+  const dependencyReadiness =
+    blockedByIssueIds === undefined
+      ? (await listIssueDependencyReadinessMap(dbOrTx, companyId, [issueId])).get(issueId)
+      : null;
+  const unresolvedBlockerIssueIds =
+    blockedByIssueIds !== undefined
+      ? await listUnresolvedBlockerIssueIds(dbOrTx, companyId, blockedByIssueIds)
+      : (dependencyReadiness?.unresolvedBlockerIssueIds ?? []);
+  if (unresolvedBlockerIssueIds.length === 0) return;
+  const unresolvedBlockers = await listUnresolvedBlockerDetails(
+    dbOrTx,
+    companyId,
+    unresolvedBlockerIssueIds,
+    dependencyReadiness?.pendingFinalizeBlockerIssueIds,
+  );
+  throw unprocessable("Issue is blocked by unresolved blockers", {
+    unresolvedBlockerIssueIds,
+    unresolvedBlockers,
+  });
+}
+
 async function listUnresolvedBlockerIssueIds(
   dbOrTx: Pick<Db, "select">,
   companyId: string,
@@ -3688,7 +3719,7 @@ export async function ensureAssignmentIssueAccessGrant(
 async function terminalExplicitBlockersByRoot(
   companyId: string,
   roots: IssueRelationIssueSummary[],
-  dbOrTx: DbReader,
+  dbOrTx: Pick<Db, "select">,
 ): Promise<Map<string, IssueRelationIssueSummary[]>> {
   const rootIds = [...new Set(roots.map((root) => root.id))];
   const terminalByRoot = new Map<string, IssueRelationIssueSummary[]>();
@@ -9205,6 +9236,9 @@ export function issueService(db: Db) {
       return readiness.get(issueId) ?? createIssueDependencyReadiness(issueId);
     },
 
+    assertInProgressBlockersResolved: (companyId: string, issueId: string, blockedByIssueIds?: string[]) =>
+      assertInProgressBlockersResolved(db, companyId, issueId, blockedByIssueIds),
+
     listDependencyReadiness: async (
       companyId: string,
       issueIds: string[],
@@ -11005,36 +11039,7 @@ export function issueService(db: Db) {
         throw unprocessable("in_progress issues require an assignee");
       }
       if (patch.status === "in_progress") {
-        const dependencyReadiness =
-          blockedByIssueIds === undefined
-            ? (
-                await listIssueDependencyReadinessMap(
-                  dbOrTx,
-                  existing.companyId,
-                  [id],
-                )
-              ).get(id)
-            : null;
-        const unresolvedBlockerIssueIds =
-          blockedByIssueIds !== undefined
-            ? await listUnresolvedBlockerIssueIds(
-                dbOrTx,
-                existing.companyId,
-                blockedByIssueIds,
-              )
-            : (dependencyReadiness?.unresolvedBlockerIssueIds ?? []);
-        if (unresolvedBlockerIssueIds.length > 0) {
-          const unresolvedBlockers = await listUnresolvedBlockerDetails(
-            dbOrTx,
-            existing.companyId,
-            unresolvedBlockerIssueIds,
-            dependencyReadiness?.pendingFinalizeBlockerIssueIds,
-          );
-          throw unprocessable("Issue is blocked by unresolved blockers", {
-            unresolvedBlockerIssueIds,
-            unresolvedBlockers,
-          });
-        }
+        await assertInProgressBlockersResolved(dbOrTx, existing.companyId, id, blockedByIssueIds);
       }
       const shouldValidateNextAssignee =
         Boolean(nextAssigneeAgentId) &&

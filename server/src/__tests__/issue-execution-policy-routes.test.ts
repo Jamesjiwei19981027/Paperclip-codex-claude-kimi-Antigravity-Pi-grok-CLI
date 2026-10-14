@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { normalizeIssueExecutionPolicy } from "../services/issue-execution-policy.ts";
 
 const mockIssueService = vi.hoisted(() => ({
+  assertInProgressBlockersResolved: vi.fn(async () => undefined),
   getById: vi.fn(),
   getByIdForUpdate: vi.fn(),
   findOpenAncestorCreatedByAgent: vi.fn(async () => null),

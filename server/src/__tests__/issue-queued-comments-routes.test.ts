@@ -27,6 +27,7 @@ import { errorHandler } from "../middleware/index.js";
 import { issueRoutes } from "../routes/issues.js";
 import { heartbeatService } from "../services/heartbeat.js";
 import { issueService } from "../services/issues.js";
+import { normalizeIssueExecutionPolicy } from "../services/issue-execution-policy.js";
 import { issueThreadInteractionService } from "../services/issue-thread-interactions.js";
 import { remoteTerminationReceipt } from "../services/remote-execution-termination.js";
 import { initializeRunIdentity, reconcileSteeredIdentity } from "../services/run-identity.js";
@@ -259,6 +260,49 @@ describeEmbeddedPostgres("issue queued-comment routes", () => {
       forceFreshSession: true });
     await heartbeatService(db).resumeQueuedCommentInterrupt(seeded.companyId, seeded.wakeId);
     expect(await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.companyId, seeded.companyId))).toHaveLength(3);
+  });
+
+  it("rejects a reviewer's blocked request before stopping the reviewer's own run", async () => {
+    const seeded = await seedQueue();
+    await db.delete(agentWakeupRequests).where(eq(agentWakeupRequests.id, seeded.wakeId));
+    await db.update(heartbeatRuns).set({ runtimeMode: "legacy" }).where(eq(heartbeatRuns.id, seeded.runId));
+    const implementerId = randomUUID();
+    await db.insert(agents).values({
+      id: implementerId, companyId: seeded.companyId, name: "Implementer", role: "engineer", status: "idle",
+      adapterType: "codex_local", adapterConfig: {}, runtimeConfig: {}, permissions: {},
+    });
+    const blockerId = randomUUID();
+    await db.insert(issues).values({
+      id: blockerId, companyId: seeded.companyId, identifier: "QUE-2", title: "Implementation", status: "todo",
+      priority: "medium", parentId: seeded.issueId, assigneeAgentId: implementerId,
+    });
+    const policy = normalizeIssueExecutionPolicy({
+      stages: [{ id: "11111111-1111-4111-8111-111111111111", type: "review",
+        participants: [{ type: "agent", agentId: seeded.agentId }] }],
+    })!;
+    await db.update(issues).set({
+      executionPolicy: policy,
+      executionState: {
+        status: "pending", currentStageId: "11111111-1111-4111-8111-111111111111", currentStageIndex: 0,
+        currentStageType: "review", currentParticipant: { type: "agent", agentId: seeded.agentId, userId: null },
+        returnAssignee: { type: "agent", agentId: implementerId, userId: null },
+        completedStageIds: [], lastDecisionId: null, lastDecisionOutcome: null, changesRequestedCount: 0,
+      },
+    }).where(eq(issues.id, seeded.issueId));
+
+    // The reviewer means "wait for the child"; the review policy reads any
+    // other status as changes_requested → in_progress for the implementer,
+    // which the open blocker then forbids.
+    const client = app(seeded.companyId, "queue-owner", { agentId: seeded.agentId, runId: seeded.runId });
+    const result = await request(client).patch(`/api/issues/${seeded.issueId}`)
+      .send({ status: "blocked", blockedByIssueIds: [blockerId], comment: "Waiting for the implementation task." });
+
+    expect(result.status, JSON.stringify(result.body)).toBe(422);
+    expect(result.body.details?.unresolvedBlockerIssueIds).toEqual([blockerId]);
+    const [run] = await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.id, seeded.runId));
+    expect(run.status).toBe("running");
+    const [task] = await db.select().from(issues).where(eq(issues.id, seeded.issueId));
+    expect(task).toMatchObject({ status: "in_progress", assigneeAgentId: seeded.agentId, executionRunId: seeded.runId });
   });
 
   it("allows only the exact task mutation that stopped its own run to commit", async () => {

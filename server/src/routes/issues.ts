@@ -14232,6 +14232,17 @@ export function issueRoutes(
       // own run (for example handing work to a signoff reviewer).
       const issueMutationStopId = randomUUID();
       if (req.actor.source !== "mcp_oauth" && assigneeWillChange && existing.assigneeAgentId) {
+        // Stopping the run cannot be undone. A reviewer's "blocked" request
+        // becomes changes_requested → in_progress for the return assignee, so
+        // run the update's blocker gate first instead of stopping the reviewer
+        // for an update that is then rejected.
+        if (updateFields.status === "in_progress") {
+          await svc.assertInProgressBlockersResolved(
+            existing.companyId,
+            existing.id,
+            updateFields.blockedByIssueIds as string[] | undefined,
+          );
+        }
         await stopRunnerGoalForOwnershipChange({
           companyId: existing.companyId,
           issueId: existing.id,

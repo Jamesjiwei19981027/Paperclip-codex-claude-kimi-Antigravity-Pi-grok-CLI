@@ -14,6 +14,7 @@ import {
   issueDocuments,
   issueRelations,
   issueRecoveryActions,
+  issueThreadInteractions,
   issueTreeHolds,
   issues,
 } from "@paperclipai/db";
@@ -722,6 +723,38 @@ describeEmbeddedPostgres("run-dispatch postgres adapter", () => {
         outcome: "cancelled",
         errorCode: "issue_assignee_changed",
       });
+    });
+
+    it("dispatches the named addressee of a pending interaction on another agent's issue", async () => {
+      const { companyId, agentId: addresseeAgentId } = await seedCompanyAndAgent();
+      const assigneeAgentId = randomUUID();
+      await seedAgent({ id: assigneeAgentId, companyId, name: "AssigneeCoder" });
+      const issueId = randomUUID();
+      await seedIssue({ companyId, issueId, status: "in_review", assigneeAgentId });
+      const interactionId = randomUUID();
+      await db.insert(issueThreadInteractions).values({
+        id: interactionId,
+        companyId,
+        issueId,
+        kind: "request_confirmation",
+        addresseeAgentId,
+        createdByAgentId: assigneeAgentId,
+        payload: { version: 1, prompt: "Review the evidence" },
+      });
+      const wakeContext = { issueId, interactionId, wakeReason: "interaction_pending" };
+      const adapter = createPostgresRunDispatchAdapter(db);
+
+      const pendingRunId = await seedRun({ companyId, agentId: addresseeAgentId, contextSnapshot: wakeContext });
+      expect(await adapter.cancelStaleQueuedRun({
+        runId: pendingRunId, companyId, expectedStatus: "queued", now: new Date(),
+      })).toMatchObject({ outcome: "not_stale" });
+
+      await db.update(issueThreadInteractions).set({ status: "accepted" })
+        .where(eq(issueThreadInteractions.id, interactionId));
+      const resolvedRunId = await seedRun({ companyId, agentId: addresseeAgentId, contextSnapshot: wakeContext });
+      expect(await adapter.cancelStaleQueuedRun({
+        runId: resolvedRunId, companyId, expectedStatus: "queued", now: new Date(),
+      })).toMatchObject({ outcome: "cancelled", errorCode: "issue_assignee_changed" });
     });
 
     it(

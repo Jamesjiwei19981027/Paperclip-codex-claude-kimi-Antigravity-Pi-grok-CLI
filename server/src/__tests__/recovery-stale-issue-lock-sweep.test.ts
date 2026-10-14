@@ -4,6 +4,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import {
   costEvents,
   activityLog,
+  agentWakeupRequests,
   agents,
   companies,
   completionContracts,
@@ -11,6 +12,7 @@ import {
   heartbeatRunEvents,
   heartbeatRuns,
   issueComments,
+  issueRecoveryActions,
   issueRelations,
   issues,
   nativeRunFinalizations,
@@ -56,7 +58,10 @@ describeEmbeddedPostgres("recovery sweepStaleIssueLocks", () => {
     await db.delete(activityLog);
     await db.delete(heartbeatRunEvents);
     await db.delete(costEvents);
+    await db.delete(issueRecoveryActions);
+    await db.update(agentWakeupRequests).set({ runId: null });
     await db.delete(heartbeatRuns);
+    await db.delete(agentWakeupRequests);
     await db.delete(completionContracts);
     await db.delete(issues);
     await db.delete(agents);
@@ -298,6 +303,47 @@ describeEmbeddedPostgres("recovery sweepStaleIssueLocks", () => {
     const second = await heartbeat.sweepStaleIssueLocks();
     expect(first.cleared).toBe(1);
     expect(second.cleared).toBe(0);
+  });
+
+  it("continues an orphaned conversation-adapter run instead of holding it for reconciliation", async () => {
+    const { companyId, agentId, runningRunId } = await seed();
+    const issueId = randomUUID();
+    // A dev-server reload kills the adapter process; the sweep backstop then
+    // terminalizes the run before the 5-minute periodic orphan reaper would.
+    await db
+      .update(heartbeatRuns)
+      .set({
+        processPid: 2_000_000_000,
+        runtimeMode: "legacy",
+        responsibleUserId: "local-board",
+        contextSnapshot: { issueId, wakeReason: "issue_assigned" },
+        runnerProfileJson: { adapterDispatch: { adapterType: "codex_local" } },
+      })
+      .where(eq(heartbeatRuns.id, runningRunId));
+    await db.insert(issues).values({
+      id: issueId,
+      companyId,
+      title: "Interrupted by a server reload",
+      status: "in_progress",
+      priority: "high",
+      assigneeAgentId: agentId,
+      checkoutRunId: runningRunId,
+      executionRunId: runningRunId,
+      executionLockedAt: new Date(),
+    });
+
+    const heartbeat = heartbeatService(db);
+    const swept = await heartbeat.sweepStaleIssueLocks();
+    expect(swept.terminalizedRunIds).toEqual([runningRunId]);
+    const [source] = await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.id, runningRunId));
+    expect(source.resultJson).toMatchObject({ conversationContinuation: "continue_conversation_v1" });
+
+    await heartbeat.reconcileStrandedAssignedIssues();
+    await heartbeat.reconcileStrandedAssignedIssues();
+    const successors = await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.retryOfRunId, runningRunId));
+    expect(successors).toHaveLength(1);
+    const holds = await db.select().from(issueRecoveryActions).where(eq(issueRecoveryActions.sourceIssueId, issueId));
+    expect(holds.filter((hold) => hold.cause === "legacy_execution_requires_reconciliation")).toEqual([]);
   });
 
   it("terminalizes an orphaned running run whose process is gone, then clears the lock", async () => {

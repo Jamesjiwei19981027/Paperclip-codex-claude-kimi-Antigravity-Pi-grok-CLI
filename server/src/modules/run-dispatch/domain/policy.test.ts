@@ -475,6 +475,15 @@ describe("decideQueuedRunStaleness", () => {
     };
     expect(decideQueuedRunStaleness(facts, NOW)).toEqual({ stale: false });
   });
+
+  it("lets the named addressee of a pending interaction bypass the ownership check", () => {
+    const facts: QueuedRunFacts = {
+      ...baseStalenessFacts(),
+      issueAssigneeAgentId: "agent-2",
+      isPendingInteractionAddressee: true,
+    };
+    expect(decideQueuedRunStaleness(facts, NOW)).toEqual({ stale: false });
+  });
 });
 
 describe("native replacement execution authority", () => {

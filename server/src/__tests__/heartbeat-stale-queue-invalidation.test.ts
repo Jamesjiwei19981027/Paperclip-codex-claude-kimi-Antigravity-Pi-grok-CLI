@@ -1643,6 +1643,150 @@ describeEmbeddedPostgres("heartbeat stale queued-run invalidation", () => {
     expect(promotedRun?.agentId).toBe(peerAgentId);
   });
 
+  it("promotes the new owner's deferred wake when a queued former-owner holder is cancelled as stale", async () => {
+    const { companyId, agentId } = await seedCompanyAndAgent();
+    const newOwnerAgentId = randomUUID();
+    const issueId = randomUUID();
+    const wakeupRequestId = randomUUID();
+    const queuedRunId = randomUUID();
+    const deferredWakeupId = randomUUID();
+    await db.insert(agents).values({
+      id: newOwnerAgentId,
+      companyId,
+      name: "NewOwnerAgent",
+      role: "engineer",
+      status: "active",
+      adapterType: "codex_local",
+      adapterConfig: {},
+      runtimeConfig: { heartbeat: { wakeOnDemand: true, maxConcurrentRuns: 1 } },
+      permissions: {},
+    });
+    await db.insert(agentWakeupRequests).values({
+      id: wakeupRequestId,
+      companyId,
+      agentId,
+      source: "automation",
+      triggerDetail: "system",
+      reason: "issue_execution_promoted",
+      payload: { issueId },
+      status: "queued",
+    });
+    // The former owner's promoted wake still holds the issue lock after the
+    // task was reassigned, so dispatch withholds it as stale.
+    await db.insert(heartbeatRuns).values({
+      id: queuedRunId,
+      companyId,
+      agentId,
+      invocationSource: "automation",
+      triggerDetail: "system",
+      status: "queued",
+      wakeupRequestId,
+      contextSnapshot: { issueId, wakeReason: "issue_commented" },
+    });
+    await db.insert(issues).values({
+      id: issueId,
+      companyId,
+      title: "Reassigned issue work",
+      status: "todo",
+      priority: "high",
+      assigneeAgentId: newOwnerAgentId,
+      executionRunId: queuedRunId,
+    });
+    await db.insert(agentWakeupRequests).values({
+      id: deferredWakeupId,
+      companyId,
+      agentId: newOwnerAgentId,
+      source: "assignment",
+      triggerDetail: "system",
+      reason: "issue_execution_deferred",
+      payload: {
+        issueId,
+        _paperclipWakeContext: { issueId, wakeReason: "issue_assigned" },
+      },
+      status: "deferred_issue_execution",
+    });
+    await db
+      .update(agentWakeupRequests)
+      .set({ runId: queuedRunId })
+      .where(eq(agentWakeupRequests.id, wakeupRequestId));
+
+    await heartbeat.resumeQueuedRuns();
+    await waitForCondition(async () => {
+      const [deferred] = await db
+        .select({ status: agentWakeupRequests.status, runId: agentWakeupRequests.runId })
+        .from(agentWakeupRequests)
+        .where(eq(agentWakeupRequests.id, deferredWakeupId));
+      return Boolean(deferred?.runId) && deferred?.status !== "deferred_issue_execution";
+    });
+
+    const [staleRun] = await db
+      .select({ status: heartbeatRuns.status, errorCode: heartbeatRuns.errorCode })
+      .from(heartbeatRuns)
+      .where(eq(heartbeatRuns.id, queuedRunId));
+    const [deferred] = await db
+      .select({ status: agentWakeupRequests.status, runId: agentWakeupRequests.runId })
+      .from(agentWakeupRequests)
+      .where(eq(agentWakeupRequests.id, deferredWakeupId));
+    const [promotedRun] = deferred?.runId
+      ? await db
+        .select({ agentId: heartbeatRuns.agentId })
+        .from(heartbeatRuns)
+        .where(eq(heartbeatRuns.id, deferred.runId))
+      : [];
+
+    expect(staleRun).toMatchObject({ status: "cancelled", errorCode: "issue_assignee_changed" });
+    expect(deferred?.status).not.toBe("deferred_issue_execution");
+    expect(promotedRun?.agentId).toBe(newOwnerAgentId);
+  });
+
+  it("re-admits a skipped execution wait once its blocker has cleared", async () => {
+    const { companyId, agentId } = await seedCompanyAndAgent();
+    const issueId = randomUUID();
+    const skippedWakeId = randomUUID();
+    await db.insert(issues).values({
+      id: issueId,
+      companyId,
+      title: "Assigned while the previous run released its lease",
+      status: "todo",
+      priority: "high",
+      assigneeAgentId: agentId,
+    });
+    const earlier = new Date(Date.now() - 2 * 60 * 1000);
+    await db.insert(agentWakeupRequests).values({
+      id: skippedWakeId,
+      companyId,
+      agentId,
+      source: "assignment",
+      triggerDetail: "system",
+      reason: "execution_reconciliation_required",
+      error: "The previous execution has not released its environment lease. Wait for cleanup before continuing this task.",
+      payload: {
+        issueId,
+        executionWaitWakeReason: "issue_assigned",
+        executionWait: { reason: "execution_recovery", requestedIdempotencyKey: null },
+      },
+      status: "skipped",
+      requestedByActorType: "system",
+      finishedAt: earlier,
+      createdAt: earlier,
+      updatedAt: earlier,
+    });
+
+    await heartbeat.resumeQueuedRuns();
+    await heartbeat.resumeQueuedRuns();
+
+    const resumed = await db
+      .select({ reason: agentWakeupRequests.reason })
+      .from(agentWakeupRequests)
+      .where(eq(agentWakeupRequests.idempotencyKey, `execution-wait-resume:${skippedWakeId}`));
+    expect(resumed).toEqual([{ reason: "issue_assigned" }]);
+    const [skipped] = await db
+      .select({ payload: agentWakeupRequests.payload })
+      .from(agentWakeupRequests)
+      .where(eq(agentWakeupRequests.id, skippedWakeId));
+    expect(skipped?.payload).toMatchObject({ executionWait: { resumedAt: expect.any(String) } });
+  });
+
   it("cancels queued max-turn continuations when another continuation owns the issue lock", async () => {
     const { companyId, agentId } = await seedCompanyAndAgent();
     const issueId = randomUUID();

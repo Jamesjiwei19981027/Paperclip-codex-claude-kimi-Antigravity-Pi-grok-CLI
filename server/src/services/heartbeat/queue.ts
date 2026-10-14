@@ -1108,6 +1108,14 @@ export function createHeartbeatQueue(db: Db, dependencies: HeartbeatQueueDepende
       });
       if (staleness.outcome === "cancelled" || staleness.outcome === "deferred") {
         applyRunDispatchPostCommitEffects(staleness.postCommitEffects);
+        if (staleness.outcome === "cancelled") {
+          // A promoted holder withheld here never finishes, so no later
+          // release drains the wakes queued behind it (e.g. the new owner's
+          // assignment after a reassignment). Drain them now.
+          await releaseIssueExecutionAndPromote(run, {
+            suppressImmediateRecovery: true, deferredPostCommitEffects,
+          });
+        }
         logger.info(
           {
             runId: run.id,
@@ -1746,9 +1754,68 @@ export function createHeartbeatQueue(db: Db, dependencies: HeartbeatQueueDepende
     return cancelled;
   }
 
+  // An automatic wake that met a transient execution blocker (for example the
+  // previous run still releasing its environment lease) is stored as a terminal
+  // skipped wait. Nothing else revisits it, so the assignee stayed idle until a
+  // human nudged it. Re-admit it once, after the blocker clears.
+  async function resumeSkippedExecutionWaits() {
+    const now = Date.now();
+    const waits = await db.select({ wake: agentWakeupRequests })
+      .from(agentWakeupRequests)
+      .innerJoin(issues, and(eq(issues.companyId, agentWakeupRequests.companyId),
+        sql`${issues.id}::text = ${agentWakeupRequests.payload}->>'issueId'`,
+        eq(issues.assigneeAgentId, agentWakeupRequests.agentId)))
+      .innerJoin(companies, and(eq(companies.id, issues.companyId), eq(companies.status, "active")))
+      .where(and(
+        eq(agentWakeupRequests.status, "skipped"),
+        eq(agentWakeupRequests.reason, "execution_reconciliation_required"),
+        sql`${agentWakeupRequests.payload}->'executionWait' is not null`,
+        sql`${agentWakeupRequests.payload}->'executionWait'->>'resumedAt' is null`,
+        gte(agentWakeupRequests.createdAt, new Date(now - 24 * 60 * 60 * 1000)),
+        lte(agentWakeupRequests.updatedAt, new Date(now - 30_000)),
+        inArray(issues.status, ["todo", "in_progress", "in_review"]),
+        isNull(issues.executionRunId),
+      ))
+      .orderBy(asc(agentWakeupRequests.createdAt)).limit(50);
+    const seen = new Set<string>();
+    for (const { wake } of waits) {
+      const issueId = String(wake.payload?.issueId);
+      if (seen.has(`${wake.agentId}:${issueId}`)) continue;
+      seen.add(`${wake.agentId}:${issueId}`);
+      if (await getExecutionBlocker(db, wake.companyId, issueId)) continue;
+      // A later run for this agent on the task means it already resumed.
+      const [later] = await db.select({ id: heartbeatRuns.id }).from(heartbeatRuns).where(and(
+        eq(heartbeatRuns.companyId, wake.companyId), eq(heartbeatRuns.agentId, wake.agentId),
+        sql`${heartbeatRuns.contextSnapshot}->>'issueId' = ${issueId}`,
+        gt(heartbeatRuns.createdAt, wake.createdAt),
+      )).limit(1);
+      const [claimed] = await db.update(agentWakeupRequests).set({
+        payload: sql`jsonb_set(${agentWakeupRequests.payload}, '{executionWait,resumedAt}', to_jsonb(${new Date().toISOString()}::text))`,
+        updatedAt: new Date(),
+      }).where(and(
+        eq(agentWakeupRequests.id, wake.id), eq(agentWakeupRequests.status, "skipped"),
+        sql`${agentWakeupRequests.payload}->'executionWait'->>'resumedAt' is null`,
+      )).returning({ id: agentWakeupRequests.id });
+      if (!claimed || later) continue;
+      const { executionWait: _wait, executionWaitWakeReason, ...payload } = parseObject(wake.payload);
+      await enqueueWakeup(wake.agentId, {
+        source: wake.source as WakeupOptions["source"],
+        triggerDetail: wake.triggerDetail as WakeupOptions["triggerDetail"],
+        reason: readNonEmptyString(executionWaitWakeReason) ?? "execution_wait_resumed",
+        payload,
+        requestedByActorType: (wake.requestedByActorType ?? "system") as WakeupOptions["requestedByActorType"],
+        requestedByActorId: wake.requestedByActorId ?? null,
+        idempotencyKey: `execution-wait-resume:${wake.id}`,
+      }).catch((err) => {
+        logger.warn({ err, wakeId: wake.id }, "failed to resume skipped execution wait");
+      });
+    }
+  }
+
   async function resumeQueuedRuns() {
     if ((await getSchedulingSuppression()).suppressed) return;
     await resumeExecutionWaitComments();
+    await resumeSkippedExecutionWaits();
     const cutoff = await getWorktreeExecutionCutoff();
     const pendingInterrupts = await db.select({ id: agentWakeupRequests.id, companyId: agentWakeupRequests.companyId })
       .from(agentWakeupRequests).innerJoin(companies, eq(companies.id, agentWakeupRequests.companyId))
@@ -3133,7 +3200,8 @@ export function createHeartbeatQueue(db: Db, dependencies: HeartbeatQueueDepende
                   companyId: agent.companyId, agentId, source, triggerDetail,
                   reason: "execution_reconciliation_required",
                   error: executionBlocker.nextAction,
-                  payload,
+                  // resumeSkippedExecutionWaits re-admits this wake with its own reason.
+                  payload: reason ? { ...(payload ?? {}), executionWaitWakeReason: reason } : payload,
                   requestedByActorType: opts.requestedByActorType ?? null,
                   requestedByActorId: opts.requestedByActorId ?? null,
                   idempotencyKey: opts.idempotencyKey ?? null,

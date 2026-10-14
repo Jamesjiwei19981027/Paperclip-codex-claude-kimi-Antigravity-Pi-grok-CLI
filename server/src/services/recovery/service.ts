@@ -69,6 +69,7 @@ import {
   workAssessments,
 } from "@paperclipai/db";
 import { parseObject, asBoolean, asNumber } from "../../adapters/utils.js";
+import { CONVERSATION_CONTINUATION_POLICY, runUsedConversationAdapter } from "../conversation-continuation.js";
 import { runningProcesses } from "../../adapters/index.js";
 import {
   isNativeRunnerOwnershipHeld,
@@ -5985,12 +5986,23 @@ export function recoveryService(
         ? "run terminalized by recovery backstop: issue reached a terminal status while heartbeat_runs.status stayed live"
         : "run terminalized by recovery backstop: process and sandbox gone while heartbeat_runs.status stayed live";
 
+    // A lost conversation-adapter process gets the same continuation policy
+    // reapOrphanedRuns records, so stranded-work recovery starts a bounded
+    // "continue" turn instead of holding the task for action reconciliation.
+    // This sweep usually wins that race after a restart: the periodic reaper
+    // only visits runs stale for five minutes.
+    const continueConversation = authority === "process_gone" && run.runtimeMode === "legacy" &&
+      await runUsedConversationAdapter(db, run);
+
     await deps.beforeOrphanedRunTerminalWrite?.(run.id);
     const now = new Date();
     const updated = await db
       .update(heartbeatRuns)
       .set({
         status: terminalStatus,
+        ...(continueConversation
+          ? { resultJson: { ...parseObject(run.resultJson), conversationContinuation: CONVERSATION_CONTINUATION_POLICY } }
+          : {}),
         finishedAt: run.finishedAt ?? now,
         error: run.error ?? (terminalStatus === "interrupted" ? message : null),
         errorCode:

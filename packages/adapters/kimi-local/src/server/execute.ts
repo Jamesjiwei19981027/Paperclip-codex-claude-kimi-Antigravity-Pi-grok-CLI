@@ -64,6 +64,7 @@ import {
   resolveKimiExecutionEngineForRun,
 } from "./acp.js";
 import { firstNonEmptyLine } from "./utils.js";
+import { KIMI_INLINE_PROMPT_MAX_CHARS, prepareKimiPromptFile } from "./prompt-file.js";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -516,10 +517,11 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
   const paperclipEnvNote = renderPaperclipEnvNote(env);
   const apiAccessNote = renderApiAccessNote(env);
 
-  const buildArgs = (resumeSessionId: string | null, prompt: string) => {
+  const buildArgs = (resumeSessionId: string | null, prompt: string, promptFileDir: string | null) => {
     const args = ["--output-format", "stream-json"];
     if (resumeSessionId) args.push("-r", resumeSessionId);
     if (model) args.push("-m", model);
+    if (promptFileDir) args.push("--add-dir", promptFileDir);
     // Make the agent instructions directory readable so Kimi can open sibling
     // instruction files (./HEARTBEAT.md, ./SOUL.md, ./TOOLS.md) referenced by
     // the prepended entry file. Local-only: the directory is a host path that
@@ -578,48 +580,58 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       runtimeNoteChars: paperclipEnvNote.length + apiAccessNote.length,
       heartbeatPromptChars: attemptRenderedPrompt.length,
     };
-    const args = buildArgs(resumeSessionId, prompt);
-    const invocationEnv = buildKimiHeadlessEnv(env);
-    const invocationRuntimeEnv = buildKimiRuntimeEnv(env);
-    const loggedEnv = buildInvocationEnvForLogs(invocationEnv, {
-      runtimeEnv: invocationRuntimeEnv,
-      includeRuntimeKeys: ["HOME"],
-      resolvedCommand,
-    });
-    if (onMeta) {
-      await onMeta({
-        adapterType: "kimi_local",
-        command: resolvedCommand,
-        cwd: effectiveExecutionCwd,
-        commandNotes,
-        commandArgs: args.map((value, index) => (
-          index === args.length - 1 ? `<prompt ${prompt.length} chars>` : value
-        )),
-        env: loggedEnv,
-        prompt,
-        promptMetrics: { ...promptMetrics, promptChars: prompt.length },
-        context,
+    const promptFile = process.platform === "win32" && !executionTargetIsRemote &&
+      prompt.length > KIMI_INLINE_PROMPT_MAX_CHARS
+      ? await prepareKimiPromptFile(os.tmpdir(), prompt)
+      : null;
+    try {
+      const args = buildArgs(resumeSessionId, promptFile?.inlinePrompt ?? prompt, promptFile?.directory ?? null);
+      const invocationEnv = buildKimiHeadlessEnv(env);
+      const invocationRuntimeEnv = buildKimiRuntimeEnv(env);
+      const loggedEnv = buildInvocationEnvForLogs(invocationEnv, {
+        runtimeEnv: invocationRuntimeEnv,
+        includeRuntimeKeys: ["HOME"],
+        resolvedCommand,
       });
-    }
+      if (onMeta) {
+        await onMeta({
+          adapterType: "kimi_local",
+          command: resolvedCommand,
+          cwd: effectiveExecutionCwd,
+          commandNotes: promptFile
+            ? [...commandNotes, `Prompt exceeded ${KIMI_INLINE_PROMPT_MAX_CHARS} chars; saved to ${promptFile.filename} and -p asks Kimi to read it.`]
+            : commandNotes,
+          commandArgs: args.map((value, index) => (
+            index === args.length - 1 ? `<prompt ${prompt.length} chars>` : value
+          )),
+          env: loggedEnv,
+          prompt,
+          promptMetrics: { ...promptMetrics, promptChars: prompt.length },
+          context,
+        });
+      }
 
-    const eventForwarder = createKimiEventForwardingLog(onLog, onEvent);
-    const proc = await runAdapterExecutionTargetProcess(runId, runtimeExecutionTarget, command, args, {
-      onProcessStopped: providerStop.beginInvocation(),
-      cwd,
-      env: invocationEnv,
-      timeoutSec,
-      graceSec,
-      onSpawn,
-      onRuntimeProgress: ctx.onRuntimeProgress,
-      onLog: eventForwarder.log,
-      runLogTail: paperclipBridge?.runLogTail,
-      settleRunDisposition: paperclipBridge?.settleRunDisposition,
-    });
-    await eventForwarder.flush();
-    return {
-      proc,
-      parsed: parseKimiJsonl(proc.stdout),
-    };
+      const eventForwarder = createKimiEventForwardingLog(onLog, onEvent);
+      const proc = await runAdapterExecutionTargetProcess(runId, runtimeExecutionTarget, command, args, {
+        onProcessStopped: providerStop.beginInvocation(),
+        cwd,
+        env: invocationEnv,
+        timeoutSec,
+        graceSec,
+        onSpawn,
+        onRuntimeProgress: ctx.onRuntimeProgress,
+        onLog: eventForwarder.log,
+        runLogTail: paperclipBridge?.runLogTail,
+        settleRunDisposition: paperclipBridge?.settleRunDisposition,
+      });
+      await eventForwarder.flush();
+      return {
+        proc,
+        parsed: parseKimiJsonl(proc.stdout),
+      };
+    } finally {
+      await promptFile?.cleanup();
+    }
   };
 
   const toResult = (

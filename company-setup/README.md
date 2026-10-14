@@ -19,7 +19,7 @@ cd D:\paperclip
 公司：本地 AI 工程实验室，companyId `f278e2ee-4723-484c-84a7-4e8db38415bf`（2026-10-12 清空测试数据后重建）。
 
 ```text
-Claude 技术总监（claude-opus-5，只拆派与方向验收）
+Claude 技术总监（claude-opus-5-5，只拆派与方向验收）
 └── Codex 技术负责人（gpt-5.6-sol，方案、派工、评审）
     ├── Pi 交叉验证执行者（Kimi CLI / kimi-code/k3，高级架构与疑难问题；岗位名沿用 Pi）
     ├── Kimi 主实现工程师（kimi-code/kimi-for-coding，CLI 引擎，主实现）

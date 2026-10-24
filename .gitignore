@@ -1,0 +1,127 @@
+node_modules
+node_modules/
+**/node_modules
+**/node_modules/
+dist/
+dist-preview/
+dist-flow-preview/
+server/ui-dist/
+packages/paperclip-runner/runner/target/
+ui/storybook-static/
+.env
+*.tsbuildinfo
+drizzle/meta/
+.vite/
+coverage/
+.DS_Store
+._*
+.AppleDouble
+.LSOverride
+data/
+.paperclip/
+.pnpm-store/
+tmp-*
+cli/tmp/
+
+# Scratch/seed scripts (but not scripts/ dir)
+check-*.mjs
+!.github/scripts/check-*.mjs
+!.github/scripts/tests/check-*.mjs
+!scripts/check-*.mjs
+new-agent*.json
+newcompany.json
+seed-*.mjs
+server/check-*.mjs
+server/seed-*.mjs
+packages/db/seed-*.mjs
+
+# npm publish build artifacts
+cli/package.dev.json
+
+# Build artifacts in src directories
+server/src/**/*.js
+server/src/**/*.js.map
+server/src/**/*.d.ts
+server/src/**/*.d.ts.map
+tmp/
+feedback-export-*
+diagnostics/
+
+# Editor / tool temp files
+*.tmp
+.vscode/
+.claude/settings.local.json
+.paperclip-local/
+.paperclip-runtime/
+/.idea/
+/.agents/
+
+# Doc maintenance cursor
+.doc-review-cursor
+
+# Playwright
+tests/e2e/test-results/
+tests/e2e/playwright-report/
+tests/runner-e2e/results/
+.env.runner-e2e.local
+tests/release-smoke/test-results/
+tests/release-smoke/playwright-report/
+test-results/issue-detail-perf/
+tests/storybook-visual/.cache/
+tests/storybook-visual/.snapshots/
+tests/storybook-visual/baseline-review/
+tests/storybook-visual/test-results/
+tests/storybook-visual/playwright-report/
+.superset/
+.superpowers/
+.claude/worktrees/
+.herenow
+.vercel/
+.env.local
+test-results/
+
+# Retained local lifecycle behavior measurements
+.lifecycle-baseline/
+
+# Local native Runner test/session state
+.paperclip-runner-prp/
+
+# Local credentials, environment overrides, and development evidence.
+# Keep distributable examples; ignoring a file does not remove Git history.
+.env.*
+!.env*.example
+!.env*.sample
+!.env*.template
+*.log
+*.bak
+*.dump
+*.sql.gz
+*.p12
+*.pfx
+*.key
+id_rsa
+id_ed25519
+credentials.json
+auth.json
+**/.paperclip-materialized-skill.json
+/.claude/skills/complain/
+/.claude/skills/suggestion-box/
+/company-setup/organization*.png
+
+# Development-agent rules stay local; product runtime templates remain source.
+/AGENTS.md
+/AGENTS.override.md
+/CLAUDE.md
+/GEMINI.md
+/.agents/
+/.claude/
+/.codex/
+/.cursor/
+/.windsurf/
+/.continue/
+/.clinerules
+/.cursorrules
+/.windsurfrules
+/.aider.conf.yml
+/.github/copilot-instructions.md
+/.github/instructions/

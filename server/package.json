@@ -48,7 +48,7 @@
     "ai": "7.0.130",
     "@ai-sdk/openai": "4.0.86",
     "@openrouter/ai-sdk-provider": "3.1.0",
-    "@aws-sdk/client-s3": "^3.1141.0",
+    "@aws-sdk/client-s3": "^3.1154.0",
     "@chat-adapter/discord": "4.39.0",
     "@chat-adapter/github": "4.39.0",
     "@chat-adapter/slack": "4.39.0",

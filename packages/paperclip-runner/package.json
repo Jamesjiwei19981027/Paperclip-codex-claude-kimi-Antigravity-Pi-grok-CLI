@@ -211,7 +211,7 @@
     "vitest": "^5.0.3"
   },
   "optionalDependencies": {
-    "@github/copilot-darwin-arm64": "1.0.88",
+    "@github/copilot-darwin-arm64": "1.0.101",
     "@github/copilot-darwin-x64": "1.0.88",
     "@github/copilot-linux-x64": "1.0.88"
   }

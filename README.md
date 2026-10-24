@@ -44,6 +44,10 @@ Paperclip is a Node.js server and React UI that orchestrates a team of AI agents
 
 It looks like a task manager. Under the hood: org charts, budgets, governance, goal alignment, and agent coordination.
 
+## Upstream attribution
+
+This repository is a downstream fork and customized build based on the open-source [Paperclip project](https://github.com/paperclipai/paperclip) by Paperclip AI and its contributors. The original MIT license and copyright notice are retained in [`LICENSE`](LICENSE). See [`docs/LOCAL-MODIFICATIONS.md`](docs/LOCAL-MODIFICATIONS.md) for the changes maintained in this fork.
+
 **Manage business goals, not pull requests.**
 
 |        | Step            | Example                                                            |

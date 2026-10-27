@@ -1,0 +1,90 @@
+[
+  {
+    "Path": ".gitignore",
+    "Kind": "modified"
+  },
+  {
+    "Path": "README.md",
+    "Kind": "modified"
+  },
+  {
+    "Path": "scripts\\build-runtime.mjs",
+    "Kind": "added"
+  },
+  {
+    "Path": "src\\codex-cli.ts",
+    "Kind": "added"
+  },
+  {
+    "Path": "src\\config.ts",
+    "Kind": "modified"
+  },
+  {
+    "Path": "src\\connection.ts",
+    "Kind": "modified"
+  },
+  {
+    "Path": "src\\executor-worker.ts",
+    "Kind": "modified"
+  },
+  {
+    "Path": "src\\executors\\codex-support.ts",
+    "Kind": "added"
+  },
+  {
+    "Path": "src\\executors\\codex.ts",
+    "Kind": "added"
+  },
+  {
+    "Path": "src\\executors\\types.ts",
+    "Kind": "modified"
+  },
+  {
+    "Path": "src\\job-runner.ts",
+    "Kind": "modified"
+  },
+  {
+    "Path": "src\\main.ts",
+    "Kind": "modified"
+  },
+  {
+    "Path": "test\\build-runtime.test.ts",
+    "Kind": "added"
+  },
+  {
+    "Path": "test\\codex-cli.test.ts",
+    "Kind": "added"
+  },
+  {
+    "Path": "test\\codex-executor.test.ts",
+    "Kind": "added"
+  },
+  {
+    "Path": "test\\codex-integration.test.ts",
+    "Kind": "added"
+  },
+  {
+    "Path": "test\\codex-lifecycle.test.ts",
+    "Kind": "added"
+  },
+  {
+    "Path": "test\\codex-support.test.ts",
+    "Kind": "added"
+  },
+  {
+    "Path": "test\\codex-version.test.ts",
+    "Kind": "added"
+  },
+  {
+    "Path": "test\\fake-model-server.test.ts",
+    "Kind": "added"
+  },
+  {
+    "Path": "test\\fixtures\\fake-model-server.mjs",
+    "Kind": "added"
+  },
+  {
+    "Path": "test\\fixtures\\lifecycle-executor.ts",
+    "Kind": "added"
+  }
+]

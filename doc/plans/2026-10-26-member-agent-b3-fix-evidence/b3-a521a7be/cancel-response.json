@@ -1,0 +1,98 @@
+{
+  "exitCode": 0,
+  "id": "ec139891-435a-4e2e-8124-4a882810df5a",
+  "issueId": "c828b180-cad4-460a-a48d-201760be5c13",
+  "agentId": "5ca3ec43-4f0a-4dbb-993c-998c145460c0",
+  "status": "cancelled",
+  "errorCode": "cancelled",
+  "finishedAt": "2026-10-26T12:20:58.135Z",
+  "resultJson": {
+    "stopReason": "cancelled",
+    "cancellation": {
+      "reason": "Cancelled by a board operator",
+      "source": "operator",
+      "expected": true,
+      "initiator": {
+        "id": "U8E7YbWNfMQdF21hkz2EgxlSSg82gyjX",
+        "type": "user"
+      },
+      "recordedAt": "2026-10-26T12:20:37.411Z"
+    },
+    "timeoutFired": false,
+    "timeoutSource": "default",
+    "configFreshness": {
+      "session": {
+        "reset": false,
+        "categories": [
+          "adapter",
+          "adapterConfig",
+          "agentRuntimeConfig",
+          "instructions",
+          "issueOverrides",
+          "workspaceConfig",
+          "environment",
+          "envBindings",
+          "secrets",
+          "runtimeSkills"
+        ],
+        "resetReasons": [],
+        "nextFingerprint": "v1:sha256:b1691844cc649faabdee4dde261a69c56a1e42a8309b3a7406d09b24277d1fa3",
+        "changedCategories": [],
+        "taskSessionReused": false,
+        "fingerprintVersion": 1,
+        "taskSessionAvailable": false,
+        "storedFingerprintPresent": false
+      },
+      "version": 1,
+      "workspace": {
+        "action": "create",
+        "reasons": [],
+        "categories": [
+          "mode",
+          "projectWorkspace",
+          "strategy",
+          "repo",
+          "lifecycleCommands",
+          "runtimeServices",
+          "environment",
+          "realization"
+        ],
+        "reuseRequested": false,
+        "nextFingerprint": "v1:sha256:12ab083bc27ee2a944f06b9902670af607f1c92a6aad67bd1b341e6978dfd6f7",
+        "workspaceReused": false,
+        "activeWorkspaceId": null,
+        "changedCategories": [],
+        "storedFingerprint": null,
+        "fingerprintVersion": 1,
+        "inferredFingerprint": null,
+        "previousWorkspaceId": null,
+        "configSnapshotRefreshed": false,
+        "storedFingerprintPresent": false
+      }
+    },
+    "cancelledByUserId": "U8E7YbWNfMQdF21hkz2EgxlSSg82gyjX",
+    "timeoutConfigured": false,
+    "effectiveTimeoutSec": 0,
+    "cancelledByActorType": "user",
+    "presentationDecision": {
+      "schema": "paperclip.run_presentation_decision.v1",
+      "commentId": null,
+      "reasonCodes": [
+        "no_user_facing_response"
+      ],
+      "chosenSource": "none",
+      "commentAction": "none",
+      "sourceEventId": null,
+      "resolverVersion": "1",
+      "activityDisposition": "collapse"
+    },
+    "executionCancellation": {
+      "proof": "member_agent_stop_result",
+      "runId": "ec139891-435a-4e2e-8124-4a882810df5a",
+      "state": "acknowledged",
+      "agentId": "5ca3ec43-4f0a-4dbb-993c-998c145460c0",
+      "companyId": "239f5056-3ff7-466f-8373-2492821f4742",
+      "acknowledgedAt": "2026-10-26T12:20:57.906Z"
+    }
+  }
+}

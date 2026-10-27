@@ -1,0 +1,12 @@
+{
+  "runTag": "b3-a521a7be",
+  "runRoot": "E:\\workspace\\paperclip-member-agent-dev\\doc\\plans\\2026-10-26-member-agent-b3-fix-evidence\\b3-a521a7be",
+  "configDir": "C:\\Users\\11580\\AppData\\Roaming\\paperclip-member-agent\\b3-acceptance",
+  "configPath": "E:\\workspace\\paperclip-member-agent-dev\\doc\\plans\\2026-10-26-member-agent-b3-fix-evidence\\b3-a521a7be\\config.json",
+  "codexHome": "E:\\workspace\\paperclip-member-agent-dev\\doc\\plans\\2026-10-26-member-agent-b3-fix-evidence\\b3-a521a7be\\codex-home-fake",
+  "workspace": "E:\\workspace\\paperclip-member-agent-dev\\doc\\plans\\2026-10-26-member-agent-b3-fix-evidence\\b3-a521a7be\\workspace",
+  "runtimeDir": "E:\\workspace\\paperclip-member-agent-dev\\member-agent\\runtime",
+  "codexExecutable": "E:\\AI_Data\\tools\\codex-0.160.0\\codex.exe",
+  "serverUrl": "http://192.168.0.213:3100",
+  "createdAt": "2026-10-26T11:04:57.6251374Z"
+}

@@ -1,0 +1,10 @@
+{
+  "capturedAt": "2026-10-26T12:28:14.9676994Z",
+  "health": {
+    "status": "ok",
+    "bootstrapStatus": "ready",
+    "processStartedAt": null
+  },
+  "matchingTestProcesses": [],
+  "fakeModelPortListeners": []
+}

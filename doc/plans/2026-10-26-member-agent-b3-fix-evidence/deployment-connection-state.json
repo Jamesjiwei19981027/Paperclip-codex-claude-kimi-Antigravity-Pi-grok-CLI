@@ -1,0 +1,24 @@
+{
+  "userAuthorized": [
+    "connect 192.168.0.213",
+    "deploy reviewed B3 patch",
+    "restart application container only",
+    "dispatch and cancel one B3 test"
+  ],
+  "health": {
+    "server": "192.168.0.213:3100",
+    "deploymentMode": "authenticated",
+    "status": "ok"
+  },
+  "ssh": {
+    "authenticationSucceeded": false,
+    "userAttempted": "root",
+    "error": "Host key verification failed",
+    "batchExit": 1,
+    "observedUnverifiedHostFingerprint": "SHA256:6mDFJhPLlx3y73DUIGC/xIPI1o/6vNx2UcY5qroqmxQ",
+    "host": "192.168.0.213",
+    "keyscanError": "Windows ssh-keyscan could not negotiate sntrup761x25519-sha512; SSH itself negotiated curve25519-sha256"
+  },
+  "deploymentPerformed": false,
+  "pending": "User selected existing SSH key or alias; actual path/alias requested"
+}

@@ -1,0 +1,14 @@
+{
+  "capturedAt": "2026-10-26T12:22:41.2102885Z",
+  "cancelAcknowledgedAt": "2026-10-26T12:20:57.906Z",
+  "verifiedAfterAckSeconds": 103.3,
+  "originalCodexProcessChecks": [
+    {
+      "processId": 10776,
+      "executablePath": "E:\\AI_Data\\tools\\codex-0.160.0\\codex.exe",
+      "samePidPresent": false,
+      "samePidAndCreationPresent": false
+    }
+  ],
+  "fixedCodexRootsRemaining": []
+}

@@ -1,0 +1,9 @@
+{
+  "capturedAt": "2026-10-26T14:21:57.2351937Z",
+  "workspace": "E:\\workspace\\paperclip-member-agent-dev",
+  "baselineCommit": "92371b0ec3ae6c849f47225a040c92f1e79516be",
+  "testPath": "member-agent/test/codex-integration.test.ts",
+  "testSha256": "FFADB43563A737535E67EF0D1A278B3AA13431C86E52B74321A4961F3765484C",
+  "productCandidatePath": "member-agent/src/job-runner.ts",
+  "productCandidateSha256": "23D5F894894FC96C48759197D11C38676021EAFE33E1B91229EBC72599543268"
+}

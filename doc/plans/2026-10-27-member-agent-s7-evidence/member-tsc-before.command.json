@@ -1,0 +1,9 @@
+{
+  "cwd": "E:\\workspace\\paperclip-member-agent-dev\\member-agent",
+  "command": "C:\\Program Files\\nodejs\\node.exe",
+  "args": [
+    "E:\\workspace\\paperclip-member-agent-dev\\node_modules\\typescript\\bin\\tsc",
+    "--noEmit"
+  ],
+  "isolatedProfile": "C:\\Users\\11580\\AppData\\Local\\Temp\\paperclip-s7-test-profile\\member-agent\\member-tsc-before"
+}

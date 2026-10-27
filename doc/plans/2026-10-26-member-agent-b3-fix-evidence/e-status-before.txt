@@ -1,0 +1,57 @@
+ A member-agent/.gitignore
+ A member-agent/README.md
+ A member-agent/package-lock.json
+ A member-agent/package.json
+ A member-agent/src/config.ts
+ A member-agent/src/connection.ts
+ A member-agent/src/executor-worker.ts
+ A member-agent/src/executors/echo.ts
+ A member-agent/src/executors/types.ts
+ A member-agent/src/job-runner.ts
+ A member-agent/src/lock.ts
+ A member-agent/src/logger.ts
+ A member-agent/src/main.ts
+ A member-agent/src/outbound-queue.ts
+ A member-agent/src/process-tree.ts
+ A member-agent/src/protocol.ts
+ A member-agent/src/transport-check.ts
+ A member-agent/test/cli.test.ts
+ A member-agent/test/connection.test.ts
+ A member-agent/test/echo-hold.test.ts
+ A member-agent/test/fixtures/executor.ts
+ A member-agent/test/fixtures/process-tree.mjs
+ A member-agent/test/foundation.test.ts
+ A member-agent/test/job-runner.test.ts
+ A member-agent/test/protocol-echo.test.ts
+ A member-agent/tsconfig.json
+ A member-agent/vitest.config.ts
+ M server/src/adapters/member-agent/execute.ts
+ M server/src/adapters/member-agent/protocol.test.ts
+ M server/src/adapters/member-agent/test.ts
+ M server/src/realtime/member-agent-ws.ts
+?? doc/plans/2026-10-25-member-agent-phase1-evidence/fixes/isolation.json
+?? doc/plans/2026-10-25-member-agent-phase1-evidence/fixes/source-copy-manifest.json
+?? doc/plans/2026-10-25-member-agent-phase3-evidence/acceptance.md
+?? doc/plans/2026-10-25-member-agent-phase3-evidence/build-size.json
+?? doc/plans/2026-10-25-member-agent-phase3-evidence/d-git-status-after.txt
+?? doc/plans/2026-10-25-member-agent-phase3-evidence/d-git-status-before-delivery.txt
+?? doc/plans/2026-10-25-member-agent-phase3-evidence/d-git-status-before.txt
+?? doc/plans/2026-10-25-member-agent-phase3-evidence/health-after.json
+?? doc/plans/2026-10-25-member-agent-phase3-evidence/health-before.json
+?? doc/plans/2026-10-25-member-agent-phase3-evidence/member-agent-diff.json
+?? doc/plans/2026-10-25-member-agent-phase3-evidence/report.md
+?? doc/plans/2026-10-25-member-agent-phase3-evidence/status-comparison.json
+?? member-agent/scripts/build-runtime.mjs
+?? member-agent/src/codex-cli.ts
+?? member-agent/src/executors/codex-support.ts
+?? member-agent/src/executors/codex.ts
+?? member-agent/test/build-runtime.test.ts
+?? member-agent/test/codex-cli.test.ts
+?? member-agent/test/codex-executor.test.ts
+?? member-agent/test/codex-integration.test.ts
+?? member-agent/test/codex-lifecycle.test.ts
+?? member-agent/test/codex-support.test.ts
+?? member-agent/test/codex-version.test.ts
+?? member-agent/test/fake-model-server.test.ts
+?? member-agent/test/fixtures/fake-model-server.mjs
+?? member-agent/test/fixtures/lifecycle-executor.ts

@@ -1,0 +1,113 @@
+ M .claude/launch.json
+ M .dockerignore
+ M .gitignore
+ M company-setup/01-create-claude-cto.ps1
+ M company-setup/02-create-codex-lead.ps1
+ M company-setup/03-create-gemini-executor.ps1
+ M company-setup/04-create-pi-validator.ps1
+ M company-setup/05-create-grok-reviewer.ps1
+ M company-setup/07-create-kimi-executor.ps1
+ M company-setup/README.md
+ D company-setup/organization.png
+ M company-setup/start-paperclip.ps1
+ M company-setup/stop-paperclip.ps1
+ M company-setup/verify-org.mjs
+ M packages/adapters/gemini-local/src/server/cli-args.ts
+ M packages/adapters/gemini-local/src/server/execute.ts
+ M packages/adapters/pi-local/src/server/models.ts
+ M packages/shared/src/constants.ts
+ M server/src/__tests__/heartbeat-process-recovery.test.ts
+ M server/src/__tests__/issue-monitor-scheduler.test.ts
+ M server/src/__tests__/issue-recovery-actions.test.ts
+ M server/src/adapters/builtin-adapter-types.ts
+ M server/src/adapters/registry.test.ts
+ M server/src/adapters/registry.ts
+ M server/src/index.ts
+ M server/src/realtime/live-events-ws.ts
+ M server/src/services/agent-execution-stop.test.ts
+ M server/src/services/agent-execution-stop.ts
+ M server/src/services/cancelled-native-startup.ts
+ M server/src/services/conversation-continuation.ts
+ M server/src/services/heartbeat/run-completion.ts
+ M server/src/services/heartbeat/scheduling.ts
+ M server/src/services/recovery/service.ts
+ M ui/src/adapters/adapter-display-registry.ts
+ M "\345\220\257\345\212\250Paperclip.cmd"
+?? company-setup/windows-common.ps1
+?? doc/plans/2026-10-24-multi-user-parallel-worktree-and-frpc-review.md
+?? doc/plans/2026-10-25-dedicated-server-docker-deploy.md
+?? doc/plans/2026-10-25-member-agent-implementation-spec.md
+?? doc/plans/2026-10-25-member-agent-phase1-evidence/changed-source-files.json
+?? doc/plans/2026-10-25-member-agent-phase1-evidence/final-verification.json
+?? doc/plans/2026-10-25-member-agent-phase1-evidence/fixes.patch
+?? doc/plans/2026-10-25-member-agent-phase1-evidence/live-service-observation.json
+?? doc/plans/2026-10-25-member-agent-phase1-evidence/source-boundary-audit.json
+?? doc/plans/2026-10-25-member-agent-phase1-evidence/test-case-comparison.json
+?? doc/plans/2026-10-25-member-agent-phase1-evidence/typecheck-comparison.json
+?? doc/plans/2026-10-25-member-agent-phase1-preflight-and-handoff.md
+?? doc/plans/2026-10-25-member-agent-phase1-report.md
+?? doc/plans/2026-10-25-member-agent-phase2-evidence/acceptance.ps1
+?? doc/plans/2026-10-25-member-agent-phase2-evidence/connection-drain-green.txt
+?? doc/plans/2026-10-25-member-agent-phase2-evidence/connection-drain-red.txt
+?? doc/plans/2026-10-25-member-agent-phase2-evidence/connection-green-initial.txt
+?? doc/plans/2026-10-25-member-agent-phase2-evidence/connection-green.txt
+?? doc/plans/2026-10-25-member-agent-phase2-evidence/connection-liveness-green.txt
+?? doc/plans/2026-10-25-member-agent-phase2-evidence/connection-liveness-red.txt
+?? doc/plans/2026-10-25-member-agent-phase2-evidence/connection-red-all.txt
+?? doc/plans/2026-10-25-member-agent-phase2-evidence/connection-red-behavior.txt
+?? doc/plans/2026-10-25-member-agent-phase2-evidence/connection-red.txt
+?? doc/plans/2026-10-25-member-agent-phase2-evidence/echo-hold-health-after.json
+?? doc/plans/2026-10-25-member-agent-phase2-evidence/echo-hold-health-before.json
+?? doc/plans/2026-10-25-member-agent-phase2-evidence/echo-hold-original-tests-unchanged.json
+?? doc/plans/2026-10-25-member-agent-phase2-evidence/echo-hold-report.md
+?? doc/plans/2026-10-25-member-agent-phase2-evidence/echo-hold-service-before.json
+?? doc/plans/2026-10-25-member-agent-phase2-evidence/echo-hold-service-comparison.json
+?? doc/plans/2026-10-25-member-agent-phase2-evidence/echo-hold-verification-summary.json
+?? doc/plans/2026-10-25-member-agent-phase2-evidence/patch-files.json
+?? doc/plans/2026-10-25-member-agent-phase2-evidence/phase2.patch
+?? doc/plans/2026-10-25-member-agent-phase2-evidence/report.md
+?? doc/plans/2026-10-25-member-agent-phase2-evidence/service-observation.json
+?? doc/plans/2026-10-25-member-agent-phase2-evidence/source-boundary.json
+?? doc/plans/2026-10-25-member-agent-phase2-evidence/verification-summary.json
+?? doc/plans/2026-10-25-member-agent-phase2-spec.md
+?? doc/plans/2026-10-25-member-agent-phase3-spec.md
+?? doc/plans/2026-10-25-member-local-agent-feasibility.md
+?? "doc/plans/2026-10-25-\346\261\207\346\212\245-\346\210\220\345\221\230\346\231\272\350\203\275\344\275\223\345\215\217\345\220\214\345\274\200\345\217\221.docx"
+?? doc/plans/2026-10-26-member-agent-phase0-findings.md
+?? member-agent/.gitignore
+?? member-agent/README.md
+?? member-agent/package-lock.json
+?? member-agent/package.json
+?? member-agent/src/config.ts
+?? member-agent/src/connection.ts
+?? member-agent/src/executor-worker.ts
+?? member-agent/src/executors/echo.ts
+?? member-agent/src/executors/types.ts
+?? member-agent/src/job-runner.ts
+?? member-agent/src/lock.ts
+?? member-agent/src/logger.ts
+?? member-agent/src/main.ts
+?? member-agent/src/outbound-queue.ts
+?? member-agent/src/process-tree.ts
+?? member-agent/src/protocol.ts
+?? member-agent/src/transport-check.ts
+?? member-agent/test/cli.test.ts
+?? member-agent/test/connection.test.ts
+?? member-agent/test/echo-hold.test.ts
+?? member-agent/test/fixtures/executor.ts
+?? member-agent/test/fixtures/process-tree.mjs
+?? member-agent/test/foundation.test.ts
+?? member-agent/test/job-runner.test.ts
+?? member-agent/test/protocol-echo.test.ts
+?? member-agent/tsconfig.json
+?? member-agent/vitest.config.ts
+?? packages/adapters/gemini-local/src/server/prompt-file.test.ts
+?? packages/adapters/gemini-local/src/server/prompt-file.ts
+?? server/src/__tests__/conversation-process-liveness.test.ts
+?? server/src/adapters/member-agent/execute.ts
+?? server/src/adapters/member-agent/index.ts
+?? server/src/adapters/member-agent/protocol.test.ts
+?? server/src/adapters/member-agent/settings.ts
+?? server/src/adapters/member-agent/test.ts
+?? server/src/realtime/agent-key-auth.ts
+?? server/src/realtime/member-agent-ws.ts

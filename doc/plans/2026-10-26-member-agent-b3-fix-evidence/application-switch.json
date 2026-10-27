@@ -1,0 +1,5 @@
+{
+  "code": 0,
+  "stdout": "APPLICATION_AFTER_SWITCH\n86c1841b597245f488a4125c6f79b03e60e9dee7d5853b5a76d4650fb82b2cbc sha256:63eee16371c563b6be911e31af1c96c79d4896268347897d54d74d687a9d54cb 2026-10-26T10:07:47.139541439Z running\nDB_AFTER_SWITCH\n9e373d917e9a9bedd0fd157cc2e648f05af5d590a82be1135e90225a46278aca 2026-10-25T11:46:25.335708585Z running\n",
+  "stderr": " Container paperclip-deploy-server-1 Recreate \n Container paperclip-deploy-server-1 Recreated \n Container paperclip-deploy-server-1 Starting \n Container paperclip-deploy-server-1 Started \n"
+}

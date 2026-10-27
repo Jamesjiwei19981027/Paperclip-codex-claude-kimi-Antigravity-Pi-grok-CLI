@@ -1,0 +1,13 @@
+{
+  "checkedAt": "2026-10-26T12:58:56.5264024Z",
+  "listenerPid": null,
+  "health": null,
+  "baselineHealth": {
+    "pid": 36504,
+    "processStartedAt": "2026-10-25T12:03:57.742Z",
+    "status": "ok"
+  },
+  "healthRequestSucceeded": false,
+  "healthRequestError": "Connection refused",
+  "comparison": "unavailable; no listener was found on port 3100"
+}

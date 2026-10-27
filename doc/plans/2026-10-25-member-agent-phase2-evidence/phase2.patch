@@ -1,0 +1,2164 @@
+diff --git a/member-agent/.gitignore b/member-agent/.gitignore
+new file mode 100644
+index 0000000..ff2c585
+--- /dev/null
++++ b/member-agent/.gitignore
+@@ -0,0 +1,2 @@
++node_modules/
++*.tsbuildinfo
+diff --git a/member-agent/README.md b/member-agent/README.md
+new file mode 100644
+index 0000000..ea5517d
+--- /dev/null
++++ b/member-agent/README.md
+@@ -0,0 +1,55 @@
++# 成员代理：阶段 2
++
++这个程序在成员 Windows 电脑上常驻，连接 Paperclip 并执行测试用 echo。需要 Node 24.11.0 或更新版本。直接运行 TypeScript，不需要编译。本阶段不启动 Codex，也不提供安装包、自动升级或开机自启。
++
++在仓库根目录安装唯一运行依赖：
++
++```powershell
++npm ci --prefix .\member-agent --workspaces=false --ignore-scripts --no-audit --no-fund
++node .\member-agent\src\main.ts version
++```
++
++`member-agent/node_modules` 必须是独立目录，不能联接到服务器依赖目录。依赖精确固定为 ws 8.22.0。开发测试使用仓库既有的 Vitest、TypeScript 和类型声明；这些不是成员端的运行依赖。
++
++配置默认位于 `%APPDATA%\paperclip-member-agent\config.json`，保存为无 BOM 的 UTF-8。配置示例不包含 Key：
++
++```json
++{
++  "serverUrl": "http://192.168.0.213:3100",
++  "executor": "echo",
++  "projectDirs": {},
++  "defaultCwd": ""
++}
++```
++
++用不回显的提示将 Key 放入当前进程环境，避免写入文件或命令参数：
++
++```powershell
++$memberSecret = Read-Host '输入成员智能体的 API Key（不回显）' -AsSecureString
++$memberBstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($memberSecret)
++try { $env:PAPERCLIP_AGENT_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($memberBstr) }
++finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($memberBstr); $memberSecret.Dispose() }
++node .\member-agent\src\main.ts check
++node .\member-agent\src\main.ts run
++# 结束后清除当前终端环境中的 Key
++Remove-Item Env:PAPERCLIP_AGENT_KEY
++```
++
++可用 `--config <文件>` 指定其他配置。环境变量中的 Key 优先；未知配置字段会报错。文件允许其他账户读取时会显示权限警告及 `icacls` 收紧命令。HTTP 只允许回环、规定的私网/Tailscale 地址和无点号的内网主机名；其他地址使用 HTTPS。
++
++`check` 收到服务器确认后退出；`run` 等待任务并自动重连。退出码：0 正常，1 内部错误，2 参数/配置错误，3 Key 被拒绝，4 传输或智能体被拒绝，5 本机已有实例。第一次 Ctrl+C 取消任务并退出，第二次立即强制退出。日志在 `%APPDATA%\paperclip-member-agent\logs`，按日滚动，启动时清理七天前日志。
++
++echo 会写一条测试评论，再将工单改为 done；请只派发专门的测试任务。没有工单编号的任务只输出日志。执行器在独立 Worker 中运行，网络线程继续发送心跳；断线时取消任务并丢弃旧结果，重连不补发。日志队列最多 1000 帧或 8 MiB，超限只淘汰旧日志，保留结果。
++
++为验收运行中取消或异常关闭，可以在配置中增加 `"echoHoldSec": 60` 后重新运行代理。echo 输出收到任务后等待指定秒数，再写回评论和状态；等待中取消会立即退出并且不写回。该值默认为 0，只接受 0–600 的整数，仅用于 echo 测试，真实执行器不得使用。验收后恢复为 0。
++
++工具令牌只在内存中接收，有效期约一小时且不续期。本阶段 echo 不调用连接工具。原生 MCP 发现、资源、提示词及 managed gateway 自动配置未接入。`projectDirs` 与 `defaultCwd` 只校验类型，尚不做目录映射。阶段 3 接入 Codex 库的交付方式、固定版本的安装位置以及后续自启方式仍由负责人决定。
++
++开发验证（在 member-agent 目录中）：
++
++```powershell
++node ..\node_modules\vitest\vitest.mjs run --config vitest.config.ts --cache=false --reporter=verbose
++pnpm exec tsc --noEmit
++```
++
++自动化测试只监听随机回环端口，不访问真实 Paperclip 或专用服务器。Windows 进程树测试只创建和终止自己的子孙进程。echo 没有子进程。当前运行代码尚未调用 process-tree.ts；阶段 3 必须让执行器向 job-runner 登记子进程号，由 job-runner 在取消、超时、连接断开时统一终止进程树。仅 terminate() 执行线程不会结束该线程启动的子进程，这是尚未接线的已知风险。
+diff --git a/member-agent/package-lock.json b/member-agent/package-lock.json
+new file mode 100644
+index 0000000..de732f1
+--- /dev/null
++++ b/member-agent/package-lock.json
+@@ -0,0 +1,39 @@
++{
++  "name": "@paperclipai/member-agent",
++  "version": "0.1.0",
++  "lockfileVersion": 3,
++  "requires": true,
++  "packages": {
++    "": {
++      "name": "@paperclipai/member-agent",
++      "version": "0.1.0",
++      "dependencies": {
++        "ws": "8.22.0"
++      },
++      "engines": {
++        "node": ">=24.11.0"
++      }
++    },
++    "node_modules/ws": {
++      "version": "8.22.0",
++      "resolved": "https://registry.npmjs.org/ws/-/ws-8.22.0.tgz",
++      "integrity": "sha512-Ydggc987+RO0AnWtZ/7Wq9FtNvcrL1b/RO0ud9mWjUPgDrsAAwQSF51sm2hm1XofbU/4jkpGEsLFsZZxU+1DOg==",
++      "license": "MIT",
++      "engines": {
++        "node": ">=10.0.0"
++      },
++      "peerDependencies": {
++        "bufferutil": "^4.0.1",
++        "utf-8-validate": ">=5.0.2"
++      },
++      "peerDependenciesMeta": {
++        "bufferutil": {
++          "optional": true
++        },
++        "utf-8-validate": {
++          "optional": true
++        }
++      }
++    }
++  }
++}
+diff --git a/member-agent/package.json b/member-agent/package.json
+new file mode 100644
+index 0000000..fcef0f1
+--- /dev/null
++++ b/member-agent/package.json
+@@ -0,0 +1,8 @@
++{
++  "name": "@paperclipai/member-agent",
++  "version": "0.1.0",
++  "private": true,
++  "type": "module",
++  "engines": { "node": ">=24.11.0" },
++  "dependencies": { "ws": "8.22.0" }
++}
+diff --git a/member-agent/src/config.ts b/member-agent/src/config.ts
+new file mode 100644
+index 0000000..b4a0fa0
+--- /dev/null
++++ b/member-agent/src/config.ts
+@@ -0,0 +1,96 @@
++import { execFile } from "node:child_process";
++import { readFile } from "node:fs/promises";
++import { userInfo } from "node:os";
++import path from "node:path";
++import { promisify } from "node:util";
++import { Redactor } from "./logger.ts";
++
++export interface Config {
++  serverUrl: string;
++  agentKey: string;
++  executor: "echo";
++  projectDirs: Record<string, unknown>;
++  defaultCwd: string;
++  /** Test-only echo delay; real executors must not consume this option. */
++  echoHoldSec: number;
++}
++
++export class ConfigError extends Error {
++  readonly messages: string[];
++  readonly code = 2;
++  constructor(messages: string[]) { super(messages.join("\n")); this.name = "ConfigError"; this.messages = messages; }
++}
++
++function isObject(value: unknown): value is Record<string, unknown> {
++  return typeof value === "object" && value !== null && !Array.isArray(value);
++}
++
++export function validateConfig(value: unknown, env: NodeJS.ProcessEnv = process.env): Config {
++  if (!isObject(value)) throw new ConfigError(["配置错误：配置必须是 JSON 对象，请按示例填写配置文件。"]);
++  const errors: string[] = [];
++  const redactor = new Redactor(); redactor.register(value.agentKey, env.PAPERCLIP_AGENT_KEY);
++  const allowed = new Set(["serverUrl", "agentKey", "executor", "projectDirs", "defaultCwd", "echoHoldSec"]);
++  for (const field of Object.keys(value)) {
++    if (!allowed.has(field)) errors.push(`配置错误：未知字段 ${redactor.redact(JSON.stringify(field))}，请删除或改为正确字段名。`);
++  }
++  let serverUrl = "";
++  try {
++    // Check the original spelling, before URL normalization can remove /x/.. .
++    if (typeof value.serverUrl !== "string" || !/^https?:\/\/[^/?#\\\s]+\/?$/.test(value.serverUrl)) throw new Error();
++    const parsed = new URL(value.serverUrl);
++    if (!parsed.hostname || parsed.username || parsed.password || parsed.pathname !== "/" || value.serverUrl.includes("?") || value.serverUrl.includes("#")) throw new Error();
++    serverUrl = parsed.origin;
++  } catch {
++    errors.push("配置错误：serverUrl 必须是 http:// 或 https:// 源地址，不得含路径、查询、片段或账号密码，请填写例如 http://192.168.0.213:3100。");
++  }
++  const agentKey = env.PAPERCLIP_AGENT_KEY ?? value.agentKey;
++  if (typeof agentKey !== "string" || !agentKey.trim() || /[\r\n]/.test(agentKey)) errors.push("配置错误：agentKey 必须是非空字符串且不得含换行，请填写 Key 或设置 PAPERCLIP_AGENT_KEY 环境变量。");
++  if (value.executor !== "echo") errors.push('配置错误：executor 本阶段只接受 "echo"，请修改执行器设置。');
++  if (!isObject(value.projectDirs)) errors.push("配置错误：projectDirs 必须是对象，本阶段请填写 {}。");
++  if (typeof value.defaultCwd !== "string") errors.push('配置错误：defaultCwd 必须是字符串，本阶段可填写 ""。');
++  const echoHoldSec = value.echoHoldSec === undefined ? 0 : value.echoHoldSec;
++  if (typeof echoHoldSec !== "number" || !Number.isInteger(echoHoldSec) || echoHoldSec < 0 || echoHoldSec > 600) errors.push("配置错误：echoHoldSec 必须是整数，范围为 0 到 600；此项仅用于 echo 验收测试。");
++  if (errors.length) throw new ConfigError(errors.map((message) => redactor.redact(message)));
++  return { serverUrl, agentKey: agentKey as string, executor: "echo", projectDirs: value.projectDirs as Record<string, unknown>, defaultCwd: value.defaultCwd as string, echoHoldSec: echoHoldSec as number };
++}
++
++const execFileAsync = promisify(execFile);
++
++async function warnPermissions(configPath: string, warn: (message: string) => void): Promise<void> {
++  if (process.platform !== "win32") return;
++  const username = userInfo().username;
++  const domain = process.env.USERDOMAIN;
++  const currentAccount = domain ? `${domain}\\${username}` : username;
++  let warnNeeded = false;
++  try {
++    const { stdout } = await execFileAsync("icacls.exe", [configPath], { windowsHide: true, encoding: "utf8", timeout: 5_000 });
++    const acl = stdout.split(/\r?\n/).map((line) => line.trim()).filter((line) => /:\(/.test(line));
++    warnNeeded = acl.length === 0 || acl.some((line) => {
++      const principal = line.slice(0, line.indexOf(":(")).replace(configPath, "").trim().toLowerCase();
++      const isCurrent = principal === username.toLowerCase() || principal === currentAccount.toLowerCase();
++      const grant = line.slice(line.indexOf(":(") + 1);
++      return !isCurrent && !grant.includes("(DENY)") && /(?:\(|,)(?:F|M|RX|R|RD|RC|GR|GA)(?:,|\))/.test(grant);
++    });
++  } catch { warnNeeded = true; }
++  if (warnNeeded) {
++    // Paths/accounts are quoted for PowerShell; no config contents enter this warning.
++    const quote = (text: string) => `'${text.replace(/'/g, "''")}'`;
++    warn(`警告：配置文件可能允许其他账户读取，或无法确认权限。请在 PowerShell 收紧权限：icacls ${quote(configPath)} /reset; icacls ${quote(configPath)} /inheritance:r /grant:r ${quote(`${currentAccount}:(R)`)}`);
++  }
++}
++
++export async function loadConfig(configPath?: string, env: NodeJS.ProcessEnv = process.env, warningSink: (message: string) => void = console.warn): Promise<Config> {
++  if (!configPath && !env.APPDATA) throw new ConfigError(["配置错误：APPDATA 未设置，请使用 --config 指定配置文件。"]);
++  const resolved = path.resolve(configPath ?? path.join(env.APPDATA!, "paperclip-member-agent", "config.json"));
++  let text: string;
++  try { text = await readFile(resolved, "utf8"); }
++  catch { throw new ConfigError(["配置错误：无法读取 config.json，请确认 --config 文件存在且当前账户有读取权限。"]); }
++  if (text.charCodeAt(0) === 0xfeff) throw new ConfigError(["配置错误：config.json 含 UTF-8 BOM，请另存为无 BOM 的 UTF-8 JSON 文件。"]);
++  let value: unknown;
++  try { value = JSON.parse(text); }
++  catch { throw new ConfigError(["配置错误：config.json 不是合法 JSON，请检查逗号、引号和括号。"]); }
++  const config = validateConfig(value, env);
++  const redactor = new Redactor(); redactor.register(config.agentKey, isObject(value) ? value.agentKey : undefined);
++  await warnPermissions(resolved, (message) => warningSink(redactor.redact(message)));
++  return config;
++}
+diff --git a/member-agent/src/connection.ts b/member-agent/src/connection.ts
+new file mode 100644
+index 0000000..9087bfd
+--- /dev/null
++++ b/member-agent/src/connection.ts
+@@ -0,0 +1,209 @@
++import { hostname, platform } from 'node:os';
++import { createRequire } from 'node:module';
++import type { ClientRequest, IncomingMessage } from 'node:http';
++import type { Frame } from './protocol.ts';
++import { OutboundQueue } from './outbound-queue.ts';
++
++export interface ConnectionSocket {
++  readonly readyState: number;
++  readonly bufferedAmount: number;
++  send(data: string, callback: (error?: Error) => void): void;
++  ping(data: string, callback: (error?: Error) => void): void;
++  terminate(): void;
++  on(event: 'open', callback: () => void): void;
++  on(event: 'error', callback: (error: Error) => void): void;
++  on(event: 'unexpected-response', callback: (request: ClientRequest, response: IncomingMessage) => void): void;
++  on(event: 'close', callback: (code: number, reason: Buffer) => void): void;
++  on(event: 'message', callback: (data: Buffer, binary: boolean) => void): void;
++  on(event: 'pong', callback: () => void): void;
++}
++const { WebSocket } = createRequire(import.meta.url)('ws') as {
++  WebSocket: new (url: string, options: { headers: { Authorization: string }; maxPayload: number }) => ConnectionSocket;
++};
++
++export interface Clock {
++  setTimeout(fn: () => void, ms: number): ReturnType<typeof setTimeout>;
++  clearTimeout(timer: ReturnType<typeof setTimeout>): void;
++  random(): number;
++}
++export interface ConnectionOptions {
++  serverUrl: string;
++  agentKey: string;
++  version: string;
++  check?: boolean;
++  signal?: AbortSignal;
++  logger: { write(level: 'info' | 'warn' | 'error' | 'debug', message: string, visible?: boolean): void };
++  onFrame?: (frame: Frame) => void | Promise<void>;
++  onReady?: (ack: Frame) => void;
++  onSession?: (send: (frame: Frame) => void, drain: () => Promise<boolean>) => void;
++  onDisconnect?: () => Promise<void>;
++  clock?: Clock;
++  socketFactory?: (url: string, options: { headers: { Authorization: string }; maxPayload: number }) => ConnectionSocket;
++}
++interface Outcome { exit?: number; delay?: number; ready: boolean }
++const nativeClock: Clock = { setTimeout, clearTimeout, random: Math.random };
++
++function wait(ms: number, signal: AbortSignal | undefined, clock: Clock): Promise<void> {
++  return new Promise(resolve => {
++    if (signal?.aborted) { resolve(); return; }
++    const finish = () => { clock.clearTimeout(timer); signal?.removeEventListener('abort', finish); resolve(); };
++    const timer = clock.setTimeout(finish, ms);
++    signal?.addEventListener('abort', finish, { once: true });
++  });
++}
++
++/** Each callback receives a session-scoped sender so old jobs cannot leak into a new connection. */
++export async function connectLoop(options: ConnectionOptions): Promise<number> {
++  const clock = options.clock ?? nativeClock;
++  let failures = 0;
++  while (!options.signal?.aborted) {
++    const outcome = await connectOnce(options, clock);
++    if (outcome.ready) {
++      failures = 0;
++      if (!options.check) await options.onDisconnect?.();
++    }
++    if (outcome.exit !== undefined) return outcome.exit;
++    if (options.signal?.aborted) return 0;
++    const delay = outcome.delay ?? Math.min(30_000, 1000 * 2 ** Math.min(failures++, 5)) * (1 + Math.max(0, Math.min(1, clock.random())) * 0.2);
++    options.logger.write('warn', `连接断开，${Number((delay / 1000).toFixed(3))} 秒后重试`, true);
++    await wait(delay, options.signal, clock);
++  }
++  return 0;
++}
++
++function connectOnce(options: ConnectionOptions, clock: Clock): Promise<Outcome> {
++  return new Promise(resolve => {
++    let closed = false;
++    let ready = false;
++    let helloTimer: ReturnType<typeof setTimeout> | undefined;
++    let heartbeatTimer: ReturnType<typeof setTimeout> | undefined;
++    let pingTimer: ReturnType<typeof setTimeout> | undefined;
++    let pongDeadline: ReturnType<typeof setTimeout> | undefined;
++    const url = new URL('/api/member-agent/v1/connect', options.serverUrl);
++    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
++    const socket = (options.socketFactory ?? ((address, config) => new WebSocket(address, config)))(url.href, {
++      headers: { Authorization: `Bearer ${options.agentKey}` }, maxPayload: 256 * 1024,
++    });
++    // terminate() on a CONNECTING socket emits an asynchronous error as well.
++    // Install this handler before checking an already-aborted signal.
++    socket.on('error', () => { if (!closed) options.logger.write('warn', '网络连接失败，请检查服务器地址和网络', true); finish(); });
++    const queue = new OutboundQueue(socket, {
++      clock,
++      onDrop: count => options.logger.write('warn', `已丢弃 ${count} 条输出`),
++      onError: () => { options.logger.write('warn', '消息发送失败，正在重新连接', true); finish(); },
++    });
++    const finish = (outcome: Omit<Outcome, 'ready'> = {}) => {
++      if (closed) return;
++      closed = true;
++      if (helloTimer !== undefined) clock.clearTimeout(helloTimer);
++      if (heartbeatTimer !== undefined) clock.clearTimeout(heartbeatTimer);
++      if (pingTimer !== undefined) clock.clearTimeout(pingTimer);
++      if (pongDeadline !== undefined) clock.clearTimeout(pongDeadline);
++      queue.close();
++      options.signal?.removeEventListener('abort', aborted);
++      socket.terminate();
++      resolve({ ...outcome, ready });
++    };
++    const aborted = () => finish({ exit: 0 });
++    const send = (frame: Frame) => {
++      if (closed || !ready || options.signal?.aborted) return;
++      try { queue.send(frame); }
++      catch { options.logger.write('error', '发送消息不符合协议或队列超过上限，正在重新连接', true); finish(); }
++    };
++    options.signal?.addEventListener('abort', aborted, { once: true });
++    if (options.signal?.aborted) { finish({ exit: 0 }); return; }
++    const heartbeat = (ms: number) => {
++      heartbeatTimer = clock.setTimeout(() => {
++        if (closed) return;
++        send({ v: 1, type: 'heartbeat' });
++        heartbeat(ms);
++      }, ms);
++    };
++    // The server intentionally sends no JSON heartbeat acknowledgment. Native
++    // ws control frames detect a half-open connection without changing v1.
++    // This deadline is independent of the advertised application heartbeat.
++    const watchPong = () => {
++      if (pongDeadline !== undefined) clock.clearTimeout(pongDeadline);
++      pongDeadline = clock.setTimeout(() => {
++        options.logger.write('warn', '服务器 45 秒内未响应连接探测，正在重新连接', true);
++        finish();
++      }, 45_000);
++    };
++    const ping = () => {
++      if (closed) return;
++      try {
++        socket.ping('', error => {
++          if (!error || closed) return;
++          options.logger.write('warn', '连接探测发送失败，正在重新连接', true);
++          finish();
++        });
++      } catch {
++        options.logger.write('warn', '连接探测发送失败，正在重新连接', true);
++        finish();
++      }
++      if (!closed) pingTimer = clock.setTimeout(ping, 15_000);
++    };
++    socket.on('pong', () => { if (ready && !closed) watchPong(); });
++    socket.on('unexpected-response', (_request, response) => {
++      const status = response.statusCode;
++      response.resume();
++      if (status === 401) { options.logger.write('error', 'Key 无效或已撤销，请重新配置 Key', true); finish({ exit: 3 }); }
++      else if (status === 403) { options.logger.write('error', '服务器拒绝了这条连接的传输方式，请检查服务器地址', true); finish({ exit: 4 }); }
++      else if (status === 429) { options.logger.write('warn', '服务器限制了连接频率，至少等待 60 秒后重试', true); finish({ delay: 60_000 }); }
++      else { options.logger.write('warn', `服务器拒绝连接（HTTP ${status ?? '未知'}）`, true); finish(); }
++    });
++    socket.on('open', () => {
++      if (closed) return;
++      const label = (value: string) => value.slice(0, 255) || 'unknown';
++      queue.send({ v: 1, type: 'hello', agentVersion: label(options.version), codexVersion: 'none', hostname: label(hostname()), platform: label(platform()) });
++      helloTimer = clock.setTimeout(() => { options.logger.write('warn', '服务器 10 秒内未响应 hello，正在重新连接', true); finish(); }, 10_000);
++    });
++    socket.on('close', (code, reason) => {
++      if (closed) return;
++      options.logger.write('warn', `连接已关闭（${code}）：${reason.toString('utf8') || '对端关闭连接'}`, true);
++      finish();
++    });
++    socket.on('message', (data, binary) => {
++      if (closed || options.signal?.aborted) return;
++      let frame: Frame;
++      try {
++        if (binary || Buffer.byteLength(data.toString()) > 256 * 1024) throw new Error();
++        const value: unknown = JSON.parse(data.toString());
++        if (!value || typeof value !== 'object' || Array.isArray(value) || typeof (value as Frame).type !== 'string') throw new Error();
++        frame = value as Frame;
++      } catch { options.logger.write('warn', '服务器消息格式无效，正在重新连接', true); finish(); return; }
++      if (frame.v !== 1) { options.logger.write('warn', '服务器协议版本不受支持，正在重新连接', true); finish(); return; }
++      if (frame.type === 'hello.reject') {
++        if (frame.code === 'member_agent_not_allowed') { options.logger.write('error', '这个 Key 对应的智能体不是成员智能体或已被暂停', true); finish({ exit: 4 }); }
++        else if (frame.code === 'already_connected') { options.logger.write('warn', '这个智能体已经有另一台电脑在线', true); finish({ delay: 30_000 }); }
++        else { options.logger.write('warn', '服务器拒绝了 hello，正在重新连接', true); finish(); }
++        return;
++      }
++      if (frame.type === 'hello.ack') {
++        if (ready) { options.logger.write('warn', '忽略重复的 hello.ack'); return; }
++        ready = true;
++        if (helloTimer !== undefined) clock.clearTimeout(helloTimer);
++        options.logger.write('info', `已连接，服务器固定 Codex 版本：${typeof frame.pinnedCodexVersion === 'string' ? frame.pinnedCodexVersion : '未指定'}`, true);
++        try { options.onReady?.(frame); options.onSession?.(send, () => queue.drain()); }
++        catch { options.logger.write('error', '连接初始化失败，请查看日志', true); finish({ exit: 1 }); return; }
++        if (options.check) { finish({ exit: 0 }); return; }
++        const seconds = typeof frame.heartbeatSec === 'number' && Number.isFinite(frame.heartbeatSec) && frame.heartbeatSec > 0 ? frame.heartbeatSec : 15;
++        heartbeat(seconds * 1000);
++        watchPong();
++        ping();
++        return;
++      }
++      if (frame.type === 'ping') { if (ready) send({ v: 1, type: 'ping' }); return; }
++      if (frame.type === 'heartbeat') return;
++      if (!['job.start', 'job.cancel'].includes(frame.type)) { options.logger.write('warn', '忽略服务器发来的未知消息类型'); return; }
++      if (!ready) { options.logger.write('warn', '服务器在 hello 完成前发送任务，正在重新连接', true); finish(); return; }
++      // Executor work runs in its own Worker. Never await it on the connection
++      // receive path: heartbeat scheduling and cancellation must stay responsive.
++      try {
++        Promise.resolve(options.onFrame?.(frame)).catch(() => {
++          options.logger.write('error', '任务消息处理失败，正在重新连接', true); finish();
++        });
++      } catch { options.logger.write('error', '任务消息处理失败，正在重新连接', true); finish(); }
++    });
++  });
++}
+diff --git a/member-agent/src/executor-worker.ts b/member-agent/src/executor-worker.ts
+new file mode 100644
+index 0000000..fc6dea4
+--- /dev/null
++++ b/member-agent/src/executor-worker.ts
+@@ -0,0 +1,21 @@
++import { parentPort, workerData } from 'node:worker_threads';
++import type { Executor, ExecutorResult } from './executors/types.ts';
++import { validateResult } from './protocol.ts';
++
++const port=parentPort!;
++const controller=new AbortController();
++port.on('message',message=>{if(message.type==='cancel')controller.abort();});
++async function run(){
++ try{
++  const module=await import(workerData.executorUrl);
++  // This local delay is exclusively for echo acceptance tests, never a server protocol field.
++  const executor:Executor=module.createEchoExecutor ? module.createEchoExecutor({echoHoldSec:workerData.echoHoldSec}) : module.default ?? module.echoExecutor;
++  const result=await executor.execute({job:workerData.job,serverUrl:workerData.serverUrl,signal:controller.signal,
++   log:(stream,text)=>port.postMessage({type:'log',stream,text}),event:event=>port.postMessage({type:'event',event})});
++  port.postMessage({type:'result',result:validateResult(result)});
++ }catch{
++  const result:ExecutorResult={exitCode:1,signal:null,timedOut:false,errorCode:'member_agent_executor_error',errorMessage:'执行器发生内部错误，请检查程序文件与任务参数'};
++  port.postMessage({type:'result',result});
++ }finally{port.close();}
++}
++void run();
+diff --git a/member-agent/src/executors/echo.ts b/member-agent/src/executors/echo.ts
+new file mode 100644
+index 0000000..b93a002
+--- /dev/null
++++ b/member-agent/src/executors/echo.ts
+@@ -0,0 +1,69 @@
++import { hostname } from "node:os";
++import type { Executor, ExecutorHooks, ExecutorResult } from "./types.ts";
++
++export const AGENT_VERSION = "0.1.0";
++
++function cancelled(): ExecutorResult {
++  return { exitCode: 1, signal: null, timedOut: false, errorCode: "cancelled", errorMessage: "echo 执行器已取消" };
++}
++
++function failure(hooks: ExecutorHooks, message: string): ExecutorResult {
++  hooks.log("stderr", `${message}\n`);
++  return { exitCode: 1, signal: null, timedOut: false, errorCode: "member_agent_echo_writeback_failed", errorMessage: message };
++}
++
++function hold(ms: number, signal: AbortSignal): Promise<void> {
++  return new Promise(resolve => {
++    if (signal.aborted) { resolve(); return; }
++    const finish = () => { clearTimeout(timer); signal.removeEventListener("abort", finish); resolve(); };
++    const timer = setTimeout(finish, ms);
++    signal.addEventListener("abort", finish, { once: true });
++  });
++}
++
++// Test-only timing control for A5/A6. Real executors must never use echoHoldSec.
++export function createEchoExecutor(options: { echoHoldSec?: number } = {}): Executor {
++  const echoHoldSec = options.echoHoldSec ?? 0;
++  return {
++  name: "echo",
++  async execute(hooks) {
++    const { job, signal } = hooks;
++    if (signal.aborted) return cancelled();
++    hooks.log("stdout", `成员代理收到任务 ${job.jobId}\n`);
++    if (echoHoldSec > 0) await hold(echoHoldSec * 1000, signal);
++    if (signal.aborted) return cancelled();
++    const issueId = typeof job.context.issueId === "string" && job.context.issueId
++      ? job.context.issueId : typeof job.context.taskId === "string" ? job.context.taskId : "";
++    if (issueId) {
++      const endpoint = `${hooks.serverUrl.replace(/\/+$/, "")}/api/issues/${encodeURIComponent(issueId)}`;
++      const headers = { "content-type": "application/json; charset=utf-8", authorization: `Bearer ${job.authToken}`, "x-paperclip-run-id": job.jobId };
++      const comment = `连接测试：成员代理 echo 执行器（版本 ${AGENT_VERSION}，主机 ${hostname()}）已收到任务，并用本次运行令牌写回了这条评论。`;
++      // Marking an issue done is exclusively a Phase 2 echo TEST behavior. It
++      // prevents test tasks from continuing automatically; future executors
++      // must follow their actual task workflow instead of copying this PATCH.
++      const requests = [
++        { method: "POST", url: `${endpoint}/comments`, body: { body: comment } },
++        { method: "PATCH", url: endpoint, body: { status: "done", comment: "连接测试：echo 执行器已完成，本测试工单标记为完成。" } },
++      ];
++      for (const request of requests) {
++        if (signal.aborted) return cancelled();
++        try {
++          const response = await fetch(request.url, { method: request.method, headers, body: JSON.stringify(request.body), signal, redirect: "error" });
++          // Discard HTTP bodies: neither diagnostic text nor secrets from the
++          // server may become job logs, error messages, or retained buffers.
++          await response.body?.cancel();
++          if (signal.aborted) return cancelled();
++          if (!response.ok) return failure(hooks, `echo 写回失败：HTTP ${response.status}`);
++        } catch {
++          if (signal.aborted) return cancelled();
++          return failure(hooks, "echo 写回失败：网络请求未完成，请检查服务器连接");
++        }
++      }
++    }
++    if (signal.aborted) return cancelled();
++    return { exitCode: 0, signal: null, timedOut: false, summary: "echo 执行器完成" };
++  },
++  };
++}
++
++export const echoExecutor: Executor = createEchoExecutor();
+diff --git a/member-agent/src/executors/types.ts b/member-agent/src/executors/types.ts
+new file mode 100644
+index 0000000..112d783
+--- /dev/null
++++ b/member-agent/src/executors/types.ts
+@@ -0,0 +1,92 @@
++/** The server's v1 task package. Credentials remain in memory and must not be logged. */
++export interface JobStart {
++  v: 1;
++  type: "job.start";
++  jobId: string;
++  companyId: string;
++  agent: { id: string; name: string };
++  authToken: string;
++  context: Record<string, unknown>;
++  config: { maxRunSec?: number };
++  runtime: Record<string, unknown>;
++  runtimeTools: {
++    version: number;
++    guidance: string;
++    mcpEndpoint: string;
++    rest: { connectionsSearch: string; connectionRequest: string };
++    bearerToken: string;
++    expiresAt: string;
++    tools: readonly string[];
++  } | null;
++  handoffMarkdown: string;
++  codeSyncDir: string;
++}
++
++export interface ExecutorHooks {
++  log(stream: "stdout" | "stderr", text: string): void;
++  event(event: Record<string, unknown>): void;
++  signal: AbortSignal;
++  readonly job: JobStart;
++  readonly serverUrl: string;
++}
++
++export interface UsageSummary {
++  inputTokens: number;
++  outputTokens: number;
++  cachedInputTokens?: number;
++  cacheWriteTokens?: number;
++}
++
++export interface Accounting {
++  usage?: UsageSummary;
++  usageByModel?: Array<{ model: string; usage: UsageSummary; costUsd: number }>;
++  usageBasis?: "per_run" | "session_cumulative" | null;
++  provider?: string | null;
++  biller?: string | null;
++  model?: string | null;
++  billingType?: "api" | "subscription" | "metered_api" | "subscription_included" | "subscription_overage" | "credits" | "fixed" | "unknown" | null;
++  costUsd?: number | null;
++  costUsdExact?: string | null;
++  costStatus?: "reported" | "estimated" | "unpriced";
++  pricingContext?: { serviceTier?: string; contextTier?: "short" | "long" };
++  pricingProvenance?: {
++    source: "provider_reported" | "provider_invoice" | "operator" | "rate_card" | "unknown";
++    version?: string;
++    evidence?: string;
++    inputCentsPerMillion?: string;
++    cachedInputCentsPerMillion?: string;
++    outputCentsPerMillion?: string;
++    cacheWriteCentsPerMillion?: string;
++    serviceTier?: string;
++    contextTier?: "short" | "long";
++  };
++  cacheAdjustedCostUsd?: number | null;
++  providerRequestId?: string | null;
++}
++
++/** Only fields accepted by member-agent/execute.ts resultSchema belong here. */
++export interface ExecutorResult extends Accounting {
++  exitCode: number | null;
++  signal: string | null;
++  timedOut: boolean;
++  errorCode?: string | null;
++  errorMessage?: string | null;
++  errorFamily?: "configuration" | "transient_upstream" | "provider_quota" | "model_refusal" | "refresh_token_reused" | "refresh_token_expired" | "refresh_token_invalidated" | null;
++  retryNotBefore?: string | null;
++  errorMeta?: Record<string, unknown>;
++  summary?: string | null;
++  resultJson?: Record<string, unknown> | null;
++  sessionId?: string | null;
++  sessionDisplayId?: string | null;
++  sessionParams?: Record<string, unknown> | null;
++  clearSession?: boolean;
++  usageComplete?: boolean;
++  executionRecovery?: { kind: "bootstrap"; providerWorkStarted: false } | {
++    kind: "interrupted"; providerStopped: true; sessionPreserved: true; actionOutcomes: "settled";
++  };
++}
++
++export interface Executor {
++  readonly name: string;
++  execute(hooks: ExecutorHooks): Promise<ExecutorResult>;
++}
+diff --git a/member-agent/src/job-runner.ts b/member-agent/src/job-runner.ts
+new file mode 100644
+index 0000000..ac7c74f
+--- /dev/null
++++ b/member-agent/src/job-runner.ts
+@@ -0,0 +1,101 @@
++import { Worker } from 'node:worker_threads';
++import { StringDecoder } from 'node:string_decoder';
++import type { Logger } from './logger.ts';
++import { chunkUtf8, validateEvent, validateResult } from './protocol.ts';
++import type { Frame, JobStart } from './protocol.ts';
++import type { ExecutorResult } from './executors/types.ts';
++
++interface ActiveJob{
++ job:JobStart;worker:Worker|null;logSeq:number;eventSeq:number;suppressed:boolean;stopping:boolean;timedOut:boolean;
++ result:ExecutorResult|null;timer:ReturnType<typeof setTimeout>|null;stopTimer:ReturnType<typeof setTimeout>|null;
++ done:Promise<void>;resolve:()=>void;finishing:boolean;
++}
++export class JobRunner{
++ private active:ActiveJob|null=null;
++ private accepting=true;
++ private send:(frame:Frame)=>void;
++ private options:{serverUrl:string;logger:Logger;executorUrl?:URL;executorData?:unknown;echoHoldSec?:number};
++ constructor(options:{serverUrl:string;logger:Logger;send:(frame:Frame)=>void;executorUrl?:URL;executorData?:unknown;echoHoldSec?:number}){this.options=options;this.send=options.send;}
++ get busy(){return this.active!==null;}
++ setSender(send:(frame:Frame)=>void){this.send=send;}
++ private safe(value:unknown):any{
++  if(typeof value==='string')return this.options.logger.redactor.redact(value);
++  if(Array.isArray(value))return value.map(item=>this.safe(item));
++  if(value!==null&&typeof value==='object')return Object.fromEntries(Object.entries(value).map(([key,item])=>[this.options.logger.redactor.redact(key),this.safe(item)]));
++  return value;
++ }
++ start(job:JobStart){
++  if(!this.accepting)return;
++  this.options.logger.redactor.register(job.authToken,job.runtimeTools?.bearerToken);
++  if(this.active){this.send(this.safe({v:1,type:'job.result',jobId:job.jobId,exitCode:1,signal:null,timedOut:false,errorCode:'member_agent_busy',errorMessage:'成员代理正在执行其他任务'}));return;}
++  let resolve!:()=>void;const done=new Promise<void>(r=>{resolve=r;});
++  const active:ActiveJob={job,worker:null,logSeq:0,eventSeq:0,suppressed:false,stopping:false,timedOut:false,result:null,timer:null,stopTimer:null,done,resolve,finishing:false};
++  this.active=active;
++  // Confirm receipt before module loading, worker creation, or any executor preparation.
++  try{
++   this.send({v:1,type:'job.accepted',jobId:job.jobId});
++   this.options.logger.write('info',`收到任务 ${job.jobId}`,true);
++   const worker=new Worker(new URL('./executor-worker.ts',import.meta.url),{workerData:{job,serverUrl:this.options.serverUrl,executorUrl:(this.options.executorUrl??new URL('./executors/echo.ts',import.meta.url)).href,executorData:this.options.executorData,echoHoldSec:this.options.echoHoldSec??0},stdout:true,stderr:true,execArgv:[]});
++   active.worker=worker;
++   for(const [stream,pipe] of [['stdout',worker.stdout],['stderr',worker.stderr]] as const){
++    const decoder=new StringDecoder('utf8');
++    pipe?.on('data',data=>this.log(active,stream,decoder.write(data)));
++    pipe?.on('end',()=>this.log(active,stream,decoder.end()));
++   }
++   worker.on('message',message=>{
++    if(this.active!==active||active.finishing||active.suppressed)return;
++    try{
++     if(message.type==='log'&&['stdout','stderr'].includes(message.stream)&&typeof message.text==='string')this.log(active,message.stream,message.text);
++     else if(message.type==='event'){const event=validateEvent(message.event);this.send(this.safe({v:1,type:'job.event',jobId:job.jobId,seq:++active.eventSeq,event}));}
++     else if(message.type==='result'){active.result=validateResult(message.result);void worker.terminate();}
++    }catch{active.result={exitCode:1,signal:null,timedOut:false,errorCode:'member_agent_executor_error',errorMessage:'执行器返回了无效协议字段'};void worker.terminate();}
++   });
++   worker.on('error',()=>{active.result={exitCode:1,signal:null,timedOut:false,errorCode:'member_agent_executor_error',errorMessage:'执行器线程发生内部错误，请检查程序文件'};});
++   worker.on('exit',()=>{void this.finish(active);});
++   const maxRunSec=job.config?.maxRunSec??3600;
++   active.timer=setTimeout(()=>{void this.stop(active,20,true);},maxRunSec*1000);
++  }catch{active.result={exitCode:1,signal:null,timedOut:false,errorCode:'member_agent_executor_error',errorMessage:'无法启动执行器，请检查 Node 版本与程序文件'};void this.finish(active);}
++ }
++ private log(active:ActiveJob,stream:'stdout'|'stderr',text:string){
++  if(active.suppressed||active.finishing)return;
++  const safe=this.options.logger.redactor.chunk(`${active.job.jobId}:${stream}`,text);
++  if(!safe)return;
++  this.options.logger.write(stream==='stderr'?'warn':'info',safe);
++  for(const chunk of chunkUtf8(safe))this.send({v:1,type:'job.log',jobId:active.job.jobId,seq:++active.logSeq,stream,chunk});
++ }
++ private async finish(active:ActiveJob){
++  if(active.finishing)return;active.finishing=true;
++  let resultSent=false;
++  if(active.timer)clearTimeout(active.timer);if(active.stopTimer)clearTimeout(active.stopTimer);
++  try{
++  for(const stream of ['stdout','stderr']){
++   const safe=this.options.logger.redactor.finish(`${active.job.jobId}:${stream}`);
++   if(safe&&!active.suppressed){this.options.logger.write('info',safe);for(const chunk of chunkUtf8(safe))this.send({v:1,type:'job.log',jobId:active.job.jobId,seq:++active.logSeq,stream,chunk});}
++  }
++  let result=active.result??{exitCode:1,signal:null,timedOut:false,errorCode:'member_agent_executor_error',errorMessage:'执行器未返回结果'};
++  if(active.stopping)result={exitCode:1,signal:null,timedOut:active.timedOut,errorCode:active.timedOut?'member_agent_timeout':'cancelled',errorMessage:active.timedOut?'任务超过本机时长上限':'任务已取消'};
++  this.options.logger.write('info',`任务结束 ${active.job.jobId}：${result.exitCode===0?'成功':result.errorCode??'失败'}`,true);
++  if(!active.suppressed){const frame=this.safe({v:1,type:'job.result',jobId:active.job.jobId,...validateResult(result)});resultSent=true;this.send(frame);}
++  }catch{
++   if(!active.suppressed&&!resultSent){try{this.send({v:1,type:'job.result',jobId:active.job.jobId,exitCode:1,signal:null,timedOut:false,errorCode:'member_agent_executor_error',errorMessage:'任务收尾失败，请检查本机日志目录与连接'});}catch{/* The connection owns transport error handling. */}}
++  }finally{if(this.active===active)this.active=null;active.resolve();}
++ }
++ private stop(active:ActiveJob,graceSec:number,timedOut=false){
++  if(active.finishing||active.stopping)return active.done;
++  active.stopping=true;active.timedOut=timedOut;
++  if(!active.worker){void this.finish(active);return active.done;}
++  active.worker?.postMessage({type:'cancel'});
++  active.stopTimer=setTimeout(()=>{void active.worker?.terminate().then(()=>this.finish(active));},Math.max(0,graceSec)*1000);
++  return active.done;
++ }
++ async cancel(jobId:string,graceSec=20){
++  if(!this.active||this.active.job.jobId!==jobId){this.options.logger.write('warn','忽略不属于当前任务的取消请求');return;}
++  await this.stop(this.active,graceSec);
++ }
++ async disconnect(){
++  if(!this.active)return;const active=this.active;active.suppressed=true;
++  try{this.options.logger.write('warn',`连接断开，已中止任务 ${active.job.jobId}`,true);}finally{await this.stop(active,20);}
++ }
++ async shutdown(){this.accepting=false;if(this.active)await this.stop(this.active,20);}
++ force(){this.accepting=false;if(this.active){this.active.suppressed=true;void this.active.worker?.terminate();}}
++}
+diff --git a/member-agent/src/lock.ts b/member-agent/src/lock.ts
+new file mode 100644
+index 0000000..340bb70
+--- /dev/null
++++ b/member-agent/src/lock.ts
+@@ -0,0 +1,88 @@
++import { randomUUID } from "node:crypto";
++import { link, mkdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
++import path from "node:path";
++
++export class LockError extends Error {
++  readonly code = 5;
++  constructor(message: string) { super(message); this.name = "LockError"; }
++}
++
++function isLive(pid: number): boolean {
++  try { process.kill(pid, 0); return true; }
++  catch (error) { return (error as NodeJS.ErrnoException).code !== "ESRCH"; }
++}
++
++function livePid(text: string): number | undefined {
++  const pid = /^\d+$/.test(text.trim()) ? Number(text.trim()) : NaN;
++  return Number.isSafeInteger(pid) && pid > 0 && isLive(pid) ? pid : undefined;
++}
++
++async function unlinkIfSame(file: string, identity: { ino: number; birthtimeMs: number }): Promise<void> {
++  try {
++    const now = await stat(file);
++    if (now.ino === identity.ino && now.birthtimeMs === identity.birthtimeMs) await unlink(file);
++  } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
++}
++
++// Serialize stale-lock replacement within the process as well as exclusive creation
++// across processes. The exclusive recovery file protects cross-process reclamation.
++const pendingAcquisitions = new Map<string, Promise<void>>();
++
++export async function acquireLock(dir: string): Promise<() => Promise<void>> {
++  await mkdir(dir, { recursive: true });
++  const lockPath = path.resolve(dir, "agent.lock");
++  const previous = pendingAcquisitions.get(lockPath) ?? Promise.resolve();
++  let complete!: () => void;
++  const current = new Promise<void>((resolve) => { complete = resolve; });
++  pendingAcquisitions.set(lockPath, current);
++  await previous;
++  try {
++    const recoveryPath = lockPath + ".recovery";
++    // Link a fully written PID file so other processes never observe an empty
++    // lock between exclusive creation and writing its owner PID.
++    const stagingPath = lockPath + `.${process.pid}.${randomUUID()}.tmp`;
++    await writeFile(stagingPath, String(process.pid), { encoding: "utf8", flag: "wx" });
++    const stagingIdentity = await stat(stagingPath);
++    let acquired = false;
++    try {
++      for (let attempt = 0; attempt < 3; attempt++) {
++        try { await link(stagingPath, recoveryPath); acquired = true; break; }
++        catch (error) {
++          if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
++          try {
++            const identity = await stat(recoveryPath);
++            const pid = livePid(await readFile(recoveryPath, "utf8"));
++            if (pid) throw new LockError(`已有代理正在获取本机锁（进程号 ${pid}），请稍后重试。`);
++            await unlinkIfSame(recoveryPath, identity);
++          } catch (readError) { if ((readError as NodeJS.ErrnoException).code !== "ENOENT") throw readError; }
++        }
++      }
++      if (!acquired) throw new LockError("已有代理正在获取本机锁，请稍后重试。");
++      let existing: string | undefined;
++      try { existing = await readFile(lockPath, "utf8"); }
++      catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
++      if (existing !== undefined) {
++        const pid = livePid(existing);
++        if (pid) throw new LockError(`已有代理在运行（进程号 ${pid}），请先退出另一个实例。`);
++        await unlink(lockPath);
++      }
++      await link(stagingPath, lockPath);
++      const identity = await stat(lockPath);
++      let released = false;
++      return async () => {
++        if (released) return;
++        released = true;
++        try {
++          const now = await stat(lockPath);
++          if (now.ino === identity.ino && now.birthtimeMs === identity.birthtimeMs && (await readFile(lockPath, "utf8")) === String(process.pid)) await unlink(lockPath);
++        } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
++      };
++    } finally {
++      try { if (acquired) await unlinkIfSame(recoveryPath, stagingIdentity); }
++      finally { await unlink(stagingPath); }
++    }
++  } finally {
++    complete();
++    if (pendingAcquisitions.get(lockPath) === current) pendingAcquisitions.delete(lockPath);
++  }
++}
+diff --git a/member-agent/src/logger.ts b/member-agent/src/logger.ts
+new file mode 100644
+index 0000000..2f9ba6f
+--- /dev/null
++++ b/member-agent/src/logger.ts
+@@ -0,0 +1,89 @@
++import { appendFileSync, mkdirSync, readdirSync, unlinkSync } from "node:fs";
++import path from "node:path";
++
++function mask(secret: string): string {
++  // A very short credential must never be reproduced in full.
++  return secret.slice(0, Math.min(4, secret.length - 1)) + "…";
++}
++
++/** One shared redactor is used for local output and outgoing job output. */
++export class Redactor {
++  private variants = new Map<string, string>();
++  private pending = new Map<string, string>();
++  private ordered: [string, string][] = [];
++
++  register(...secrets: unknown[]): void {
++    for (const secret of secrets) {
++      if (typeof secret !== "string" || secret.length === 0) continue;
++      const forms = new Set([secret, JSON.stringify(secret).slice(1, -1)]);
++      try {
++        forms.add(encodeURIComponent(secret));
++        forms.add(encodeURI(secret));
++        forms.add(new URLSearchParams({ value: secret }).toString().slice(6));
++      } catch { /* Invalid Unicode is still protected as plain and JSON text. */ }
++      for (const form of [...forms]) forms.add(form.replace(/%[0-9A-F]{2}/g, (part) => part.toLowerCase()));
++      for (const form of forms) this.variants.set(form, mask(secret));
++    }
++    this.ordered = [...this.variants].sort(([a], [b]) => b.length - a.length);
++  }
++
++  private scan(text: string, streaming: boolean): { output: string; pending: string } {
++    let output = "";
++    let index = 0;
++    while (index < text.length) {
++      const match = this.ordered.find(([variant]) => text.startsWith(variant, index));
++      if (match) { output += match[1]; index += match[0].length; continue; }
++      const remaining = text.slice(index);
++      if (streaming && this.ordered.some(([variant]) => variant.startsWith(remaining))) return { output, pending: remaining };
++      output += text[index]; index++;
++    }
++    return { output, pending: "" };
++  }
++
++  redact(text: string): string { return this.scan(text, false).output; }
++
++  chunk(stream: string, text: string): string {
++    const result = this.scan((this.pending.get(stream) ?? "") + text, true);
++    if (result.pending) this.pending.set(stream, result.pending);
++    else this.pending.delete(stream);
++    return result.output;
++  }
++
++  finish(stream: string): string {
++    const pending = this.pending.get(stream);
++    this.pending.delete(stream);
++    // An incomplete secret at EOF is never flushed as ordinary text.
++    return pending ? "…" : "";
++  }
++}
++
++function dayName(date: Date): string {
++  return `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, "0")}${String(date.getDate()).padStart(2, "0")}`;
++}
++
++export class Logger {
++  readonly redactor = new Redactor();
++  private dir: string;
++  private consoleSink: (text: string) => void;
++
++  constructor(dir: string, secrets: string[] = [], consoleSink: (text: string) => void = console.log) {
++    this.dir = dir;
++    this.consoleSink = consoleSink;
++    this.redactor.register(...secrets);
++    mkdirSync(dir, { recursive: true });
++    const oldest = new Date(); oldest.setHours(0, 0, 0, 0); oldest.setDate(oldest.getDate() - 6);
++    const threshold = dayName(oldest);
++    for (const entry of readdirSync(dir, { withFileTypes: true })) {
++      const match = /^agent-(\d{8})\.log$/.exec(entry.name);
++      if (entry.isFile() && match && match[1]! < threshold) unlinkSync(path.join(dir, entry.name));
++    }
++  }
++
++  write(level: "info" | "warn" | "error" | "debug", message: string, visible = false): void {
++    const safe = this.redactor.chunk("local-log", String(message)).replace(/\r/g, "\\r").replace(/\n/g, "\\n");
++    const now = new Date();
++    const line = `${now.toISOString()} ${level.toUpperCase()} ${safe}`;
++    appendFileSync(path.join(this.dir, `agent-${dayName(now)}.log`), line + "\n", "utf8");
++    if (visible) this.consoleSink(line);
++  }
++}
+diff --git a/member-agent/src/main.ts b/member-agent/src/main.ts
+new file mode 100644
+index 0000000..ab7a227
+--- /dev/null
++++ b/member-agent/src/main.ts
+@@ -0,0 +1,57 @@
++import { join, resolve } from 'node:path';
++import { homedir } from 'node:os';
++import { pathToFileURL } from 'node:url';
++import type { EventEmitter } from 'node:events';
++import { loadConfig } from './config.ts';
++import { assertTransportAllowed } from './transport-check.ts';
++import { acquireLock } from './lock.ts';
++import { Logger } from './logger.ts';
++import { connectLoop } from './connection.ts';
++import { JobRunner } from './job-runner.ts';
++import { AGENT_VERSION } from './executors/echo.ts';
++import type { JobStart } from './protocol.ts';
++
++export function installInterrupts(signals:Pick<EventEmitter,'on'|'off'>,runner:{shutdown:()=>Promise<void>;force:()=>void},close:()=>void|Promise<void>,exit:(code:number)=>void){
++ let count=0;
++ const handle=()=>{if(++count>1){runner.force();exit(0);return;}void runner.shutdown().catch(()=>{}).then(close).catch(()=>{});};
++ signals.on('SIGINT',handle);
++ return ()=>{signals.off('SIGINT',handle);};
++}
++const usage='用法：node member-agent/src/main.ts run|check [--config <文件>]，或 version';
++export async function main(args=process.argv.slice(2)):Promise<number>{
++ const command=args[0];let configPath:string|undefined;
++ if(!['run','check','version'].includes(command)|| (command==='version'&&args.length!==1)){console.error(usage);return 2;}
++ for(let i=1;i<args.length;i++){if(args[i]!=='--config'||!args[i+1]||configPath!==undefined){console.error(usage);return 2;}configPath=args[++i];}
++ if(command==='version'){console.log(AGENT_VERSION);return 0;}
++ const stateDir=join(process.env.APPDATA??join(homedir(),'AppData','Roaming'),'paperclip-member-agent');
++ const warnings:string[]=[];
++ let release:(()=>Promise<void>)|undefined;
++ let logger:Logger|undefined;
++ try{
++  const config=await loadConfig(configPath,process.env,message=>warnings.push(message));
++  logger=new Logger(join(stateDir,'logs'),[config.agentKey]);
++  for(const warning of warnings)logger.write('warn',warning,true);
++  release=await acquireLock(stateDir);
++  assertTransportAllowed(config.serverUrl);
++  const stop=new AbortController();
++  let drain:()=>Promise<boolean>=async()=>true;
++  const runner=new JobRunner({serverUrl:config.serverUrl,logger,send:()=>{},echoHoldSec:config.echoHoldSec});
++  const dispose=installInterrupts(process,runner,async()=>{
++   try{if(!await drain())logger!.write('warn','退出前结果未能送达服务器，请在看板核对本次运行',true);}finally{stop.abort();}
++  },code=>process.exit(code));
++  try{
++   return await connectLoop({serverUrl:config.serverUrl,agentKey:config.agentKey,version:AGENT_VERSION,check:command==='check',signal:stop.signal,logger,
++    onSession:(send,flush)=>{runner.setSender(send);drain=flush;},onDisconnect:()=>runner.disconnect(),onFrame:frame=>{
++     if(stop.signal.aborted)return;
++     if(frame.type==='job.start')runner.start(frame as unknown as JobStart);
++     else if(frame.type==='job.cancel')return runner.cancel(String(frame.jobId),typeof frame.graceSec==='number'&&Number.isFinite(frame.graceSec)&&frame.graceSec>=0?Math.min(frame.graceSec,20):20);
++    }});
++  }finally{dispose();await runner.shutdown();}
++ }catch(error){
++  const code=typeof error==='object'&&error!==null&&'code'in error&&[2,5].includes(Number(error.code))?Number(error.code):1;
++  const message=error instanceof Error?error.message:'成员代理发生内部错误，请查看日志';
++  if(logger)logger.write('error',message,true);else console.error(message);
++  return code;
++ }finally{await release?.();}
++}
++if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href){void main().then(code=>{process.exitCode=code;}).catch(()=>{console.error('成员代理发生内部错误，请检查配置和日志');process.exitCode=1;});}
+diff --git a/member-agent/src/outbound-queue.ts b/member-agent/src/outbound-queue.ts
+new file mode 100644
+index 0000000..256e94b
+--- /dev/null
++++ b/member-agent/src/outbound-queue.ts
+@@ -0,0 +1,104 @@
++import type { Frame } from './protocol.ts';
++
++export interface QueueSocket {
++  readonly readyState: number;
++  readonly bufferedAmount: number;
++  send(data: string, callback: (error?: Error) => void): void;
++}
++interface QueuedFrame { data: string; bytes: number; log: boolean }
++interface QueueOptions {
++  onDrop?: (count: number) => void;
++  onError?: (error: Error) => void;
++  clock?: Pick<import('./connection.ts').Clock, 'setTimeout' | 'clearTimeout'>;
++}
++
++/** At most one ws send is outstanding; only log frames may be evicted. */
++export class OutboundQueue {
++  private readonly socket: QueueSocket;
++  private readonly options: QueueOptions;
++  private pending: QueuedFrame[] = [];
++  private bytes = 0;
++  private inFlight: QueuedFrame | undefined;
++  private stopped = false;
++  private timer: ReturnType<typeof setTimeout> | undefined;
++  private drainWaiters = new Set<(success: boolean) => void>();
++  private readonly clock: Pick<import('./connection.ts').Clock, 'setTimeout' | 'clearTimeout'>;
++  constructor(socket: QueueSocket, options: QueueOptions = {}) {
++    this.socket = socket;
++    this.options = options;
++    this.clock = options.clock ?? { setTimeout, clearTimeout };
++  }
++  send(frame: Frame): void {
++    if (this.stopped) return;
++    const data = JSON.stringify(frame);
++    const item = { data, bytes: Buffer.byteLength(data), log: frame.type === 'job.log' };
++    if (item.bytes > 256 * 1024) throw new Error('发送帧超过 256 KB');
++    this.pending.push(item);
++    this.bytes += item.bytes;
++    let dropped = 0;
++    while (this.pending.length + (this.inFlight ? 1 : 0) > 1000 || this.bytes + (this.inFlight?.bytes ?? 0) > 8 * 1024 * 1024) {
++      const index = this.pending.findIndex(value => value.log);
++      if (index < 0) {
++        // Critical frames are never silently lost. Fail the session if its
++        // producer violates the finite single-job transport budget.
++        this.close();
++        throw new Error('关键消息队列超过上限，连接必须中止');
++      }
++      const [removed] = this.pending.splice(index, 1);
++      this.bytes -= removed!.bytes;
++      dropped++;
++    }
++    if (dropped) this.options.onDrop?.(dropped);
++    this.flush();
++  }
++  private flush(): void {
++    if (this.stopped || this.inFlight || this.pending.length === 0 || this.socket.readyState !== 1) return;
++    if (this.socket.bufferedAmount >= 256 * 1024) {
++      // ws has no drain event. A bounded timer is only needed when its existing
++      // buffer was filled outside this queue; ordinary draining uses callbacks.
++      this.timer ??= this.clock.setTimeout(() => { this.timer = undefined; this.flush(); }, 50);
++      return;
++    }
++    const item = this.pending.shift()!;
++    this.bytes -= item.bytes;
++    this.inFlight = item;
++    try {
++      this.socket.send(item.data, error => {
++        if (this.stopped) return;
++        this.inFlight = undefined;
++        if (error) { this.close(); this.options.onError?.(error); return; }
++        this.flush();
++        if (!this.inFlight && this.pending.length === 0) {
++          for (const finish of [...this.drainWaiters]) finish(true);
++        }
++      });
++    } catch (error) {
++      this.close();
++      this.options.onError?.(error instanceof Error ? error : new Error('消息发送失败'));
++    }
++  }
++  /** Wait for ws send callbacks, bounded so shutdown cannot hang indefinitely. */
++  drain(timeoutMs = 5000): Promise<boolean> {
++    if (this.stopped) return Promise.resolve(false);
++    if (!this.inFlight && this.pending.length === 0) return Promise.resolve(true);
++    return new Promise(resolve => {
++      const finish = (success: boolean) => {
++        if (!this.drainWaiters.delete(finish)) return;
++        this.clock.clearTimeout(timer);
++        resolve(success);
++      };
++      const boundedMs = Number.isFinite(timeoutMs) ? Math.max(0, Math.min(timeoutMs, 5000)) : 5000;
++      const timer = this.clock.setTimeout(() => finish(false), boundedMs);
++      this.drainWaiters.add(finish);
++    });
++  }
++  close(): void {
++    this.stopped = true;
++    this.pending = [];
++    this.bytes = 0;
++    this.inFlight = undefined;
++    if (this.timer !== undefined) this.clock.clearTimeout(this.timer);
++    this.timer = undefined;
++    for (const finish of [...this.drainWaiters]) finish(false);
++  }
++}
+diff --git a/member-agent/src/process-tree.ts b/member-agent/src/process-tree.ts
+new file mode 100644
+index 0000000..0c02cd6
+--- /dev/null
++++ b/member-agent/src/process-tree.ts
+@@ -0,0 +1,25 @@
++import { execFile } from "node:child_process";
++import { promisify } from "node:util";
++
++const execFileAsync = promisify(execFile);
++
++function processExists(pid: number): boolean {
++  try { process.kill(pid, 0); return true; }
++  catch (error) { if ((error as NodeJS.ErrnoException).code === "ESRCH") return false; throw new Error(`无法确认进程 ${pid} 是否已退出。`); }
++}
++
++/** Call only for child PIDs tracked by the executor, never for server-supplied IDs. */
++export async function terminateProcessTree(pid: number): Promise<void> {
++  if (!Number.isSafeInteger(pid) || pid <= 0 || pid === process.pid) throw new Error("进程号无效，不能终止进程树。");
++  if (process.platform !== "win32") throw new Error("本阶段仅支持 Windows 进程树终止。");
++  if (!processExists(pid)) return;
++  try {
++    await execFileAsync("taskkill.exe", ["/PID", String(pid), "/T", "/F"], { windowsHide: true, timeout: 5_000, encoding: "utf8" });
++  } catch { throw new Error(`无法终止进程树 ${pid}：taskkill 失败，请检查进程权限。`); }
++  // taskkill can report before handles disappear; keep verification bounded.
++  for (let attempt = 0; attempt < 20; attempt++) {
++    if (!processExists(pid)) return;
++    await new Promise<void>((resolve) => setTimeout(resolve, 50));
++  }
++  throw new Error(`无法确认进程树 ${pid} 已终止，进程仍存在。`);
++}
+diff --git a/member-agent/src/protocol.ts b/member-agent/src/protocol.ts
+new file mode 100644
+index 0000000..1632504
+--- /dev/null
++++ b/member-agent/src/protocol.ts
+@@ -0,0 +1,164 @@
++import type { Accounting, ExecutorResult } from "./executors/types.ts";
++export type { JobStart } from "./executors/types.ts";
++
++export const MAX_FRAME_BYTES = 256 * 1024;
++export const MAX_LOG_BYTES = 32 * 1024;
++
++export interface Frame {
++  v: 1;
++  type: string;
++  [key: string]: unknown;
++}
++
++export interface InvocationMeta {
++  adapterType: string;
++  command: string;
++  cwd?: string;
++  commandArgs?: string[];
++  commandNotes?: string[];
++  env?: Record<string, string>;
++  prompt?: string;
++  promptMetrics?: Record<string, number>;
++  context?: Record<string, unknown>;
++}
++
++export interface RuntimeEvent {
++  eventType: string;
++  stream?: "system" | "stdout" | "stderr";
++  level?: "info" | "warn" | "error";
++  color?: string;
++  message?: string;
++  payload?: Record<string, unknown>;
++}
++
++export interface UsageCheckpoint extends Accounting {
++  attemptId?: string;
++  complete: boolean;
++}
++
++type Check = (value: unknown) => boolean;
++type Shape = Record<string, Check>;
++const string: Check = (value) => typeof value === "string";
++const boolean: Check = (value) => typeof value === "boolean";
++const number: Check = (value) => typeof value === "number" && Number.isFinite(value) && value >= 0;
++const integer: Check = (value) => typeof value === "number" && Number.isSafeInteger(value);
++const optional = (check: Check): Check => (value) => value === undefined || check(value);
++const nullable = (check: Check): Check => (value) => value === null || check(value);
++const literal = (expected: unknown): Check => (value) => value === expected;
++const oneOf = (...values: string[]): Check => (value) => typeof value === "string" && values.includes(value);
++const array = (check: Check): Check => (value) => Array.isArray(value) && value.every(check);
++const isRecord = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value);
++const record = (check: Check = () => true): Check => (value) => {
++  if (!isRecord(value)) return false;
++  // z.record accepts plain records, unlike z.object (which also accepts class
++  // instances); match its constructor check without importing server code.
++  const constructor = value.constructor;
++  if (typeof constructor === "function" && (!isRecord(constructor.prototype) || !Object.hasOwn(constructor.prototype, "isPrototypeOf"))) return false;
++  return Reflect.ownKeys(value).every((key) => key === "__proto__" || !Object.prototype.propertyIsEnumerable.call(value, key)
++    || (typeof key === "string" && check(value[key])));
++};
++const object = (shape: Shape): Check => (value) => isRecord(value)
++  && Object.keys(value).every((key) => Object.hasOwn(shape, key))
++  && Object.entries(shape).every(([key, check]) => check(Object.hasOwn(value, key) ? value[key] : undefined));
++
++const usage = object({ inputTokens: number, outputTokens: number, cachedInputTokens: optional(number), cacheWriteTokens: optional(number) });
++const contextTier = oneOf("short", "long");
++const accounting: Shape = {
++  usage: optional(usage),
++  usageByModel: optional(array(object({ model: string, usage, costUsd: number }))),
++  usageBasis: optional(nullable(oneOf("per_run", "session_cumulative"))),
++  provider: optional(nullable(string)), biller: optional(nullable(string)), model: optional(nullable(string)),
++  billingType: optional(nullable(oneOf("api", "subscription", "metered_api", "subscription_included", "subscription_overage", "credits", "fixed", "unknown"))),
++  costUsd: optional(nullable(number)), costUsdExact: optional(nullable(string)),
++  costStatus: optional(oneOf("reported", "estimated", "unpriced")),
++  pricingContext: optional(object({ serviceTier: optional(string), contextTier: optional(contextTier) })),
++  pricingProvenance: optional(object({
++    source: oneOf("provider_reported", "provider_invoice", "operator", "rate_card", "unknown"),
++    version: optional(string), evidence: optional(string), inputCentsPerMillion: optional(string),
++    cachedInputCentsPerMillion: optional(string), outputCentsPerMillion: optional(string),
++    cacheWriteCentsPerMillion: optional(string), serviceTier: optional(string), contextTier: optional(contextTier),
++  })),
++  cacheAdjustedCostUsd: optional(nullable(number)), providerRequestId: optional(nullable(string)),
++};
++
++// Match z.iso.datetime({ offset: true }): calendar-valid dates, optional seconds,
++// arbitrary fractional precision, and only Z or an explicit ±HH:MM offset.
++const isoDateTime: Check = (value) => {
++  if (typeof value !== "string") return false;
++  const match = /^(\d{4})-(\d{2})-(\d{2})T(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.exec(value);
++  if (!match) return false;
++  const year = Number(match[1]), month = Number(match[2]), day = Number(match[3]);
++  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
++  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
++  return month >= 1 && month <= 12 && day >= 1 && day <= days[month - 1]!;
++};
++const executionRecovery: Check = (value) => object({ kind: literal("bootstrap"), providerWorkStarted: literal(false) })(value)
++  || object({ kind: literal("interrupted"), providerStopped: literal(true), sessionPreserved: literal(true), actionOutcomes: literal("settled") })(value);
++const result = object({
++  ...accounting, exitCode: nullable(integer), signal: nullable(string), timedOut: boolean,
++  errorCode: optional(nullable(string)), errorMessage: optional(nullable(string)),
++  errorFamily: optional(nullable(oneOf("configuration", "transient_upstream", "provider_quota", "model_refusal", "refresh_token_reused", "refresh_token_expired", "refresh_token_invalidated"))),
++  retryNotBefore: optional(nullable(isoDateTime)), errorMeta: optional(record()),
++  summary: optional(nullable(string)), resultJson: optional(nullable(record())),
++  sessionId: optional(nullable(string)), sessionDisplayId: optional(nullable(string)), sessionParams: optional(nullable(record())),
++  clearSession: optional(boolean), usageComplete: optional(boolean), executionRecovery: optional(executionRecovery),
++});
++const meta = object({
++  adapterType: string, command: string, cwd: optional(string), commandArgs: optional(array(string)), commandNotes: optional(array(string)),
++  env: optional(record(string)), prompt: optional(string), promptMetrics: optional(record(number)), context: optional(record()),
++});
++const event = object({
++  eventType: string, stream: optional(oneOf("system", "stdout", "stderr")), level: optional(oneOf("info", "warn", "error")),
++  color: optional(string), message: optional(string), payload: optional(record()),
++});
++const checkpoint = object({ ...accounting, attemptId: optional(string), complete: boolean });
++
++function validated<T>(value: unknown, check: Check, message: string): T {
++  if (!check(value)) throw new Error(message);
++  return value as T;
++}
++
++/** Never include raw input in protocol errors: frames can contain credentials. */
++export function parseFrame(bytes: Buffer | string, binary = false): Frame {
++  if (binary) throw new Error("协议错误：只接受 UTF-8 文本帧");
++  if (Buffer.byteLength(bytes) > MAX_FRAME_BYTES) throw new Error("协议错误：消息超过 256 KB");
++  let value: unknown;
++  try {
++    const text = typeof bytes === "string" ? bytes : new TextDecoder("utf-8", { fatal: true }).decode(bytes);
++    value = JSON.parse(text);
++  } catch {
++    throw new Error("协议错误：消息不是有效的 UTF-8 JSON");
++  }
++  if (!isRecord(value) || value.v !== 1 || typeof value.type !== "string") throw new Error("协议错误：消息必须包含 v: 1 和字符串 type");
++  return value as Frame;
++}
++
++export function validateResult(value: unknown): ExecutorResult {
++  return validated(value, result, "协议错误：运行结果含未知字段或字段无效");
++}
++
++export function validateMeta(value: unknown): InvocationMeta {
++  return validated(value, meta, "协议错误：调用元数据含未知字段或字段无效");
++}
++
++export function validateEvent(value: unknown): RuntimeEvent {
++  return validated(value, event, "协议错误：运行事件含未知字段或字段无效");
++}
++
++export function validateUsage(value: unknown): UsageCheckpoint {
++  return validated(value, checkpoint, "协议错误：用量消息含未知字段或字段无效");
++}
++
++export function chunkUtf8(text: string, maxBytes = MAX_LOG_BYTES): string[] {
++  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1) throw new Error("日志分块字节上限必须是正整数");
++  const chunks: string[] = [];
++  let pending: string[] = [], size = 0;
++  for (const character of text) {
++    const bytes = Buffer.byteLength(character);
++    if (bytes > maxBytes) throw new Error("日志分块字节上限无法容纳一个完整字符");
++    if (size + bytes > maxBytes) { chunks.push(pending.join("")); pending = []; size = 0; }
++    pending.push(character); size += bytes;
++  }
++  if (pending.length) chunks.push(pending.join(""));
++  return chunks;
++}
+diff --git a/member-agent/src/transport-check.ts b/member-agent/src/transport-check.ts
+new file mode 100644
+index 0000000..8259e93
+--- /dev/null
++++ b/member-agent/src/transport-check.ts
+@@ -0,0 +1,28 @@
++import { BlockList, isIP } from "node:net";
++import { ConfigError } from "./config.ts";
++
++// Keep the address ranges aligned with server/src/realtime/member-agent-ws.ts.
++// No server imports: this client is independently installed and run.
++const allowed = new BlockList();
++allowed.addSubnet("127.0.0.0", 8, "ipv4");
++allowed.addAddress("::1", "ipv6");
++allowed.addSubnet("10.0.0.0", 8, "ipv4");
++allowed.addSubnet("100.64.0.0", 10, "ipv4");
++allowed.addSubnet("172.16.0.0", 12, "ipv4");
++allowed.addSubnet("192.168.0.0", 16, "ipv4");
++allowed.addSubnet("169.254.0.0", 16, "ipv4");
++allowed.addSubnet("fc00::", 7, "ipv6");
++allowed.addSubnet("fe80::", 10, "ipv6");
++
++export function assertTransportAllowed(serverUrl: string): void {
++  let parsed: URL;
++  try { parsed = new URL(serverUrl); }
++  catch { throw new ConfigError(["配置错误：serverUrl 无效，请填写 http:// 或 https:// 源地址。"]); }
++  if (parsed.protocol === "https:") return;
++  if (parsed.protocol !== "http:") throw new ConfigError(["配置错误：serverUrl 必须使用 http:// 或 https://。"]);
++  const host = parsed.hostname.replace(/^\[|\]$/g, "");
++  const version = isIP(host);
++  if (version && allowed.check(host, version === 4 ? "ipv4" : "ipv6")) return;
++  if (!version && /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/i.test(host)) return;
++  throw new ConfigError(["配置错误：明文只允许用于内网，请改用 https://。"]);
++}
+diff --git a/member-agent/test/cli.test.ts b/member-agent/test/cli.test.ts
+new file mode 100644
+index 0000000..6a15e63
+--- /dev/null
++++ b/member-agent/test/cli.test.ts
+@@ -0,0 +1,18 @@
++import { describe,it,expect,vi } from 'vitest';
++import { EventEmitter } from 'node:events';
++import { spawnSync } from 'node:child_process';
++import { installInterrupts } from '../src/main.ts';
++describe('成员命令与退出',()=>{
++ it('17 first Ctrl+C drains before closing, second Ctrl+C forces exit',async()=>{
++  const signals=new EventEmitter();let done!:()=>void;const pending=new Promise<void>(r=>{done=r;});const order:string[]=[];const exit=vi.fn();
++  const dispose=installInterrupts(signals,{shutdown:async()=>{order.push('drain');await pending;},force:()=>{order.push('force');}},()=>{order.push('close');},exit);
++  signals.emit('SIGINT');expect(order).toEqual(['drain']);signals.emit('SIGINT');expect(order).toEqual(['drain','force']);expect(exit).toHaveBeenCalledWith(0);done();await new Promise(resolve=>setImmediate(resolve));expect(order).toContain('close');dispose();
++ });
++ it('17 first Ctrl+C gracefully closes after a completed cancellation',async()=>{
++  const signals=new EventEmitter();const order:string[]=[];const dispose=installInterrupts(signals,{shutdown:async()=>{order.push('cancelled');},force:()=>{order.push('force');}},()=>{order.push('closed');},()=>{});signals.emit('SIGINT');await Promise.resolve();await Promise.resolve();expect(order).toEqual(['cancelled','closed']);dispose();
++ });
++ it('native Node runs version and rejects unknown arguments without a build',()=>{
++  const version=spawnSync(process.execPath,['src/main.ts','version'],{cwd:process.cwd(),encoding:'utf8'});expect(version.status,version.stderr).toBe(0);expect(version.stdout).toContain('0.1.0');
++  for(const args of [['unknown'],['version','--unknown'],['check','--config']]){const r=spawnSync(process.execPath,['src/main.ts',...args],{cwd:process.cwd(),encoding:'utf8'});expect(r.status,r.stderr).toBe(2);expect(r.stderr).toContain('用法');}
++ });
++});
+diff --git a/member-agent/test/connection.test.ts b/member-agent/test/connection.test.ts
+new file mode 100644
+index 0000000..2c22583
+--- /dev/null
++++ b/member-agent/test/connection.test.ts
+@@ -0,0 +1,168 @@
++import { createServer } from 'node:http';
++import { once } from 'node:events';
++import { mkdtempSync, rmSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import { join } from 'node:path';
++import { WebSocketServer } from 'ws';
++import { afterEach, describe, expect, it } from 'vitest';
++import { connectLoop, type Clock } from '../src/connection.ts';
++import { OutboundQueue } from '../src/outbound-queue.ts';
++import { JobRunner } from '../src/job-runner.ts';
++import { Logger } from '../src/logger.ts';
++import type { JobStart } from '../src/protocol.ts';
++
++const cleanup: Array<() => Promise<unknown> | unknown> = [];
++afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await close(); });
++const flush = () => new Promise<void>(resolve => setTimeout(resolve, 15));
++async function until(test: () => boolean) { for(let n=0;n<300;n++){ if(test())return; await flush(); } throw new Error('测试等待超时'); }
++class ManualClock implements Clock {
++  now = 0;
++  random = () => 0;
++  entries = new Map<number, {at:number, fn:()=>void}>();
++  next = 1;
++  setTimeout(fn:()=>void,ms:number) { const id=this.next++; this.entries.set(id,{at:this.now+ms,fn}); return id as unknown as ReturnType<typeof setTimeout>; }
++  clearTimeout(id:ReturnType<typeof setTimeout>) { this.entries.delete(id as unknown as number); }
++  advance(ms:number) { const target=this.now+ms; while(true){ const due=[...this.entries].filter(([,e])=>e.at<=target).sort((a,b)=>a[1].at-b[1].at)[0]; if(!due)break; this.now=due[1].at;this.entries.delete(due[0]);due[1].fn(); }this.now=target; }
++}
++async function server(onSocket:(socket:any,request:any)=>void, autoPong = true) {
++  const http=createServer(); const wss=new WebSocketServer({server:http,autoPong});
++  wss.on('connection',onSocket);http.listen(0,'127.0.0.1');await once(http,'listening');
++  cleanup.push(async()=>{ for(const s of wss.clients)s.terminate(); await new Promise<void>(r=>wss.close(()=>http.close(()=>r()))); });
++  return `http://127.0.0.1:${(http.address() as any).port}`;
++}
++function opts(serverUrl:string,extra:Record<string,unknown>={}) {
++  const abort=new AbortController();const lines:string[]=[];
++  cleanup.push(()=>abort.abort());
++  return {serverUrl,agentKey:'FAKE-connection-key',version:'0.2.0',signal:abort.signal,logger:{write:(_level:string,message:string)=>{lines.push(message);}},abort,lines,...extra};
++}
++
++describe('连接和重连',()=>{
++  it('发送有效 hello 和认证头，check 在 ack 后读取服务器参数并正常退出',async()=>{
++    let hello:any,headers:any,url:any;const endpoint=await server((ws,req)=>{headers=req.headers;url=req.url;ws.on('message',(raw:any)=>{hello=JSON.parse(raw.toString());ws.send(JSON.stringify({v:1,type:'hello.ack',heartbeatSec:9,maxRunSec:77,pinnedCodexVersion:'固定版本'}));});});
++    const options=opts(endpoint,{check:true});let ack:any;const code=await connectLoop({...options,onReady:value=>{ack=value;}});
++    expect(code).toBe(0);expect(url).toBe('/api/member-agent/v1/connect');expect(headers.authorization).toBe('Bearer FAKE-connection-key');
++    expect(hello).toMatchObject({v:1,type:'hello',agentVersion:'0.2.0',codexVersion:'none'});
++    for(const key of ['agentVersion','codexVersion','hostname','platform']){expect(typeof hello[key]).toBe('string');expect(hello[key].length).toBeGreaterThan(0);expect(hello[key].length).toBeLessThanOrEqual(255);}
++    expect(ack.maxRunSec).toBe(77);expect(options.lines.join('\n')).toContain('固定版本');
++  });
++  it.each([[401,3],[403,4]])('HTTP %i 退出码 %i 且不重试',async(status,expected)=>{
++    const http=createServer();let attempts=0;http.on('upgrade',(_req,socket)=>{attempts++;socket.end(`HTTP/1.1 ${status} Rejected\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);});http.listen(0,'127.0.0.1');await once(http,'listening');cleanup.push(()=>new Promise<void>(r=>http.close(()=>r())));
++    const options=opts(`http://127.0.0.1:${(http.address() as any).port}`);expect(await connectLoop(options)).toBe(expected);expect(attempts).toBe(1);
++  });
++  it('10 秒未收到 hello 响应就关闭，1 秒退避后重连',async()=>{
++    const clock=new ManualClock();let attempts=0;const endpoint=await server(()=>{attempts++;});const options=opts(endpoint,{clock});const running=connectLoop(options);
++    await until(()=>attempts===1);clock.advance(9999);await flush();expect(attempts).toBe(1);clock.advance(1);await until(()=>options.lines.some(x=>x.includes('重试')));clock.advance(999);await flush();expect(attempts).toBe(1);clock.advance(1);await until(()=>attempts===2);options.abort.abort();expect(await running).toBe(0);
++  });
++  it('HTTP 429 至少等 60 秒才重试',async()=>{
++    const clock=new ManualClock();let attempts=0;const http=createServer();http.on('upgrade',(_req,s)=>{attempts++;s.end('HTTP/1.1 429 Too Many Requests\r\nConnection: close\r\nContent-Length: 0\r\n\r\n');});http.listen(0,'127.0.0.1');await once(http,'listening');cleanup.push(()=>new Promise<void>(r=>http.close(()=>r())));
++    const options=opts(`http://127.0.0.1:${(http.address() as any).port}`,{clock});const running=connectLoop(options);await until(()=>options.lines.some(x=>x.includes('重试')));clock.advance(59999);await flush();expect(attempts).toBe(1);clock.advance(1);await until(()=>attempts===2);options.abort.abort();expect(await running).toBe(0);
++  });
++  it('already_connected 每次等 30 秒无限重试，not_allowed 不重试',async()=>{
++    const clock=new ManualClock();let attempts=0;const endpoint=await server(ws=>{attempts++;ws.send(JSON.stringify({v:1,type:'hello.reject',code:attempts<4?'already_connected':'member_agent_not_allowed'}));});const options=opts(endpoint,{clock});const running=connectLoop(options);
++    for(let n=1;n<=3;n++){await until(()=>options.lines.filter(x=>x.includes('重试')).length===n);clock.advance(29999);await flush();expect(attempts).toBe(n);clock.advance(1);await until(()=>attempts===n+1);}expect(await running).toBe(4);
++  });
++  it('失败指数退避到 30 秒上限，ack 后重置',async()=>{
++    const clock=new ManualClock();let attempts=0;const endpoint=await server(ws=>{attempts++;ws.on('message',()=>{if(attempts===8)ws.send(JSON.stringify({v:1,type:'hello.ack'}));ws.close();});});const options=opts(endpoint,{clock});const running=connectLoop(options);
++    for(const [index,delay] of [1000,2000,4000,8000,16000,30000,30000,1000].entries()){await until(()=>options.lines.filter(x=>x.includes('重试')).length===index+1);clock.advance(delay-1);await flush();expect(attempts).toBe(index+1);clock.advance(1);await until(()=>attempts===index+2);}options.abort.abort();expect(await running).toBe(0);
++  });
++  it('随机抖动在 0–20%，独立心跳按 ack 周期发送',async()=>{
++    const clock=new ManualClock();clock.random=()=>0.5;const received:any[]=[];const endpoint=await server(ws=>ws.on('message',(raw:any)=>{const f=JSON.parse(raw.toString());received.push(f);if(f.type==='hello')ws.send(JSON.stringify({v:1,type:'hello.ack',heartbeatSec:2}));}));const options=opts(endpoint,{clock});const running=connectLoop(options);await until(()=>options.lines.some(x=>x.includes('已连接')));clock.advance(1999);await flush();expect(received.filter(x=>x.type==='heartbeat')).toHaveLength(0);clock.advance(1);await until(()=>received.some(x=>x.type==='heartbeat'));options.abort.abort();expect(await running).toBe(0);
++    const failing=await server(ws=>ws.close());const retryOpts=opts(failing,{clock});const retry=connectLoop(retryOpts);await until(()=>retryOpts.lines.some(x=>x.includes('重试')));expect(retryOpts.lines.find(x=>x.includes('重试'))).toContain('1.1');retryOpts.abort.abort();await retry;
++  });
++  it('未知 type 记录日志，未知版本断开，重连等待任务清理且旧 sender 失效',async()=>{
++    const clock=new ManualClock();let attempts=0;let first:any;const frames:any[]=[];const endpoint=await server(ws=>{attempts++;ws.on('message',(raw:any)=>{frames.push(JSON.parse(raw.toString()));});ws.send(JSON.stringify({v:1,type:'hello.ack'}));if(attempts===1){first=ws;}});let release!:()=>void;const barrier=new Promise<void>(r=>{release=r;});let oldSend:any;const options=opts(endpoint,{clock});const running=connectLoop({...options,onSession:send=>{oldSend??=send;},onDisconnect:()=>barrier});await until(()=>first&&oldSend);first.send(JSON.stringify({v:1,type:'future.message'}));await until(()=>options.lines.some(x=>x.includes('未知')));first.send(JSON.stringify({v:2,type:'job.start'}));await until(()=>options.lines.some(x=>x.includes('版本')));clock.advance(100000);await flush();expect(attempts).toBe(1);release();await until(()=>options.lines.some(x=>x.includes('重试')));clock.advance(1000);await until(()=>attempts===2);oldSend({v:1,type:'job.result',jobId:'old'});await flush();expect(frames.some(x=>x.jobId==='old')).toBe(false);options.abort.abort();await running;
++  });
++  it('6 执行器在独立 Worker 中同步忙等时，真实 WebSocket 心跳持续发送',async()=>{
++    const received:Array<Record<string,unknown>>=[];
++    const job:JobStart={v:1,type:'job.start',jobId:'fixture-blocked',companyId:'fixture-company',agent:{id:'fixture-agent',name:'fixture'},authToken:'FAKE-BLOCKED-RUN-TOKEN',context:{},config:{maxRunSec:5},runtime:{},runtimeTools:null,handoffMarkdown:'',codeSyncDir:''};
++    const endpoint=await server(ws=>ws.on('message',(raw:Buffer)=>{
++      const frame=JSON.parse(raw.toString());received.push(frame);
++      if(frame.type==='hello'){
++        ws.send(JSON.stringify({v:1,type:'hello.ack',heartbeatSec:0.05}));
++        ws.send(JSON.stringify(job));
++      }
++    }));
++    const dir=mkdtempSync(join(tmpdir(),'member-heartbeat-'));
++    const logger=new Logger(dir,['FAKE-connection-key'],()=>{});
++    const runner=new JobRunner({serverUrl:endpoint,logger,send:()=>{},executorUrl:new URL('./fixtures/executor.ts',import.meta.url),executorData:{mode:'blocked'}});
++    cleanup.push(()=>rmSync(dir,{recursive:true,force:true}));
++    cleanup.push(()=>runner.shutdown());
++    const options=opts(endpoint);
++    const running=connectLoop({...options,logger,onSession:send=>runner.setSender(send),onFrame:frame=>runner.start(frame as unknown as JobStart),onDisconnect:()=>runner.disconnect()});
++    await until(()=>received.some(f=>f.type==='job.accepted'));
++    await until(()=>received.filter(f=>f.type==='heartbeat').length>=4);
++    expect(received.some(f=>f.type==='job.result')).toBe(false);
++    await until(()=>received.some(f=>f.type==='job.result'));
++    expect(received.filter(f=>f.type==='heartbeat').length).toBeGreaterThan(3);
++    options.abort.abort();expect(await running).toBe(0);
++  });
++  it('原生 pong 无响应满 45 秒中止任务并退避重连，不依赖应用心跳 ack',async()=>{
++    const clock=new ManualClock();let attempts=0,pings=0,disconnects=0;const received:Array<Record<string,unknown>>=[];
++    const job:JobStart={v:1,type:'job.start',jobId:'fixture-half-open',companyId:'fixture-company',agent:{id:'fixture-agent',name:'fixture'},authToken:'FAKE-HALF-OPEN-TOKEN',context:{},config:{maxRunSec:120},runtime:{},runtimeTools:null,handoffMarkdown:'',codeSyncDir:''};
++    const endpoint=await server(ws=>{
++      attempts++;ws.on('ping',()=>{pings++;});
++      ws.on('message',(raw:Buffer)=>{const frame=JSON.parse(raw.toString());received.push(frame);if(frame.type==='hello'){ws.send(JSON.stringify({v:1,type:'hello.ack',heartbeatSec:60}));if(attempts===1)ws.send(JSON.stringify(job));}});
++    },false);
++    const dir=mkdtempSync(join(tmpdir(),'member-half-open-'));const logger=new Logger(dir,['FAKE-connection-key'],()=>{});
++    const runner=new JobRunner({serverUrl:endpoint,logger,send:()=>{},executorUrl:new URL('./fixtures/executor.ts',import.meta.url),executorData:{mode:'wait'}});
++    cleanup.push(()=>rmSync(dir,{recursive:true,force:true}));cleanup.push(()=>runner.shutdown());
++    const options=opts(endpoint,{clock});const running=connectLoop({...options,logger,onSession:send=>runner.setSender(send),onFrame:frame=>runner.start(frame as unknown as JobStart),onDisconnect:async()=>{disconnects++;await runner.disconnect();}});
++    await until(()=>received.some(f=>f.type==='job.accepted'));expect(runner.busy).toBe(true);
++    clock.advance(44999);await flush();expect(disconnects).toBe(0);expect(attempts).toBe(1);expect(pings).toBeGreaterThan(0);
++    clock.advance(1);await until(()=>disconnects===1&&!runner.busy);expect(received.some(f=>f.type==='job.result')).toBe(false);
++    // Cleanup is awaited before retry's independent one-second backoff starts.
++    await flush();clock.advance(999);await flush();expect(attempts).toBe(1);clock.advance(1);await until(()=>attempts===2);
++    options.abort.abort();expect(await running).toBe(0);
++  });
++  it('原生自动 pong 保持连接，不要求服务器回复 JSON heartbeat',async()=>{
++    const clock=new ManualClock();let attempts=0,pings=0,heartbeats=0,disconnects=0;
++    const endpoint=await server(ws=>{attempts++;ws.on('ping',()=>{pings++;});ws.on('message',(raw:Buffer)=>{const frame=JSON.parse(raw.toString());if(frame.type==='hello')ws.send(JSON.stringify({v:1,type:'hello.ack',heartbeatSec:15}));if(frame.type==='heartbeat')heartbeats++;});});
++    const options=opts(endpoint,{clock});const running=connectLoop({...options,onDisconnect:async()=>{disconnects++;}});
++    await until(()=>options.lines.some(line=>line.includes('已连接')));
++    for(let n=0;n<4;n++){clock.advance(15000);await flush();}
++    expect(pings).toBeGreaterThan(0);expect(heartbeats).toBeGreaterThanOrEqual(4);expect(disconnects).toBe(0);expect(attempts).toBe(1);
++    options.abort.abort();expect(await running).toBe(0);
++  });
++});
++
++describe('有界发送队列',()=>{
++  it('超过1000帧只丢弃最旧日志，保留结果且发送回调继续排空',()=>{
++    const sent:any[]=[];const callbacks:Array<(error?:Error)=>void>=[];const notices:string[]=[];
++    const socket={readyState:1,bufferedAmount:0,send(text:string,cb:(error?:Error)=>void){sent.push(JSON.parse(text));callbacks.push(cb);}};
++    const queue=new OutboundQueue(socket,{onDrop:n=>notices.push(`已丢弃 ${n} 条输出`)});
++    for(let seq=1;seq<=1200;seq++)queue.send({v:1,type:'job.log',jobId:'j',seq,stream:'stdout',chunk:'输出'});
++    queue.send({v:1,type:'job.result',jobId:'j',exitCode:0,signal:null,timedOut:false});
++    while(callbacks.length)callbacks.shift()!();
++    expect(sent.length).toBeLessThanOrEqual(1001);expect(sent[0].seq).toBe(1);expect(sent.find(x=>x.seq===2)).toBeUndefined();expect(sent.at(-1).type).toBe('job.result');expect(notices.length).toBeGreaterThan(0);queue.close();
++  });
++  it('8MiB 字节上限生效，停止后丢弃后续输出',()=>{
++    const sent:any[]=[];const callbacks:Array<()=>void>=[];const socket={readyState:1,bufferedAmount:0,send(text:string,cb:()=>void){sent.push(JSON.parse(text));callbacks.push(cb);}};
++    const queue=new OutboundQueue(socket);for(let seq=1;seq<=400;seq++)queue.send({v:1,type:'job.log',jobId:'j',seq,stream:'stdout',chunk:'a'.repeat(32768)});queue.send({v:1,type:'job.result',jobId:'j',exitCode:0,signal:null,timedOut:false});while(callbacks.length)callbacks.shift()!();expect(sent.length).toBeLessThan(260);expect(sent.at(-1).type).toBe('job.result');queue.close();const size=sent.length;queue.send({v:1,type:'heartbeat'});expect(sent.length).toBe(size);
++  });
++  it('ws 缓冲区积压时暂缓发送，并在缓冲释放后恢复',()=>{
++    const clock=new ManualClock();const sent:string[]=[];
++    const socket={readyState:1,bufferedAmount:300_000,send(text:string,cb:()=>void){sent.push(text);cb();}};
++    const queue=new OutboundQueue(socket,{clock});queue.send({v:1,type:'heartbeat'});
++    expect(sent).toHaveLength(0);clock.advance(49);expect(sent).toHaveLength(0);
++    socket.bufferedAmount=0;clock.advance(1);expect(JSON.parse(sent[0]!)).toMatchObject({type:'heartbeat'});queue.close();
++  });
++  it('drain 等待积压日志和结果的发送回调后才成功，结果不丢失',async()=>{
++    const sent:Array<Record<string,unknown>>=[];const callbacks:Array<()=>void>=[];
++    const socket={readyState:1,bufferedAmount:0,send(text:string,cb:()=>void){sent.push(JSON.parse(text));callbacks.push(cb);}};
++    const queue=new OutboundQueue(socket);
++    queue.send({v:1,type:'job.log',jobId:'j',seq:1,stream:'stdout',chunk:'输出'});
++    queue.send({v:1,type:'job.result',jobId:'j',exitCode:0,signal:null,timedOut:false});
++    let finished=false;const drained=queue.drain().then(value=>{finished=true;return value;});
++    await Promise.resolve();expect(finished).toBe(false);expect(sent.map(frame=>frame.type)).toEqual(['job.log']);
++    callbacks.shift()!();await Promise.resolve();expect(finished).toBe(false);expect(sent.map(frame=>frame.type)).toEqual(['job.log','job.result']);
++    callbacks.shift()!();expect(await drained).toBe(true);queue.close();
++  });
++  it('drain 发送超时或队列关闭时返回 false，无积压时立即返回 true',async()=>{
++    const clock=new ManualClock();const socket={readyState:1,bufferedAmount:0,send(_text:string,_cb:()=>void){}};
++    const queue=new OutboundQueue(socket,{clock});expect(await queue.drain()).toBe(true);
++    queue.send({v:1,type:'job.result',jobId:'j',exitCode:0,signal:null,timedOut:false});
++    let finished=false;const timeout=queue.drain(100).then(value=>{finished=true;return value;});
++    clock.advance(99);await Promise.resolve();expect(finished).toBe(false);clock.advance(1);expect(await timeout).toBe(false);
++    const closed=queue.drain();queue.close();expect(await closed).toBe(false);expect(await queue.drain()).toBe(false);expect(clock.entries.size).toBe(0);
++  });
++});
+diff --git a/member-agent/test/echo-hold.test.ts b/member-agent/test/echo-hold.test.ts
+new file mode 100644
+index 0000000..b3a3d7d
+--- /dev/null
++++ b/member-agent/test/echo-hold.test.ts
+@@ -0,0 +1,75 @@
++import { afterEach, describe, expect, it, vi } from "vitest";
++import { mkdtempSync, rmSync } from "node:fs";
++import { join } from "node:path";
++import { tmpdir } from "node:os";
++import { validateConfig } from "../src/config.ts";
++import { createEchoExecutor, echoExecutor } from "../src/executors/echo.ts";
++import type { ExecutorHooks, JobStart } from "../src/executors/types.ts";
++import { JobRunner } from "../src/job-runner.ts";
++import { Logger } from "../src/logger.ts";
++
++afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
++const inputConfig = () => ({ serverUrl: "http://127.0.0.1:1", agentKey: "FAKE-HOLD-AGENT-KEY", executor: "echo", projectDirs: {}, defaultCwd: "" });
++function hooks() {
++  const abort = new AbortController();
++  const logs: string[] = [];
++  const job: JobStart = { v: 1, type: "job.start", jobId: "fake-hold-job", companyId: "fake-company", agent: { id: "fake-agent", name: "测试" }, authToken: "FAKE-HOLD-RUN-TOKEN", context: { issueId: "fake-hold-issue" }, config: {}, runtime: {}, runtimeTools: null, handoffMarkdown: "", codeSyncDir: "" };
++  const value: ExecutorHooks = { job, signal: abort.signal, serverUrl: "http://127.0.0.1:1", log: (_stream, text) => logs.push(text), event() {} };
++  return { abort, logs, value };
++}
++function mockFetch() {
++  const requests: string[] = [];
++  const fetch = vi.fn(async (_url: string, init: RequestInit) => { requests.push(String(init.method)); return new Response("{}", { status: 200 }); });
++  vi.stubGlobal("fetch", fetch);
++  return { fetch, requests };
++}
++
++describe("echoHoldSec 测试专用配置", () => {
++  it("defaults to zero and preserves immediate echo writeback", async () => {
++    expect(validateConfig(inputConfig(), {}).echoHoldSec).toBe(0);
++    const { requests } = mockFetch();
++    const result = await echoExecutor.execute(hooks().value);
++    expect(result).toMatchObject({ exitCode: 0, summary: "echo 执行器完成" });
++    expect(requests).toEqual(["POST", "PATCH"]);
++  });
++  it.each([-1, 601, 1.5, "abc"])("rejects invalid echoHoldSec %s with a Chinese field diagnostic", echoHoldSec => {
++    expect(() => validateConfig({ ...inputConfig(), echoHoldSec }, {})).toThrow(/echoHoldSec.*整数.*0.*600/);
++  });
++  it("accepts both endpoints and still rejects unknown configuration fields", () => {
++    for (const echoHoldSec of [0, 600]) expect(validateConfig({ ...inputConfig(), echoHoldSec }, {}).echoHoldSec).toBe(echoHoldSec);
++    expect(() => validateConfig({ ...inputConfig(), echoHoldSecs: 2 }, {})).toThrow("echoHoldSecs");
++  });
++  it("cancels a 30 second hold in under one second without any writeback", async () => {
++    const { fetch } = mockFetch();
++    const input = hooks();
++    const pending = createEchoExecutor({ echoHoldSec: 30 }).execute(input.value);
++    expect(input.logs).toEqual(["成员代理收到任务 fake-hold-job\n"]);
++    const started = performance.now(); input.abort.abort();
++    expect(await pending).toMatchObject({ exitCode: 1, errorCode: "cancelled" });
++    expect(performance.now() - started).toBeLessThan(1000);
++    expect(fetch).not.toHaveBeenCalled();
++  });
++  it("waits two seconds before normal writeback with an injected clock", async () => {
++    vi.useFakeTimers();
++    const { requests } = mockFetch();
++    const pending = createEchoExecutor({ echoHoldSec: 2 }).execute(hooks().value);
++    await vi.advanceTimersByTimeAsync(1999); expect(requests).toEqual([]);
++    await vi.advanceTimersByTimeAsync(1);
++    expect(await pending).toMatchObject({ exitCode: 0 }); expect(requests).toEqual(["POST", "PATCH"]);
++    expect(vi.getTimerCount()).toBe(0);
++  });
++  it("passes the local hold through workerData and cancellation prevents worker writeback", async () => {
++    const dir = mkdtempSync(join(tmpdir(), "member-echo-hold-"));
++    const frames: Array<Record<string, unknown>> = [];
++    const runner = new JobRunner({ serverUrl: "http://127.0.0.1:1", logger: new Logger(dir, ["FAKE-HOLD-AGENT-KEY"], () => {}), send: frame => frames.push(frame), echoHoldSec: 30 });
++    try {
++      runner.start(hooks().value.job);
++      const deadline = Date.now() + 3000;
++      while (!frames.some(frame => frame.type === "job.log")) { if (Date.now() > deadline) throw new Error("测试执行器未开始"); await new Promise(resolve => setTimeout(resolve, 10)); }
++      expect(frames.some(frame => frame.type === "job.result")).toBe(false);
++      const started = performance.now(); await runner.cancel("fake-hold-job", 1);
++      expect(performance.now() - started).toBeLessThan(1000);
++      expect(frames.find(frame => frame.type === "job.result")).toMatchObject({ errorCode: "cancelled" });
++    } finally { await runner.shutdown(); rmSync(dir, { recursive: true, force: true }); }
++  });
++});
+diff --git a/member-agent/test/fixtures/executor.ts b/member-agent/test/fixtures/executor.ts
+new file mode 100644
+index 0000000..ccdb20e
+--- /dev/null
++++ b/member-agent/test/fixtures/executor.ts
+@@ -0,0 +1,15 @@
++import { workerData } from 'node:worker_threads';
++import type { Executor } from '../../src/executors/types.ts';
++const mode=workerData.executorData?.mode;
++const executor:Executor={name:'test-only',async execute(hooks){
++ if(mode==='throw-secret')throw new Error('x'.repeat(1010)+hooks.job.authToken);
++ if(mode==='live-handle')setInterval(()=>{},1000);
++ if(mode==='blocked'){const end=Date.now()+2000;while(Date.now()<end){} }
++ if(mode==='wait')await new Promise<void>(resolve=>{if(hooks.signal.aborted)resolve();else hooks.signal.addEventListener('abort',()=>resolve(),{once:true});});
++ if(mode==='secret'){
++  for(const secret of ['FAKE-AGENT-KEY-ONLY-FOR-TESTS',hooks.job.authToken,hooks.job.runtimeTools?.bearerToken as string]){hooks.log('stdout',secret.slice(0,8));hooks.log('stdout',secret.slice(8)+'\n');}
++ }
++ hooks.log('stdout','测试输出一\n');hooks.log('stdout','测试输出二\n');hooks.event({eventType:'fixture.progress',message:'测试事件'});
++ return {exitCode:0,signal:null,timedOut:false,...(mode==='invalid'?{unexpected:'must not be sent'}:{})};
++}};
++export default executor;
+diff --git a/member-agent/test/fixtures/process-tree.mjs b/member-agent/test/fixtures/process-tree.mjs
+new file mode 100644
+index 0000000..4708abc
+--- /dev/null
++++ b/member-agent/test/fixtures/process-tree.mjs
+@@ -0,0 +1,11 @@
++// Only a test fixture: creates no service and performs no network requests.
++import { fork } from "node:child_process";
++import { fileURLToPath } from "node:url";
++
++if (process.argv[2] === "grandchild") {
++  process.send?.({ ready: true });
++} else {
++  const grandchild = fork(fileURLToPath(import.meta.url), ["grandchild"], { stdio: ["ignore", "ignore", "ignore", "ipc"] });
++  grandchild.once("message", () => process.send?.({ grandchildPid: grandchild.pid }));
++}
++setInterval(() => {}, 1_000);
+diff --git a/member-agent/test/foundation.test.ts b/member-agent/test/foundation.test.ts
+new file mode 100644
+index 0000000..f7ebe7b
+--- /dev/null
++++ b/member-agent/test/foundation.test.ts
+@@ -0,0 +1,199 @@
++import { execFile, fork } from "node:child_process";
++import { mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
++import { tmpdir, userInfo } from "node:os";
++import path from "node:path";
++import { fileURLToPath } from "node:url";
++import { promisify } from "node:util";
++import { describe, expect, it } from "vitest";
++import { ConfigError, loadConfig, validateConfig } from "../src/config.ts";
++import { assertTransportAllowed } from "../src/transport-check.ts";
++import { Logger, Redactor } from "../src/logger.ts";
++import { acquireLock, LockError } from "../src/lock.ts";
++import { terminateProcessTree } from "../src/process-tree.ts";
++
++const validConfig = () => ({
++  serverUrl: "http://192.168.0.213:3100", agentKey: "FAKE-agent-key-only-for-tests",
++  executor: "echo", projectDirs: {}, defaultCwd: "",
++});
++const testDir = () => mkdtemp(path.join(tmpdir(), "paperclip-member-foundation-test-"));
++
++describe("#1 配置校验", () => {
++  it("缺字段、类型、未知字段的多个错误一次列全且不输出字段值", () => {
++    const invalid = { serverUrl: "ftp://example.com/path", agentKey: 123, executor: "codex", projectDirs: [], defaultCwd: false, typo: "FAKE-DO-NOT-PRINT" };
++    let failure: ConfigError | undefined;
++    try { validateConfig(invalid, {}); } catch (error) { failure = error as ConfigError; }
++    expect(failure).toBeInstanceOf(ConfigError);
++    expect(failure?.messages).toHaveLength(6);
++    for (const field of ["serverUrl", "agentKey", "executor", "projectDirs", "defaultCwd", "typo"]) expect(failure?.message).toContain(field);
++    expect(failure?.message).not.toContain("FAKE-DO-NOT-PRINT");
++    try { validateConfig({}, {}); } catch (error) { expect((error as ConfigError).messages).toHaveLength(5); return; }
++    throw new Error("missing fields must fail");
++  });
++  it("环境 Key 优先并允许配置不含 Key；空环境 Key 仍须报错", () => {
++    const input: Record<string, unknown> = validConfig(); delete input.agentKey;
++    expect(validateConfig(input, { PAPERCLIP_AGENT_KEY: "FAKE-env-key-only-for-tests" }).agentKey).toBe("FAKE-env-key-only-for-tests");
++    expect(validateConfig(validConfig(), { PAPERCLIP_AGENT_KEY: "FAKE-env-wins" }).agentKey).toBe("FAKE-env-wins");
++    expect(() => validateConfig(validConfig(), { PAPERCLIP_AGENT_KEY: "" })).toThrow(ConfigError);
++  });
++  it("配置诊断中与 Key 相同的字段名也脱敏", () => {
++    try { validateConfig({ ...validConfig(), agentKey: "executor", executor: "codex" }, {}); }
++    catch (error) { expect((error as Error).message).not.toContain("executor"); return; }
++    throw new Error("invalid executor must fail");
++  });
++  it.each(["192.168.0.213:3100", "http://host/path", "http://host/path/..", "http://host/.", "http://host?key=x", "http://host/#x", "http://user:pass@host", "ws://host", "http://host/?", "http://host/#", " http://host", "http://host\\path"])("拒绝非纯 HTTP(S) 源地址 %s", (serverUrl) => {
++    expect(() => validateConfig({ ...validConfig(), serverUrl }, {})).toThrow(ConfigError);
++  });
++  it("读取 UTF-8 JSON；拒绝 BOM 和非法 JSON，错误不回显内容", async () => {
++    const dir = await testDir(); const configPath = path.join(dir, "config.json");
++    await writeFile(configPath, JSON.stringify(validConfig()), "utf8");
++    const warnings: string[] = [];
++    expect((await loadConfig(configPath, {}, (message) => warnings.push(message))).executor).toBe("echo");
++    expect(warnings.join("")).not.toContain(validConfig().agentKey);
++    if (process.platform === "win32") expect(warnings.join("")).toContain("icacls");
++    await writeFile(configPath, '\uFEFF' + JSON.stringify(validConfig()), "utf8");
++    await expect(loadConfig(configPath, {})).rejects.toThrow(ConfigError);
++    await writeFile(configPath, '{"agentKey":"FAKE-INVALID-JSON-SECRET",', "utf8");
++    await expect(loadConfig(configPath, {})).rejects.not.toThrow("FAKE-INVALID-JSON-SECRET");
++  });
++  it.skipIf(process.platform !== "win32")("真实 Windows ACL：仅当前用户可读不警告，Everyone 可读时警告且给出命令", async () => {
++    const dir = await testDir(); const configPath = path.join(dir, "config.json");
++    await writeFile(configPath, JSON.stringify(validConfig()));
++    const account = process.env.USERDOMAIN ? `${process.env.USERDOMAIN}\\${userInfo().username}` : userInfo().username;
++    const execFileAsync = promisify(execFile); const warnings: string[] = [];
++    await execFileAsync("icacls.exe", [configPath, "/inheritance:r", "/grant:r", `${account}:(R)`], { windowsHide: true });
++    await loadConfig(configPath, {}, (message) => warnings.push(message));
++    expect(warnings).toHaveLength(0);
++    await execFileAsync("icacls.exe", [configPath, "/grant", "*S-1-1-0:(R)"], { windowsHide: true });
++    await loadConfig(configPath, {}, (message) => warnings.push(message));
++    expect(warnings).toHaveLength(1); expect(warnings[0]).toContain("icacls"); expect(warnings[0]).not.toContain(validConfig().agentKey);
++  });
++});
++
++describe("#2 明文传输自检", () => {
++  it.each(["127.0.0.1", "127.255.255.254", "10.0.0.1", "172.16.0.1", "172.31.255.254", "192.168.1.1", "100.64.0.1", "100.127.255.254", "169.254.1.1", "localhost", "MEMBER-PC", "[::1]", "[fd12::1]", "[fe80::1]", "[::ffff:192.168.1.1]"])("允许服务器规则中的内网主机 %s", (host) => {
++    expect(() => assertTransportAllowed(`http://${host}:3101`)).not.toThrow();
++  });
++  it.each(["8.8.8.8", "172.32.0.1", "100.63.255.255", "100.128.0.0", "example.com", "localhost.example.com", "localhost.", "[2001:4860:4860::8888]", "[::ffff:8.8.8.8]"])("拒绝明文公网或有点号的主机 %s", (host) => {
++    expect(() => assertTransportAllowed(`http://${host}`)).toThrow("明文只允许用于内网，请改用 https://");
++  });
++  it("允许任意有效 HTTPS 源地址但拒绝其他协议", () => {
++    expect(() => assertTransportAllowed("https://example.com")).not.toThrow();
++    expect(() => assertTransportAllowed("https://8.8.8.8")).not.toThrow();
++    expect(() => assertTransportAllowed("ws://localhost")).toThrow();
++  });
++});
++
++describe("#14 同一脱敏器保护控制台和日志", () => {
++  const secret = 'FAKE-key-"quoted"/中文?+%secret';
++  it("文本、JSON 键和值、URL 编码均脱敏", () => {
++    const redactor = new Redactor(); redactor.register(secret, undefined, "FAKE-run-token", "FAKE-tool-token");
++    const input = `${secret} ${JSON.stringify({ [secret]: secret })} https://example.com/?token=${encodeURIComponent(secret)} FAKE-run-token FAKE-tool-token`;
++    const output = redactor.redact(input);
++    expect(output).not.toContain(secret);
++    expect(output).not.toContain(JSON.stringify(secret).slice(1, -1));
++    expect(output).not.toContain(encodeURIComponent(secret));
++    expect(output).not.toContain("FAKE-run-token"); expect(output).not.toContain("FAKE-tool-token");
++    expect(output).toContain("FAKE…");
++  });
++  it("每个流保留可能匹配的尾部，跨任意边界拆分均无泄露", () => {
++    const variants = [secret, JSON.stringify(secret).slice(1, -1), encodeURIComponent(secret)];
++    for (const variant of variants) {
++      for (let split = 1; split < variant.length; split++) {
++        const redactor = new Redactor(); redactor.register(secret);
++        const first = redactor.chunk("stdout", `开始 ${variant.slice(0, split)}`);
++        expect(first).toBe("开始 ");
++        expect(redactor.chunk("stderr", "另一个流\n")).toBe("另一个流\n");
++        const output = first + redactor.chunk("stdout", `${variant.slice(split)} 完成`) + redactor.finish("stdout");
++        expect(output).toBe("开始 FAKE… 完成");
++      }
++    }
++  });
++  it("结束不泄露未确认的令牌前缀；短密钥不完整显示", () => {
++    const redactor = new Redactor(); redactor.register("FAKE-partial-secret", "xy");
++    const output = redactor.chunk("stream", "内容 FAKE-par") + redactor.finish("stream");
++    expect(output).not.toContain("FAKE-par"); expect(output).toContain("…");
++    expect(redactor.redact("xy")).not.toBe("xy");
++  });
++  it("日志一行一条并在文件及控制台脱敏，清理七天前日志而保留其他文件", async () => {
++    const dir = await testDir();
++    await writeFile(path.join(dir, "agent-20000101.log"), "old test log");
++    await writeFile(path.join(dir, "keep.txt"), "keep");
++    const consoleText: string[] = []; const logger = new Logger(dir, [secret], (text) => consoleText.push(text));
++    logger.write("info", `消息 ${secret}\n第二行`, true);
++    logger.write("debug", "仅文件", false);
++    logger.redactor.register("FAKE-runtime-later"); logger.write("error", "FAKE-runtime-later", true);
++    const names = await readdir(dir); expect(names).not.toContain("agent-20000101.log"); expect(names).toContain("keep.txt");
++    const logFile = names.find((name) => /^agent-\d{8}\.log$/.test(name))!;
++    const fileText = await readFile(path.join(dir, logFile), "utf8");
++    expect(fileText).not.toContain(secret); expect(consoleText.join("")).not.toContain(secret);
++    expect(fileText).not.toContain("FAKE-runtime-later"); expect(consoleText.join("")).not.toContain("FAKE-runtime-later");
++    expect(fileText).toContain("仅文件"); expect(consoleText.join("")).not.toContain("仅文件");
++    expect(fileText.trim().split("\n")).toHaveLength(3);
++  });
++  it("Logger.write 连续消息拆开的密钥不会进入文件或控制台", async () => {
++    const dir = await testDir(); const output: string[] = [];
++    const logger = new Logger(dir, [secret], (message) => output.push(message));
++    logger.write("info", `开始 ${secret.slice(0, 12)}`, true);
++    logger.write("info", `${secret.slice(12)} 完成`, true);
++    const names = await readdir(dir); const fileText = await readFile(path.join(dir, names[0]!), "utf8");
++    expect(fileText).not.toContain(secret.slice(0, 12)); expect(fileText).not.toContain(secret.slice(12));
++    expect(output.join("")).not.toContain(secret.slice(0, 12)); expect(output.join("")).not.toContain(secret.slice(12));
++  });
++});
++
++describe("#16 单实例锁", () => {
++  it("活进程锁拒绝且退出码 5；释放后可以重新获取", async () => {
++    const dir = await testDir(); const release = await acquireLock(dir);
++    try {
++      await expect(acquireLock(dir)).rejects.toMatchObject({ code: 5 });
++      expect(await readFile(path.join(dir, "agent.lock"), "utf8")).toBe(String(process.pid));
++    } finally { await release(); }
++    const releaseAgain = await acquireLock(dir); await releaseAgain();
++  });
++  it("陈旧锁被覆盖；并发申请只允许一个成功", async () => {
++    const dir = await testDir(); await writeFile(path.join(dir, "agent.lock"), "2147483647");
++    const attempts = await Promise.allSettled([acquireLock(dir), acquireLock(dir)]);
++    expect(attempts.filter((attempt) => attempt.status === "fulfilled")).toHaveLength(1);
++    const failed = attempts.find((attempt) => attempt.status === "rejected") as PromiseRejectedResult;
++    expect(failed.reason).toBeInstanceOf(LockError);
++    for (const attempt of attempts) if (attempt.status === "fulfilled") await attempt.value();
++  });
++  it("崩溃留下的陈旧获取锁也可恢复，活进程获取锁不会被删除", async () => {
++    const dir = await testDir(); const guard = path.join(dir, "agent.lock.recovery");
++    await writeFile(guard, "2147483647");
++    const release = await acquireLock(dir); await release();
++    await writeFile(guard, String(process.pid));
++    await expect(acquireLock(dir)).rejects.toBeInstanceOf(LockError);
++    expect(await readFile(guard, "utf8")).toBe(String(process.pid));
++  });
++});
++
++function processExists(pid: number): boolean {
++  try { process.kill(pid, 0); return true; } catch (error) { return (error as NodeJS.ErrnoException).code !== "ESRCH"; }
++}
++
++describe("#15 进程树终止", () => {
++  it("无效或自身 PID 不会调用终止工具", async () => {
++    for (const pid of [0, -1, 1.5, process.pid, NaN]) await expect(terminateProcessTree(pid)).rejects.toThrow();
++  });
++  it.skipIf(process.platform !== "win32")("taskkill 确实终止测试子进程及孙进程", async () => {
++    const child = fork(fileURLToPath(new URL("./fixtures/process-tree.mjs", import.meta.url)), [], { stdio: ["ignore", "ignore", "ignore", "ipc"] });
++    let grandchildPid: number | undefined;
++    try {
++      grandchildPid = await new Promise<number>((resolve, reject) => {
++        const timeout = setTimeout(() => reject(new Error("测试进程未就绪")), 10_000);
++        child.once("message", (message) => { clearTimeout(timeout); resolve((message as { grandchildPid: number }).grandchildPid); });
++        child.once("error", (error) => { clearTimeout(timeout); reject(error); });
++      });
++      expect(processExists(child.pid!)).toBe(true); expect(processExists(grandchildPid)).toBe(true);
++      await terminateProcessTree(child.pid!);
++      expect(processExists(child.pid!)).toBe(false); expect(processExists(grandchildPid)).toBe(false);
++    } finally {
++      // Cleanup must survive a failing implementation under test.
++      const execFileAsync = promisify(execFile);
++      for (const pid of [child.pid, grandchildPid]) {
++        if (pid && processExists(pid)) await execFileAsync("taskkill.exe", ["/PID", String(pid), "/T", "/F"], { windowsHide: true }).catch(() => {});
++      }
++    }
++  }, 20_000);
++});
+diff --git a/member-agent/test/job-runner.test.ts b/member-agent/test/job-runner.test.ts
+new file mode 100644
+index 0000000..0b627f6
+--- /dev/null
++++ b/member-agent/test/job-runner.test.ts
+@@ -0,0 +1,58 @@
++import { afterEach, describe, expect, it } from 'vitest';
++import { mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import { join } from 'node:path';
++import { JobRunner } from '../src/job-runner.ts';
++import { Logger } from '../src/logger.ts';
++import type { JobStart } from '../src/protocol.ts';
++
++const dirs:string[]=[];
++const runners:JobRunner[]=[];
++afterEach(async()=>{ for(const r of runners.splice(0)) await r.shutdown(); for(const d of dirs.splice(0))rmSync(d,{recursive:true,force:true}); });
++const pause=(ms:number)=>new Promise(r=>setTimeout(r,ms));
++async function until(fn:()=>boolean){const end=Date.now()+5000;while(!fn()){if(Date.now()>end)throw Error('等待测试任务超时');await pause(10);}}
++function job(id='fixture-job',maxRunSec=4):JobStart{return {v:1,type:'job.start',jobId:id,companyId:'fixture-company',agent:{id:'fixture-agent',name:'fixture'},authToken:'FAKE-RUN-TOKEN-ONLY-FOR-TESTS',config:{maxRunSec},context:{},runtime:{},runtimeTools:{bearerToken:'FAKE-TOOL-TOKEN-ONLY-FOR-TESTS'},handoffMarkdown:''} as JobStart;}
++function setup(mode='normal'){
++ const dir=mkdtempSync(join(tmpdir(),'member-runner-'));dirs.push(dir);const frames:Record<string,any>[]=[];const visible:string[]=[];
++ const logger=new Logger(dir,['FAKE-AGENT-KEY-ONLY-FOR-TESTS'],s=>visible.push(s));
++ const runner=new JobRunner({serverUrl:'http://127.0.0.1:1',logger,send:f=>frames.push(f),executorUrl:new URL('./fixtures/executor.ts',import.meta.url),executorData:{mode}});runners.push(runner);return {runner,frames,dir,visible};
++}
++describe('阶段2任务执行器隔离',()=>{
++ it('7 accepts before preparation, numbers logs and events independently, and emits one result',async()=>{
++  const {runner,frames}=setup();runner.start(job());expect(frames[0]?.type).toBe('job.accepted');await until(()=>frames.some(f=>f.type==='job.result'));
++  expect(frames.filter(f=>f.type==='job.result')).toHaveLength(1);expect(frames.filter(f=>f.type==='job.log').map(f=>f.seq)).toEqual([1,2]);expect(frames.filter(f=>f.type==='job.event').map(f=>f.seq)).toEqual([1]);
++ });
++ it('8 refuses a second job without affecting the running task',async()=>{
++  const {runner,frames}=setup('wait');runner.start(job());runner.start(job('fixture-second'));expect(frames.find(f=>f.jobId==='fixture-second')?.errorCode).toBe('member_agent_busy');expect(frames.filter(f=>f.type==='job.accepted')).toHaveLength(1);await runner.cancel('fixture-job',1);
++ });
++ it('9 cancellation ends within grace and ignores foreign cancellation',async()=>{
++  const {runner,frames}=setup('wait');runner.start(job());await runner.cancel('other-job',1);expect(runner.busy).toBe(true);const started=Date.now();await runner.cancel('fixture-job',1);expect(Date.now()-started).toBeLessThan(1100);expect(frames.find(f=>f.type==='job.result')).toMatchObject({errorCode:'cancelled',exitCode:1});
++ });
++ it('10 enforces a local maxRunSec and aborts the executor',async()=>{
++  const {runner,frames}=setup('wait');runner.start(job('fixture-timeout',1));await until(()=>frames.some(f=>f.type==='job.result'));expect(frames.find(f=>f.type==='job.result')).toMatchObject({timedOut:true,errorCode:'member_agent_timeout'});
++ });
++ it('11 discards disconnected task output and never replays results through a new sender',async()=>{
++  const {runner,frames}=setup('wait');runner.start(job());await runner.disconnect();runner.setSender(f=>frames.push(f));await pause(50);expect(frames.some(f=>f.type==='job.result')).toBe(false);expect(runner.busy).toBe(false);
++ });
++ it('13 turns an unknown executor result field into a protocol safe failure',async()=>{
++  const {runner,frames}=setup('invalid');runner.start(job());await until(()=>frames.some(f=>f.type==='job.result'));const result=frames.find(f=>f.type==='job.result');expect(result?.errorCode).toBe('member_agent_executor_error');expect(result).not.toHaveProperty('unexpected');
++ });
++ it('14 scans console, log files and all outgoing frames for every fake credential',async()=>{
++  const {runner,frames,dir,visible}=setup('secret');runner.start(job());await until(()=>frames.some(f=>f.type==='job.result'));const output=JSON.stringify({visible,frames,files:readdirSync(dir).map(n=>readFileSync(join(dir,n),'utf8'))});for(const secret of ['FAKE-AGENT-KEY-ONLY-FOR-TESTS','FAKE-RUN-TOKEN-ONLY-FOR-TESTS','FAKE-TOOL-TOKEN-ONLY-FOR-TESTS'])expect(output).not.toContain(secret);
++ });
++ it('9 forcibly stops a synchronous blocked executor within grace',async()=>{
++  const {runner,frames}=setup('blocked');runner.start(job());await pause(200);await runner.cancel('fixture-job',0.1);expect(frames.find(f=>f.type==='job.result')?.errorCode).toBe('cancelled');expect(runner.busy).toBe(false);
++ });
++ it('14 does not leak a credential prefix from a truncated exception',async()=>{
++  const {runner,frames}=setup('throw-secret');runner.start(job());await until(()=>frames.some(f=>f.type==='job.result'));expect(JSON.stringify(frames)).not.toContain('FAKE-RUN');expect(frames.find(f=>f.type==='job.result')?.errorCode).toBe('member_agent_executor_error');
++ });
++ it('14 redacts structured strings safely when a credential contains JSON syntax',async()=>{
++  const {runner,frames}=setup('secret');const input=job();input.authToken='"abc-FAKE-JSON-SECRET';runner.start(input);await until(()=>frames.some(f=>f.type==='job.result'));expect(JSON.stringify(frames)).not.toContain('FAKE-JSON-SECRET');expect(runner.busy).toBe(false);expect(frames.filter(f=>f.type==='job.result')).toHaveLength(1);
++ });
++ it('7 settles a returned result even when the executor left a live timer',async()=>{
++  const {runner,frames}=setup('live-handle');runner.start(job());await until(()=>frames.some(f=>f.type==='job.result'));expect(frames.find(f=>f.type==='job.result')?.exitCode).toBe(0);expect(runner.busy).toBe(false);
++ });
++ it('9 releases a task when local logging fails before worker creation',async()=>{
++  const {runner,frames}=setup();(runner as any).options.logger.write=()=>{throw Error('fixture disk unavailable');};runner.start(job());await runner.shutdown();expect(runner.busy).toBe(false);expect(frames.filter(f=>f.type==='job.result')).toHaveLength(1);expect(frames.find(f=>f.type==='job.result')?.exitCode).toBe(1);
++ });
++});
+diff --git a/member-agent/test/protocol-echo.test.ts b/member-agent/test/protocol-echo.test.ts
+new file mode 100644
+index 0000000..c6f92af
+--- /dev/null
++++ b/member-agent/test/protocol-echo.test.ts
+@@ -0,0 +1,191 @@
++import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
++import { hostname } from "node:os";
++import { afterEach, describe, expect, it } from "vitest";
++import { chunkUtf8, parseFrame, validateEvent, validateMeta, validateResult, validateUsage } from "../src/protocol.ts";
++import { AGENT_VERSION, echoExecutor } from "../src/executors/echo.ts";
++import type { ExecutorHooks, JobStart } from "../src/executors/types.ts";
++
++const success = { exitCode: 0, signal: null, timedOut: false };
++
++describe("protocol frames and UTF-8 output", () => {
++  it("parses a UTF-8 text frame and preserves unknown types for caller logging", () => {
++    expect(parseFrame(Buffer.from('{"v":1,"type":"future.type","message":"中文"}'))).toEqual({ v: 1, type: "future.type", message: "中文" });
++  });
++  it.each(["not json", "null", "[]", '{"type":"ping"}', '{"v":2,"type":"ping"}', '{"v":1,"type":1}'])
++    ("rejects malformed envelopes: %s", (frame) => expect(() => parseFrame(frame)).toThrow());
++  it("rejects binary and oversized frames without echoing their contents", () => {
++    expect(() => parseFrame('{"v":1,"type":"ping"}', true)).toThrow();
++    expect(() => parseFrame(JSON.stringify({ v: 1, type: "ping", data: "字".repeat(100_000) }))).toThrow();
++    expect(() => parseFrame('{"fake-secret-token"')).toThrow(/^(?!.*fake-secret-token)/);
++  });
++  it("accepts exactly 256 KiB and rejects one byte more", () => {
++    const base = JSON.stringify({ v: 1, type: "ping", data: "" });
++    const frame = base.replace('"data":""', '"data":"' + "a".repeat(256 * 1024 - Buffer.byteLength(base)) + '"');
++    expect(parseFrame(frame).type).toBe("ping");
++    expect(() => parseFrame(frame + " ")).toThrow();
++  });
++  it("splits over 32 KiB at Unicode code-point boundaries", () => {
++    const input = "a".repeat(32767) + "中😀文".repeat(6000);
++    const chunks = chunkUtf8(input);
++    expect(chunks.length).toBeGreaterThan(1);
++    expect(chunks.join("")).toBe(input);
++    for (const chunk of chunks) {
++      expect(Buffer.byteLength(chunk)).toBeLessThanOrEqual(32768);
++      expect(Buffer.from(chunk).toString("utf8")).toBe(chunk);
++    }
++  });
++  it("supports a small byte limit and refuses an indivisible character", () => {
++    expect(chunkUtf8("中😀a", 4)).toEqual(["中", "😀", "a"]);
++    expect(chunkUtf8("")).toEqual([]);
++    expect(() => chunkUtf8("中", 2)).toThrow();
++    expect(() => chunkUtf8("a", 0)).toThrow();
++  });
++});
++
++describe("strict server result and callback whitelist", () => {
++  it("accepts the complete result whitelist including nullable fields and accounting", () => {
++    const result = {
++      ...success, errorCode: null, errorMessage: null, errorFamily: "configuration", retryNotBefore: "2026-10-25T10:30:00+08:00", errorMeta: { detail: true },
++      summary: null, resultJson: { ok: true }, sessionId: null, sessionDisplayId: "run", sessionParams: null, clearSession: true, usageComplete: true,
++      usage: { inputTokens: 2, outputTokens: 1, cachedInputTokens: 0, cacheWriteTokens: 0.5 }, usageByModel: [{ model: "fake-model", usage: { inputTokens: 1, outputTokens: 1 }, costUsd: 0 }],
++      usageBasis: "per_run", provider: null, biller: "fake", model: null, billingType: "subscription_included", costUsd: null, costUsdExact: "0.01", costStatus: "estimated",
++      pricingContext: { serviceTier: "standard", contextTier: "long" }, pricingProvenance: { source: "operator", version: "v1", evidence: "fixture", inputCentsPerMillion: "1", cachedInputCentsPerMillion: "1", outputCentsPerMillion: "2", cacheWriteCentsPerMillion: "1", serviceTier: "standard", contextTier: "short" },
++      cacheAdjustedCostUsd: 0, providerRequestId: null, executionRecovery: { kind: "interrupted", providerStopped: true, sessionPreserved: true, actionOutcomes: "settled" },
++    };
++    expect(validateResult(result)).toEqual(result);
++    expect(validateResult({ ...success, executionRecovery: { kind: "bootstrap", providerWorkStarted: false } }).exitCode).toBe(0);
++  });
++  it.each([
++    { extra: true }, { exitCode: 0.5 }, { signal: 0 }, { timedOut: null },
++    { usage: { inputTokens: 1, outputTokens: 2, unknown: true } },
++    { usage: { inputTokens: -1, outputTokens: 2 } },
++    { usage: { inputTokens: Infinity, outputTokens: 2 } },
++    { usageByModel: [{ model: "m", usage: { inputTokens: 1, outputTokens: 2 }, costUsd: 0, extra: true }] },
++    { pricingContext: { contextTier: "medium" } }, { pricingContext: { unknown: true } },
++    { pricingProvenance: { source: "unknown", extra: true } },
++    { executionRecovery: { kind: "bootstrap", providerWorkStarted: true } },
++    { executionRecovery: { kind: "interrupted", providerStopped: true, sessionPreserved: true, actionOutcomes: "settled", extra: true } },
++    { billingType: "free" }, { costUsd: -1 }, { retryNotBefore: "2026-02-30T12:00:00Z" }, { retryNotBefore: "2026-10-25" }, { errorMeta: [] },
++  ])("rejects unknown or invalid result fields: %j", (fields) => {
++    expect(() => validateResult({ ...success, ...fields })).toThrow();
++  });
++  it("requires all three completion fields", () => {
++    for (const field of ["exitCode", "signal", "timedOut"]) {
++      const value: Record<string, unknown> = { ...success };
++      delete value[field];
++      expect(() => validateResult(value)).toThrow();
++    }
++  });
++  it("rejects non-record objects and symbol record keys as the server does", () => {
++    expect(() => validateResult({ ...success, errorMeta: new Date() })).toThrow();
++    expect(() => validateResult({ ...success, sessionParams: { [Symbol("key")]: "value" } })).toThrow();
++  });
++  it("validates meta, events and usage checkpoints against their own strict schemas", () => {
++    const meta = { adapterType: "echo", command: "echo", cwd: "test", commandArgs: ["a"], commandNotes: ["note"], env: { A: "B" }, prompt: "test", promptMetrics: { bytes: 1 }, context: { future: true } };
++    expect(validateMeta(meta)).toEqual(meta);
++    expect(validateEvent({ eventType: "test", stream: "system", level: "warn", color: "blue", message: "测试", payload: {} }).eventType).toBe("test");
++    expect(validateUsage({ complete: true, attemptId: "attempt", usageBasis: "session_cumulative", costStatus: "unpriced" }).complete).toBe(true);
++    expect(() => validateMeta({ ...meta, unknown: true })).toThrow();
++    expect(() => validateMeta({ ...meta, promptMetrics: { tokens: -1 } })).toThrow();
++    expect(() => validateMeta({ ...meta, env: { A: 2 } })).toThrow();
++    expect(() => validateEvent({ eventType: "test", stream: "other" })).toThrow();
++    expect(() => validateEvent({ eventType: "test", unknown: true })).toThrow();
++    expect(() => validateUsage({ complete: true, unknown: true })).toThrow();
++    expect(() => validateUsage({ usage: { inputTokens: 1, outputTokens: 2 } })).toThrow();
++  });
++});
++
++type RequestRecord = { method: string; url: string; headers: IncomingMessage["headers"]; body: Record<string, unknown> };
++const closers: Array<() => Promise<void>> = [];
++afterEach(async () => { for (const close of closers.splice(0)) await close(); });
++
++async function fixture(respond: (request: RequestRecord, response: ServerResponse) => void) {
++  const requests: RequestRecord[] = [];
++  const server = createServer(async (req, res) => {
++    let body = "";
++    for await (const chunk of req) body += chunk.toString();
++    const request = { method: req.method!, url: req.url!, headers: req.headers, body: JSON.parse(body) };
++    requests.push(request);
++    respond(request, res);
++  });
++  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
++  closers.push(() => new Promise<void>((resolve, reject) => { server.close((error) => error ? reject(error) : resolve()); server.closeAllConnections(); }));
++  const address = server.address();
++  if (!address || typeof address === "string") throw new Error("fixture address");
++  return { requests, serverUrl: `http://127.0.0.1:${address.port}` };
++}
++
++function hooks(serverUrl: string, context: Record<string, unknown> = { issueId: "fake-issue/中文" }, controller = new AbortController()) {
++  const logs: Array<{ stream: string; text: string }> = [];
++  const job: JobStart = { v: 1, type: "job.start", jobId: "fake-run", companyId: "fake-company", agent: { id: "fake-agent", name: "测试" }, authToken: "fake-run-token-never-real", context, config: {}, runtime: {}, runtimeTools: null, handoffMarkdown: "", codeSyncDir: "" };
++  const value: ExecutorHooks = { job, serverUrl, signal: controller.signal, event() {}, log(stream, text) { logs.push({ stream, text }); } };
++  return { value, logs, controller };
++}
++
++describe("echo executor local HTTP writeback", () => {
++  it("posts a version/hostname comment then marks the encoded issue done with run authentication", async () => {
++    const local = await fixture((_request, res) => { res.writeHead(200); res.end("{}"); });
++    const input = hooks(local.serverUrl);
++    expect(await echoExecutor.execute(input.value)).toMatchObject({ ...success, summary: "echo 执行器完成" });
++    expect(local.requests.map((r) => r.method)).toEqual(["POST", "PATCH"]);
++    expect(local.requests[0].url).toBe("/api/issues/fake-issue%2F%E4%B8%AD%E6%96%87/comments");
++    expect(local.requests[1].url).toBe("/api/issues/fake-issue%2F%E4%B8%AD%E6%96%87");
++    expect(local.requests[0].body.body).toContain(AGENT_VERSION);
++    expect(local.requests[0].body.body).toContain(hostname());
++    expect(local.requests[1].body).toMatchObject({ status: "done", comment: expect.any(String) });
++    for (const request of local.requests) {
++      expect(request.headers.authorization).toBe("Bearer fake-run-token-never-real");
++      expect(request.headers["x-paperclip-run-id"]).toBe("fake-run");
++      expect(request.headers["content-type"]).toContain("application/json");
++      expect(JSON.stringify(request.body)).not.toContain(input.value.job.authToken);
++    }
++    expect(input.logs[0]).toEqual({ stream: "stdout", text: "成员代理收到任务 fake-run\n" });
++    expect(JSON.stringify(input.logs)).not.toContain(input.value.job.authToken);
++  });
++  it("uses taskId when issueId is absent", async () => {
++    const local = await fixture((_request, res) => { res.writeHead(200); res.end("{}"); });
++    const input = hooks(local.serverUrl, { taskId: "fake-task" });
++    expect((await echoExecutor.execute(input.value)).exitCode).toBe(0);
++    expect(local.requests[0].url).toBe("/api/issues/fake-task/comments");
++  });
++  it("only logs for a task without an issue", async () => {
++    const input = hooks("http://127.0.0.1:1", {});
++    expect((await echoExecutor.execute(input.value)).exitCode).toBe(0);
++    expect(input.logs).toHaveLength(1);
++  });
++  it.each(["POST", "PATCH"])("returns safe HTTP errors when %s fails without leaking response bodies", async (method) => {
++    const local = await fixture((request, res) => { res.writeHead(request.method === method ? 403 : 200); res.end("fake-run-token-never-real sensitive response body"); });
++    const input = hooks(local.serverUrl);
++    const result = await echoExecutor.execute(input.value);
++    expect(result).toMatchObject({ exitCode: 1, errorCode: "member_agent_echo_writeback_failed", errorMessage: expect.stringContaining("403") });
++    expect(local.requests).toHaveLength(method === "POST" ? 1 : 2);
++    expect(JSON.stringify({ result, logs: input.logs })).not.toMatch(/fake-run-token-never-real|sensitive response body/);
++    expect(input.logs.some((line) => line.stream === "stderr")).toBe(true);
++  });
++  it("returns a safe failure when the network request fails", async () => {
++    const input = hooks("http://127.0.0.1:1");
++    expect(await echoExecutor.execute(input.value)).toMatchObject({ exitCode: 1, errorCode: "member_agent_echo_writeback_failed" });
++  });
++  it("does no HTTP work after cancellation before the first step", async () => {
++    const local = await fixture((_request, res) => res.end("{}"));
++    const input = hooks(local.serverUrl);
++    input.controller.abort("fake-run-token-never-real");
++    expect(await echoExecutor.execute(input.value)).toMatchObject({ exitCode: 1, errorCode: "cancelled" });
++    expect(local.requests).toHaveLength(0);
++    expect(JSON.stringify(input.logs)).not.toContain("fake-run-token-never-real");
++  });
++  it("checks cancellation between comment and status PATCH", async () => {
++    const controller = new AbortController();
++    const local = await fixture((_request, res) => { controller.abort(); res.end("{}"); });
++    const input = hooks(local.serverUrl, { issueId: "fake-issue" }, controller);
++    expect(await echoExecutor.execute(input.value)).toMatchObject({ exitCode: 1, errorCode: "cancelled" });
++    expect(local.requests).toHaveLength(1);
++  });
++  it("aborts an in-flight HTTP writeback", async () => {
++    const controller = new AbortController();
++    const local = await fixture(() => controller.abort());
++    const input = hooks(local.serverUrl, { issueId: "fake-issue" }, controller);
++    expect(await echoExecutor.execute(input.value)).toMatchObject({ exitCode: 1, errorCode: "cancelled" });
++    expect(local.requests).toHaveLength(1);
++  });
++});
+diff --git a/member-agent/tsconfig.json b/member-agent/tsconfig.json
+new file mode 100644
+index 0000000..ae9145a
+--- /dev/null
++++ b/member-agent/tsconfig.json
+@@ -0,0 +1,16 @@
++{
++  "compilerOptions": {
++    "target": "ES2024",
++    "module": "NodeNext",
++    "moduleResolution": "NodeNext",
++    "strict": true,
++    "noEmit": true,
++    "allowImportingTsExtensions": true,
++    "verbatimModuleSyntax": true,
++    "erasableSyntaxOnly": true,
++    "skipLibCheck": true,
++    "types": ["node", "ws"],
++    "typeRoots": ["../server/node_modules/@types"]
++  },
++  "include": ["src/**/*.ts"]
++}
+diff --git a/member-agent/vitest.config.ts b/member-agent/vitest.config.ts
+new file mode 100644
+index 0000000..bf62e4f
+--- /dev/null
++++ b/member-agent/vitest.config.ts
+@@ -0,0 +1,4 @@
++import { defineConfig } from "vitest/config";
++export default defineConfig({
++  test: { environment: "node", include: ["test/**/*.test.ts"], testTimeout: 20000, hookTimeout: 30000, maxWorkers: 1, pool: "forks" },
++});

@@ -1,0 +1,72 @@
+[
+  {
+    "path": "server/src/adapters/member-agent/index.ts",
+    "bytes": 1266,
+    "sha256": "fbb364bedaebc7b1e7877a67e04cfc02fa68bf7998086409bb6c5dc7953cb4b8"
+  },
+  {
+    "path": "server/src/adapters/member-agent/settings.ts",
+    "bytes": 76,
+    "sha256": "2896328d8964aac0881642f64b7e71c14ebc2acb8b25f74ccce31cfca065b992"
+  },
+  {
+    "path": "server/src/adapters/member-agent/execute.ts",
+    "bytes": 13873,
+    "sha256": "b93459a03c7547de5f5f1adbc8005ca959f098b86676ce29d8d2985183a62633"
+  },
+  {
+    "path": "server/src/adapters/member-agent/test.ts",
+    "bytes": 463,
+    "sha256": "ba356e905054f63ed29cc3e457fa290a5b75ab3754c35f02f972daef158d94f7"
+  },
+  {
+    "path": "server/src/adapters/member-agent/protocol.test.ts",
+    "bytes": 24204,
+    "sha256": "3568734e7c8907beb018a108907f20bcdbfa9b824e0ba8a8d884265fce5f2e60"
+  },
+  {
+    "path": "server/src/realtime/member-agent-ws.ts",
+    "bytes": 11080,
+    "sha256": "05c9061f4ea1d673cd555ad828ce39df007466bf045adb04d160fb1e2733e5f5"
+  },
+  {
+    "path": "server/src/realtime/agent-key-auth.ts",
+    "bytes": 1049,
+    "sha256": "95ea1f715dda1a0b4fcd2ac16fecb526602bf5950c78a2a6dd71cb1cb1e9d6be"
+  },
+  {
+    "path": "server/src/realtime/live-events-ws.ts",
+    "bytes": 16367,
+    "sha256": "9062461fa3495777d52b2a3d08f18a755508dd37c25c88118ed9135a655e7515"
+  },
+  {
+    "path": "server/src/index.ts",
+    "bytes": 93611,
+    "sha256": "5ba55abed444a4d4410d6ad61bc782e6a7a877752be20205064d8ea78ca20760"
+  },
+  {
+    "path": "server/src/adapters/registry.ts",
+    "bytes": 46644,
+    "sha256": "0132275f1474fdef648b29c01a3d1aaf8c9dcd658106e01057b9a18ca1c261ad"
+  },
+  {
+    "path": "server/src/adapters/builtin-adapter-types.ts",
+    "bytes": 429,
+    "sha256": "d983d5f79a7294728d047a4a17d83e261a1664812f0afc852d2a3aeaacc675ec"
+  },
+  {
+    "path": "server/src/adapters/registry.test.ts",
+    "bytes": 9659,
+    "sha256": "2b00dbaffb319bdebaeca2b1c4e09d347346d87cf438955fedb4c91f34116f6f"
+  },
+  {
+    "path": "packages/shared/src/constants.ts",
+    "bytes": 53405,
+    "sha256": "737e3cda46aac902af5b4acf753dffd4f4472f353b3389105e14d181f4283020"
+  },
+  {
+    "path": "ui/src/adapters/adapter-display-registry.ts",
+    "bytes": 6048,
+    "sha256": "03986053c38bb28dd889bc2080e959972857a453d85fe95d58770891a3f5f367"
+  }
+]

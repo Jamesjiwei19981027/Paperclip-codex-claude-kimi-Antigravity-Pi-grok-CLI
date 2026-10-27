@@ -1,0 +1,21 @@
+{
+  "cwd": "E:\\workspace\\paperclip-member-agent-dev\\server",
+  "command": "C:\\Program Files\\nodejs\\node.exe",
+  "args": [
+    "E:\\workspace\\paperclip-member-agent-dev\\node_modules\\vitest\\vitest.mjs",
+    "run",
+    "--config",
+    "vitest.config.ts",
+    "--cache=false",
+    "--reporter=verbose",
+    "--maxWorkers=1",
+    "src/adapters/member-agent",
+    "src/adapters/registry.test.ts",
+    "src/__tests__/agent-permissions-routes.test.ts",
+    "src/__tests__/member-agent-concurrency.test.ts",
+    "src/__tests__/agents-pending-approval-config.test.ts",
+    "src/__tests__/agents-service-clear-error.test.ts",
+    "src/modules/agent-lifecycle/__tests__/lifecycle.test.ts"
+  ],
+  "isolatedProfile": "C:\\Users\\11580\\AppData\\Local\\Temp\\paperclip-s7-test-profile\\server\\forced-green"
+}

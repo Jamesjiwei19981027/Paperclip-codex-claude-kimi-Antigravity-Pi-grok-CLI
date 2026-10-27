@@ -1,0 +1,26 @@
+[
+  {
+    "path": "server/src/adapters/member-agent/protocol.test.ts",
+    "before": "684FD1D41CC64CBDF9E231321DD6C8ECB7245EC3D1421B601E5B79D650A4EAE6",
+    "after": "684FD1D41CC64CBDF9E231321DD6C8ECB7245EC3D1421B601E5B79D650A4EAE6",
+    "unchanged": true
+  },
+  {
+    "path": "server/src/adapters/member-agent/execute.ts",
+    "before": "DD155718D00D5B1A7426C8955C0D063400CA0BE045BD812C07D69529839ADA53",
+    "after": "DD155718D00D5B1A7426C8955C0D063400CA0BE045BD812C07D69529839ADA53",
+    "unchanged": true
+  },
+  {
+    "path": "server/src/realtime/member-agent-ws.ts",
+    "before": "95E96B37CB0B4E6B94FBF4C61763505B8536BF5137A0E59A8183F51B1A583951",
+    "after": "95E96B37CB0B4E6B94FBF4C61763505B8536BF5137A0E59A8183F51B1A583951",
+    "unchanged": true
+  },
+  {
+    "path": "server/src/adapters/member-agent/test.ts",
+    "before": "2173370E28AAAA84A766619E0F1E0075F27A8CD8680473BD1D6A3FC1243D5EAB",
+    "after": "2173370E28AAAA84A766619E0F1E0075F27A8CD8680473BD1D6A3FC1243D5EAB",
+    "unchanged": true
+  }
+]

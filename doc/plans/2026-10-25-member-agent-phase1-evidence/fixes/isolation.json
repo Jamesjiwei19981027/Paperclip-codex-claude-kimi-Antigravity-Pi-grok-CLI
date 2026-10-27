@@ -1,0 +1,216 @@
+{
+  "source": "D:/paperclip",
+  "destination": "E:/workspace/paperclip-member-agent-dev",
+  "createdAt": "2026-10-25T09:09:31.675Z",
+  "files": 9658,
+  "junctions": [
+    {
+      "path": "cli/node_modules",
+      "target": "D:\\paperclip\\cli\\node_modules"
+    },
+    {
+      "path": "node_modules",
+      "target": "D:\\paperclip\\node_modules"
+    },
+    {
+      "path": "packages/adapter-utils/node_modules",
+      "target": "D:\\paperclip\\packages\\adapter-utils\\node_modules"
+    },
+    {
+      "path": "packages/adapters/claude-local/node_modules",
+      "target": "D:\\paperclip\\packages\\adapters\\claude-local\\node_modules"
+    },
+    {
+      "path": "packages/adapters/codex-local/node_modules",
+      "target": "D:\\paperclip\\packages\\adapters\\codex-local\\node_modules"
+    },
+    {
+      "path": "packages/adapters/cursor-cloud/node_modules",
+      "target": "D:\\paperclip\\packages\\adapters\\cursor-cloud\\node_modules"
+    },
+    {
+      "path": "packages/adapters/cursor-local/node_modules",
+      "target": "D:\\paperclip\\packages\\adapters\\cursor-local\\node_modules"
+    },
+    {
+      "path": "packages/adapters/gemini-local/node_modules",
+      "target": "D:\\paperclip\\packages\\adapters\\gemini-local\\node_modules"
+    },
+    {
+      "path": "packages/adapters/grok-local/node_modules",
+      "target": "D:\\paperclip\\packages\\adapters\\grok-local\\node_modules"
+    },
+    {
+      "path": "packages/adapters/hermes/node_modules",
+      "target": "D:\\paperclip\\packages\\adapters\\hermes\\node_modules"
+    },
+    {
+      "path": "packages/adapters/hermes-gateway/node_modules",
+      "target": "D:\\paperclip\\packages\\adapters\\hermes-gateway\\node_modules"
+    },
+    {
+      "path": "packages/adapters/kimi-local/node_modules",
+      "target": "D:\\paperclip\\packages\\adapters\\kimi-local\\node_modules"
+    },
+    {
+      "path": "packages/adapters/openclaw-gateway/node_modules",
+      "target": "D:\\paperclip\\packages\\adapters\\openclaw-gateway\\node_modules"
+    },
+    {
+      "path": "packages/adapters/opencode-local/node_modules",
+      "target": "D:\\paperclip\\packages\\adapters\\opencode-local\\node_modules"
+    },
+    {
+      "path": "packages/adapters/pi-local/node_modules",
+      "target": "D:\\paperclip\\packages\\adapters\\pi-local\\node_modules"
+    },
+    {
+      "path": "packages/db/node_modules",
+      "target": "D:\\paperclip\\packages\\db\\node_modules"
+    },
+    {
+      "path": "packages/google-sheets-mcp-server/node_modules",
+      "target": "D:\\paperclip\\packages\\google-sheets-mcp-server\\node_modules"
+    },
+    {
+      "path": "packages/kv-demo-mcp-server/node_modules",
+      "target": "D:\\paperclip\\packages\\kv-demo-mcp-server\\node_modules"
+    },
+    {
+      "path": "packages/mcp-server/node_modules",
+      "target": "D:\\paperclip\\packages\\mcp-server\\node_modules"
+    },
+    {
+      "path": "packages/paperclip-eval-kernel/node_modules",
+      "target": "D:\\paperclip\\packages\\paperclip-eval-kernel\\node_modules"
+    },
+    {
+      "path": "packages/paperclip-runner/node_modules",
+      "target": "D:\\paperclip\\packages\\paperclip-runner\\node_modules"
+    },
+    {
+      "path": "packages/plugins/create-paperclip-plugin/node_modules",
+      "target": "D:\\paperclip\\packages\\plugins\\create-paperclip-plugin\\node_modules"
+    },
+    {
+      "path": "packages/plugins/examples/plugin-authoring-smoke-example/node_modules",
+      "target": "D:\\paperclip\\packages\\plugins\\examples\\plugin-authoring-smoke-example\\node_modules"
+    },
+    {
+      "path": "packages/plugins/examples/plugin-file-browser-example/node_modules",
+      "target": "D:\\paperclip\\packages\\plugins\\examples\\plugin-file-browser-example\\node_modules"
+    },
+    {
+      "path": "packages/plugins/examples/plugin-hello-world-example/node_modules",
+      "target": "D:\\paperclip\\packages\\plugins\\examples\\plugin-hello-world-example\\node_modules"
+    },
+    {
+      "path": "packages/plugins/examples/plugin-kitchen-sink-example/node_modules",
+      "target": "D:\\paperclip\\packages\\plugins\\examples\\plugin-kitchen-sink-example\\node_modules"
+    },
+    {
+      "path": "packages/plugins/examples/plugin-orchestration-smoke-example/node_modules",
+      "target": "D:\\paperclip\\packages\\plugins\\examples\\plugin-orchestration-smoke-example\\node_modules"
+    },
+    {
+      "path": "packages/plugins/paperclip-plugin-fake-sandbox/node_modules",
+      "target": "D:\\paperclip\\packages\\plugins\\paperclip-plugin-fake-sandbox\\node_modules"
+    },
+    {
+      "path": "packages/plugins/plugin-llm-wiki/node_modules",
+      "target": "D:\\paperclip\\packages\\plugins\\plugin-llm-wiki\\node_modules"
+    },
+    {
+      "path": "packages/plugins/plugin-workspace-diff/node_modules",
+      "target": "D:\\paperclip\\packages\\plugins\\plugin-workspace-diff\\node_modules"
+    },
+    {
+      "path": "packages/plugins/sandbox-providers/cloudflare/node_modules",
+      "target": "D:\\paperclip\\packages\\plugins\\sandbox-providers\\cloudflare\\node_modules"
+    },
+    {
+      "path": "packages/plugins/sandbox-providers/createos/node_modules",
+      "target": "D:\\paperclip\\packages\\plugins\\sandbox-providers\\createos\\node_modules"
+    },
+    {
+      "path": "packages/plugins/sandbox-providers/daytona/node_modules",
+      "target": "D:\\paperclip\\packages\\plugins\\sandbox-providers\\daytona\\node_modules"
+    },
+    {
+      "path": "packages/plugins/sandbox-providers/e2b/node_modules",
+      "target": "D:\\paperclip\\packages\\plugins\\sandbox-providers\\e2b\\node_modules"
+    },
+    {
+      "path": "packages/plugins/sandbox-providers/exe-dev/node_modules",
+      "target": "D:\\paperclip\\packages\\plugins\\sandbox-providers\\exe-dev\\node_modules"
+    },
+    {
+      "path": "packages/plugins/sandbox-providers/kubernetes/node_modules",
+      "target": "D:\\paperclip\\packages\\plugins\\sandbox-providers\\kubernetes\\node_modules"
+    },
+    {
+      "path": "packages/plugins/sandbox-providers/modal/node_modules",
+      "target": "D:\\paperclip\\packages\\plugins\\sandbox-providers\\modal\\node_modules"
+    },
+    {
+      "path": "packages/plugins/sandbox-providers/novita/node_modules",
+      "target": "D:\\paperclip\\packages\\plugins\\sandbox-providers\\novita\\node_modules"
+    },
+    {
+      "path": "packages/plugins/sdk/node_modules",
+      "target": "D:\\paperclip\\packages\\plugins\\sdk\\node_modules"
+    },
+    {
+      "path": "packages/shared/node_modules",
+      "target": "D:\\paperclip\\packages\\shared\\node_modules"
+    },
+    {
+      "path": "packages/skills-catalog/node_modules",
+      "target": "D:\\paperclip\\packages\\skills-catalog\\node_modules"
+    },
+    {
+      "path": "packages/tailscale-https-broker/node_modules",
+      "target": "D:\\paperclip\\packages\\tailscale-https-broker\\node_modules"
+    },
+    {
+      "path": "packages/teams-catalog/node_modules",
+      "target": "D:\\paperclip\\packages\\teams-catalog\\node_modules"
+    },
+    {
+      "path": "server/node_modules",
+      "target": "D:\\paperclip\\server\\node_modules"
+    },
+    {
+      "path": "ui/node_modules",
+      "target": "D:\\paperclip\\ui\\node_modules"
+    }
+  ],
+  "excluded": [
+    ".git",
+    "node_modules",
+    ".paperclip",
+    ".pnpm-store",
+    ".cache",
+    ".vite",
+    ".vite-temp",
+    ".turbo",
+    "dist",
+    "ui-dist",
+    "target",
+    "coverage",
+    "playwright-report",
+    "test-results",
+    ".next",
+    ".output"
+  ],
+  "baselineCommit": "92371b0ec3ae6c849f47225a040c92f1e79516be",
+  "baselineStatus": "",
+  "serviceBefore": {
+    "pid": 59752,
+    "processStartedAt": "2026-10-25T08:43:51.466Z"
+  },
+  "notes": [
+    "Existing production watcher remains on D:/paperclip; no development watcher started.",
+    "Do not recursively delete dependency junction targets. Unlink junctions with rmdir before deleting copy."
+  ]
+}

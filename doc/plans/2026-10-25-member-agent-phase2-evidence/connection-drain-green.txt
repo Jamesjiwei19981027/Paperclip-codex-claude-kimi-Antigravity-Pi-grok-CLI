@@ -1,0 +1,26 @@
+
+ RUN  v5.0.3 E:/workspace/paperclip-member-agent-dev/member-agent
+
+ ✓ test/connection.test.ts > 连接和重连 > 发送有效 hello 和认证头，check 在 ack 后读取服务器参数并正常退出 51ms
+ ✓ test/connection.test.ts > 连接和重连 > HTTP 401 退出码 3 且不重试 8ms
+ ✓ test/connection.test.ts > 连接和重连 > HTTP 403 退出码 4 且不重试 5ms
+ ✓ test/connection.test.ts > 连接和重连 > 10 秒未收到 hello 响应就关闭，1 秒退避后重连 94ms
+ ✓ test/connection.test.ts > 连接和重连 > HTTP 429 至少等 60 秒才重试 77ms
+ ✓ test/connection.test.ts > 连接和重连 > already_connected 每次等 30 秒无限重试，not_allowed 不重试 154ms
+ ✓ test/connection.test.ts > 连接和重连 > 失败指数退避到 30 秒上限，ack 后重置 292ms
+ ✓ test/connection.test.ts > 连接和重连 > 随机抖动在 0–20%，独立心跳按 ack 周期发送 111ms
+ ✓ test/connection.test.ts > 连接和重连 > 未知 type 记录日志，未知版本断开，重连等待任务清理且旧 sender 失效 170ms
+ ✓ test/connection.test.ts > 连接和重连 > 6 执行器在独立 Worker 中同步忙等时，真实 WebSocket 心跳持续发送 2140ms
+ ✓ test/connection.test.ts > 连接和重连 > 原生 pong 无响应满 45 秒中止任务并退避重连，不依赖应用心跳 ack 183ms
+ ✓ test/connection.test.ts > 连接和重连 > 原生自动 pong 保持连接，不要求服务器回复 JSON heartbeat 137ms
+ ✓ test/connection.test.ts > 有界发送队列 > 超过1000帧只丢弃最旧日志，保留结果且发送回调继续排空 5ms
+ ✓ test/connection.test.ts > 有界发送队列 > 8MiB 字节上限生效，停止后丢弃后续输出 42ms
+ ✓ test/connection.test.ts > 有界发送队列 > ws 缓冲区积压时暂缓发送，并在缓冲释放后恢复 1ms
+ ✓ test/connection.test.ts > 有界发送队列 > drain 等待积压日志和结果的发送回调后才成功，结果不丢失 1ms
+ ✓ test/connection.test.ts > 有界发送队列 > drain 发送超时或队列关闭时返回 false，无积压时立即返回 true 0ms
+
+ Test Files  1 passed (1)
+      Tests  17 passed (17)
+   Start at  20:13:51
+   Duration  3.94s (tests 95%, transform 3%, import 2%)
+

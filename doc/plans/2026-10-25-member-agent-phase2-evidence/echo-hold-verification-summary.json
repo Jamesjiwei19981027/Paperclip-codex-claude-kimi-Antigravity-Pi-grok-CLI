@@ -1,0 +1,14 @@
+{
+  "memberTests": 135,
+  "originalTestsRetained": 126,
+  "newTests": 9,
+  "stage1Regression": 97,
+  "typecheckBeforeErrors": 0,
+  "typecheckAfterErrors": 0,
+  "applyCheckExitCode": 0,
+  "patchFiles": 27,
+  "patchSha256": "88FD0DF039A64AADD2A427F53C11499EC97BB759675F9E02F431AD38F00849A3",
+  "servicePid": 36504,
+  "processStartedAt": "2026-10-25T12:03:57.742Z",
+  "serviceIdentityPreserved": true
+}

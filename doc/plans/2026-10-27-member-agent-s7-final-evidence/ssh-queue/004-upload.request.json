@@ -1,0 +1,17 @@
+{
+  "operation": "upload",
+  "files": [
+    {
+      "remote": "/root/paperclip-deploy/releases/s7-20261027T0406Z/uploads/agents.ts",
+      "local": "D:\\paperclip\\server\\src\\routes\\agents.ts"
+    },
+    {
+      "remote": "/root/paperclip-deploy/releases/s7-20261027T0406Z/uploads/agent-configuration.ts",
+      "local": "D:\\paperclip\\server\\src\\services\\agent-configuration.ts"
+    },
+    {
+      "remote": "/root/paperclip-deploy/releases/s7-20261027T0406Z/uploads/execute.ts",
+      "local": "D:\\paperclip\\server\\src\\adapters\\member-agent\\execute.ts"
+    }
+  ]
+}

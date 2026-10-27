@@ -1,0 +1,15 @@
+{
+  "cwd": "E:\\workspace\\paperclip-member-agent-dev\\member-agent",
+  "command": "C:\\Program Files\\nodejs\\node.exe",
+  "args": [
+    "E:\\workspace\\paperclip-member-agent-dev\\node_modules\\vitest\\vitest.mjs",
+    "run",
+    "--config",
+    "vitest.config.ts",
+    "--cache=false",
+    "--reporter=verbose",
+    "--maxWorkers=1",
+    "test/codex-executor.test.ts"
+  ],
+  "isolatedProfile": "C:\\Users\\11580\\AppData\\Local\\Temp\\paperclip-s7-test-profile\\member-agent\\member-red"
+}

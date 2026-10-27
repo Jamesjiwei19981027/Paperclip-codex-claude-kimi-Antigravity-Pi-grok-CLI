@@ -1,0 +1,13 @@
+{
+  "scheduled_retry": 0,
+  "testAgentLifecycle": "ready",
+  "liveRuns": 0,
+  "confirmedAt": "2026-10-27T11:57:00+08:00",
+  "running": 0,
+  "noBrowserAccessThisTurn": true,
+  "company": "BoSi",
+  "source": "负责人通过已登录看板会话只读核对并在当前对话回传",
+  "testAgentStatus": "idle",
+  "cutoverExpiresAt": "2026-10-27T12:27:00+08:00",
+  "queued": 0
+}

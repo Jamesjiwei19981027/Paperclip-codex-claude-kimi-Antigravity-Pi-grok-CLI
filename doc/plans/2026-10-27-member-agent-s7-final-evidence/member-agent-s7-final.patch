@@ -1,0 +1,377 @@
+diff --git a/member-agent/src/executors/codex.ts b/member-agent/src/executors/codex.ts
+index 0f5a9a2..d2558b1 100644
+--- a/member-agent/src/executors/codex.ts
++++ b/member-agent/src/executors/codex.ts
+@@ -130,6 +130,30 @@ function buildRuntimeToolEnv(job: JobStart, serverUrl: string): Record<string, s
+   };
+ }
+ 
++function addPaperclipRestGuidance(context: Record<string, unknown>, codexHome: string): void {
++  const skillPath = path.join(codexHome, "skills", "paperclip", "SKILL.md");
++  const guidance = [
++    "## 成员运行的 Paperclip 操作方式",
++    "本成员运行没有 Paperclip 原生工具。评论、确认卡、报告和状态变更必须通过普通 HTTP 接口操作；不能因为缺少原生工具而声称无法操作 Paperclip。",
++    `每次运行先读取本机技能文档：Get-Content -LiteralPath '${skillPath.replaceAll("'", "''")}'。接口、审批和任务操作规则以该文档为准；继续遵守任务权限、审批与阻塞条件。`,
++    "使用 PowerShell Invoke-RestMethod。服务根地址取 $env:PAPERCLIP_API_URL，运行令牌只从 $env:PAPERCLIP_API_KEY 读取，当前运行编号取 $env:PAPERCLIP_RUN_ID。",
++    "$headers = @{ Authorization = ('Bearer ' + $env:PAPERCLIP_API_KEY); 'X-Paperclip-Run-Id' = $env:PAPERCLIP_RUN_ID }",
++    "例如读取当前任务：Invoke-RestMethod -Method Get -Uri ($env:PAPERCLIP_API_URL.TrimEnd('/') + '/api/issues/' + $env:PAPERCLIP_TASK_ID) -Headers $headers。评论使用 POST /api/issues/{id}/comments，状态使用 PATCH /api/issues/{id}；JSON 请求设置 Content-Type: application/json。",
++    "所有任务写操作都携带上述认证与 X-Paperclip-Run-Id 请求头；只引用环境变量，绝不打印、复制到文档或硬编码任何凭据。若旧历史或恢复文字提及当前不存在的控制接口，按本段与技能文档使用普通 HTTP 接口完成已授权操作。",
++  ].join("\n");
++  const task = typeof context.paperclipTaskMarkdown === "string" ? context.paperclipTaskMarkdown : "";
++  const assignment = typeof context.paperclipTaskMarkdownAssignment === "string" ? context.paperclipTaskMarkdownAssignment : task;
++  // Both fresh and resumed adapter attempts select one of these carriers.
++  // Communication guidance alone is omitted on resume, so it cannot own this contract.
++  for (const [key, fallback] of [
++    ["paperclipTaskMarkdown", task], ["paperclipTaskMarkdownAssignment", assignment],
++    ["paperclipTaskMarkdownCompact", task], ["paperclipTaskMarkdownAssignmentCompact", assignment],
++  ]) {
++    const text = typeof context[key] === "string" ? context[key] as string : fallback;
++    context[key] = [guidance, text].filter(Boolean).join("\n\n");
++  }
++}
++
+ function safeResult(input: unknown, warn: (message: string) => void): ExecutorResult {
+   if (!isRecord(input)) return resultError("member_agent_executor_error", "Codex 适配器没有返回有效结果。");
+   const unknownCount = Object.keys(input).filter((key) => !RESULT_FIELDS.has(key)).length;
+@@ -188,6 +212,7 @@ async function executeCodex(hooks: ExecutorHooks, config: CodexRuntimeConfig, de
+ 
+   const localized = localizeContext(hooks.job.context, cwd, path.join(config.configDir, "agents", hooks.job.agent.id, "home"));
+   if (localized.suspectedServerPaths > 0) warn(`任务文本中检测到 ${localized.suspectedServerPaths} 处疑似服务器路径；未改写任务文本。`);
++  addPaperclipRestGuidance(localized.context, home);
+   prepareProcessEnvironment(env, hooks.serverUrl, home);
+ 
+   let module: CodexModule;
+diff --git a/member-agent/test/codex-executor.test.ts b/member-agent/test/codex-executor.test.ts
+index 9cb6b89..b3fd328 100644
+--- a/member-agent/test/codex-executor.test.ts
++++ b/member-agent/test/codex-executor.test.ts
+@@ -58,6 +58,34 @@ function dependencies(capture: (context: Record<string, unknown>) => void, env:
+ }
+ 
+ describe("Codex executor context and privacy boundary", () => {
++  it.each(["fresh", "resume", "recovery", "unscoped"])("injects credential-free REST instructions on every %s run and every selected task carrier", async (mode) => {
++    const fixture = await setup();
++    let delivered: Record<string, unknown> | undefined;
++    const context = mode === "unscoped" ? {} : {
++      projectId: "project-1", paperclipTaskMarkdown: "Original task",
++      paperclipTaskMarkdownAssignment: "Assignment task",
++      paperclipTaskMarkdownCompact: "Compact task", paperclipTaskMarkdownAssignmentCompact: "Compact assignment",
++      ...(mode === "recovery" ? { wakeReason: "issue_recovery_requested", paperclipWake: { reason: "issue_recovery_requested" } } : {}),
++    };
++    const config = mode === "unscoped" ? { ...fixture.config, defaultCwd: fixture.project } : fixture.config;
++    const task = job({ context, ...(mode === "fresh" ? { runtime: {} } : {}) });
++    await createCodexExecutor(config, dependencies(value => { delivered = value; }, fixture.env)).execute(hooks(task));
++    const actual = delivered?.context as Record<string, unknown>;
++    for (const field of ["paperclipTaskMarkdown", "paperclipTaskMarkdownAssignment", "paperclipTaskMarkdownCompact", "paperclipTaskMarkdownAssignmentCompact"]) {
++      const text = String(actual[field] ?? "");
++      expect(text, field).toContain("没有 Paperclip 原生工具");
++      expect(text).toContain(path.join(fixture.codexHome, "skills", "paperclip", "SKILL.md"));
++      for (const name of ["PAPERCLIP_API_URL", "PAPERCLIP_API_KEY", "PAPERCLIP_RUN_ID", "X-Paperclip-Run-Id", "Invoke-RestMethod"]) expect(text).toContain(name);
++      expect(text).not.toMatch(/\b(resolve|call_api|update_task|complete_task|resolve_review)\b/);
++      for (const secret of [task.authToken, "FAKE-AGENT-KEY-ONLY-FOR-TEST", "FAKE-OPENAI-KEY-ONLY-FOR-TEST"]) expect(text).not.toContain(secret);
++    }
++    if (mode !== "unscoped") {
++      expect(actual.paperclipTaskMarkdown).toContain("Original task");
++      expect(actual.paperclipTaskMarkdownAssignment).toContain("Assignment task");
++      expect(actual.paperclipTaskMarkdownCompact).toContain("Compact task");
++      expect(actual.paperclipTaskMarkdownAssignmentCompact).toContain("Compact assignment");
++    }
++  });
+   it("fails before loading or running Codex when the sibling code-mode host is missing", async () => {
+     const fixture = await setup();
+     await rm(path.join(fixture.root, "codex-code-mode-host.exe"));
+diff --git a/member-agent/test/codex-integration.test.ts b/member-agent/test/codex-integration.test.ts
+index 4e14a30..cf9fd18 100644
+--- a/member-agent/test/codex-integration.test.ts
++++ b/member-agent/test/codex-integration.test.ts
+@@ -159,6 +159,11 @@ async function runIntegration(useTools: boolean) {
+       expect(frames.some((frame) => frame.type === "job.usage")).toBe(true);
+       expect(requestCount).toBeGreaterThan(0);
+       expect(prompts.some((prompt) => /paperclip/i.test(prompt))).toBe(true);
++      expect(prompts.every(prompt => prompt.includes("没有 Paperclip 原生工具"))).toBe(true);
++      expect(prompts[0]).toContain("PAPERCLIP_API_URL");
++      expect(prompts[0]).toContain("X-Paperclip-Run-Id");
++      expect(prompts[0]).not.toContain("FAKE-run-token");
++      expect(prompts[0]).not.toContain("FAKE-long-lived-key");
+       if (useTools) {
+         expect(advertisedCodeMode, "the real Codex must advertise its code-mode exec tool").toBe(true);
+         expect(requestCount, "Codex must send the tool result back to the model").toBe(2);
+diff --git a/server/src/__tests__/agent-permissions-routes.test.ts b/server/src/__tests__/agent-permissions-routes.test.ts
+index 0ad2e67..018ca06 100644
+--- a/server/src/__tests__/agent-permissions-routes.test.ts
++++ b/server/src/__tests__/agent-permissions-routes.test.ts
+@@ -1395,6 +1395,41 @@ describe("agent permission routes", () => {
+     );
+   });
+ 
++  it.each(["agents", "agent-hires"])("defaults member_agent to one concurrent run via %s", async (route) => {
++    const app = await createApp({ type: "board", userId: "board-user", source: "local_implicit", isInstanceAdmin: true, companyIds: [companyId] });
++    const res = await requestApp(app, baseUrl => request(baseUrl).post(`/api/companies/${companyId}/${route}`).send({
++      name: "Member", role: "engineer", adapterType: "member_agent", adapterConfig: {},
++      runtimeConfig: { heartbeat: { intervalSec: 3600 } },
++    }));
++    expect(res.status, JSON.stringify(res.body)).toBe(201);
++    expect(mockAgentService.create).toHaveBeenCalledWith(companyId, expect.objectContaining({
++      runtimeConfig: { heartbeat: { enabled: false, intervalSec: 3600, maxConcurrentRuns: 1 } },
++    }), expect.anything());
++  });
++
++  it.each(["process", "codex_local"])("preserves the default concurrent run count for %s", async (adapterType) => {
++    const app = await createApp({ type: "board", userId: "board-user", source: "local_implicit", isInstanceAdmin: true, companyIds: [companyId] });
++    const res = await requestApp(app, baseUrl => request(baseUrl).post(`/api/companies/${companyId}/agents`).send({
++      name: "Other", role: "engineer", adapterType, adapterConfig: {},
++    }));
++    expect(res.status, JSON.stringify(res.body)).toBe(201);
++    expect(mockAgentService.create).toHaveBeenCalledWith(companyId, expect.objectContaining({
++      runtimeConfig: { heartbeat: { enabled: false, maxConcurrentRuns: 20 } },
++    }), expect.anything());
++  });
++
++  it("forces an explicit member concurrency of 20 to one and preserves unrelated runtime settings", async () => {
++    const app = await createApp({ type: "board", userId: "board-user", source: "local_implicit", isInstanceAdmin: true, companyIds: [companyId] });
++    const res = await requestApp(app, baseUrl => request(baseUrl).post(`/api/companies/${companyId}/agents`).send({
++      name: "Configured member", role: "engineer", adapterType: "member_agent", adapterConfig: {},
++      runtimeConfig: { heartbeat: { maxConcurrentRuns: 20, wakeOnDemand: true } },
++    }));
++    expect(res.status, JSON.stringify(res.body)).toBe(201);
++    expect(mockAgentService.create).toHaveBeenCalledWith(companyId, expect.objectContaining({
++      runtimeConfig: { heartbeat: { enabled: false, maxConcurrentRuns: 1, wakeOnDemand: true } },
++    }), expect.anything());
++  });
++
+   it("seeds opencode agent creation with the static default model without live discovery", async () => {
+     mockEnsureOpenCodeModelConfiguredAndAvailable.mockRejectedValue(
+       new Error("`opencode models` should not be called during creation"),
+diff --git a/server/src/__tests__/member-agent-concurrency.test.ts b/server/src/__tests__/member-agent-concurrency.test.ts
+new file mode 100644
+index 0000000..4105758
+--- /dev/null
++++ b/server/src/__tests__/member-agent-concurrency.test.ts
+@@ -0,0 +1,47 @@
++import { randomUUID } from "node:crypto";
++import { afterAll, beforeAll, describe, expect, it } from "vitest";
++import { agents, companies, createDb } from "@paperclipai/db";
++import { eq } from "drizzle-orm";
++import { startEmbeddedPostgresTestDatabase } from "./helpers/embedded-postgres.js";
++import { agentService } from "../services/agents.js";
++
++describe("member agent configuration concurrency invariant", () => {
++ let database: Awaited<ReturnType<typeof startEmbeddedPostgresTestDatabase>>;
++ let db: ReturnType<typeof createDb>;
++ beforeAll(async () => {
++  database = await startEmbeddedPostgresTestDatabase("member-concurrency-");
++  db = createDb(database.connectionString);
++ }, 120000);
++ afterAll(async () => { await db?.$client.end(); await database?.cleanup(); });
++ async function fixture(adapterType = "member_agent") {
++  const companyId = randomUUID();
++  await db.insert(companies).values({id:companyId,name:"Concurrency isolation",issuePrefix:"C"+companyId.slice(0,6)});
++  const [agent] = await db.insert(agents).values({
++   companyId,name:"Concurrent member",adapterType,status:"idle",
++   runtimeConfig:{heartbeat:{maxConcurrentRuns:20,wakeOnDemand:true},customSetting:"retained"},
++  }).returning();
++  return agent;
++ }
++ it("forces member concurrency 5 to one on a configuration update", async () => {
++  const agent=await fixture();
++  const updated=await agentService(db).update(agent.id,{runtimeConfig:{heartbeat:{maxConcurrentRuns:5,wakeOnDemand:true},customSetting:"retained"}});
++  expect(updated?.runtimeConfig).toEqual({heartbeat:{maxConcurrentRuns:1,wakeOnDemand:true},customSetting:"retained"});
++  const [persisted]=await db.select().from(agents).where(eq(agents.id,agent.id));
++  expect(persisted.runtimeConfig).toEqual(updated?.runtimeConfig);
++ });
++ it.each([{title:"Changed title"},{adapterConfig:{maxRunSec:120}}])("corrects an existing member on an edit without runtimeConfig: %j",async patch=>{
++  const agent=await fixture();
++  const updated=await agentService(db).update(agent.id,patch);
++  expect(updated?.runtimeConfig).toEqual({heartbeat:{maxConcurrentRuns:1,wakeOnDemand:true},customSetting:"retained"});
++ });
++ it.each(["process","codex_local"])("preserves explicit concurrency 20 for %s",async adapterType=>{
++  const agent=await fixture(adapterType);
++  const updated=await agentService(db).update(agent.id,{runtimeConfig:{heartbeat:{maxConcurrentRuns:20,wakeOnDemand:true},customSetting:"retained"}});
++  expect(updated?.runtimeConfig).toEqual({heartbeat:{maxConcurrentRuns:20,wakeOnDemand:true},customSetting:"retained"});
++ });
++ it("corrects concurrency when switching an existing agent to member_agent",async()=>{
++  const agent=await fixture("process");
++  const updated=await agentService(db).update(agent.id,{adapterType:"member_agent"});
++  expect(updated?.runtimeConfig).toEqual({heartbeat:{maxConcurrentRuns:1,wakeOnDemand:true},customSetting:"retained"});
++ });
++});
+diff --git a/server/src/adapters/member-agent/execute.ts b/server/src/adapters/member-agent/execute.ts
+index 40ee17e..52dc0c8 100644
+--- a/server/src/adapters/member-agent/execute.ts
++++ b/server/src/adapters/member-agent/execute.ts
+@@ -43,6 +43,14 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
+   // JSON-level redaction also protects property names from credential echoes.
+   const clean = <T>(value: T): T => JSON.parse(redact.redact(JSON.stringify(value))) as T;
+   const failure = (errorCode: string, errorMessage: string, timedOut = false): AdapterExecutionResult => ({ exitCode: 1, signal: null, timedOut, errorCode, errorMessage });
++  const busy = (): AdapterExecutionResult => ({
++    ...failure("member_agent_busy", "该成员智能体正在执行其他任务，将稍后自动重试"),
++    errorFamily: "transient_upstream",
++    retryNotBefore: new Date(Date.now() + 30000).toISOString(),
++    // No work started for this refused job. The heartbeat scheduler requires
++    // this existing recovery proof before it may retry a failed legacy run.
++    executionRecovery: { kind: "bootstrap", providerWorkStarted: false },
++  });
+   const report = async (result: AdapterExecutionResult) => {
+     const safe = clean(result);
+     if (safe.timedOut || safe.errorCode || safe.exitCode !== 0) {
+@@ -53,7 +61,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
+     return safe;
+   };
+   if (!connection) return report(failure("member_agent_offline", "该成员智能体当前不在线"));
+-  if (connection.currentJobId) return report(failure("member_agent_busy", "该成员智能体正在执行其他任务"));
++  if (connection.currentJobId) return report(busy());
+   if (!ctx.authToken?.trim()) return report(failure("member_agent_no_token", "本次运行缺少运行令牌，未派发任务"));
+   const maxRunSec = ctx.config.maxRunSec ?? 3600;
+   if (typeof maxRunSec !== "number" || !Number.isInteger(maxRunSec) || maxRunSec < 1 || maxRunSec > 14400
+@@ -103,7 +111,19 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
+   const receive = async (frame: MemberFrame) => {
+     if (settled) return;
+     if (frame.type === "job.accepted") { accepted = true; clearTimeout(acceptTimer); return; }
+-    if (!accepted) { fail("member_agent_protocol_error", "成员必须先确认 job.accepted"); return; }
++    if (!accepted) {
++      // A busy member refuses admission before acknowledging preparation.
++      // Only this exact terminal refusal proves the job did not start.
++      if (!stopReason && frame.type === "job.result") {
++        const { v: _v, type: _type, jobId: _jobId, ...payload } = frame;
++        const parsed = resultSchema.safeParse(payload);
++        if (parsed.success && parsed.data.errorCode === "member_agent_busy" && parsed.data.exitCode === 1
++          && parsed.data.signal === null && parsed.data.timedOut === false) {
++          settle(busy()); return;
++        }
++      }
++      fail("member_agent_protocol_error", "成员必须先确认 job.accepted"); return;
++    }
+     if (frame.type === "job.log") {
+       if (!Number.isSafeInteger(frame.seq) || (frame.seq as number) < 1 || !["stdout", "stderr"].includes(String(frame.stream)) || typeof frame.chunk !== "string" || Buffer.byteLength(frame.chunk) > 32 * 1024) {
+         fail("member_agent_protocol_error", "成员日志消息无效"); return;
+diff --git a/server/src/adapters/member-agent/protocol.test.ts b/server/src/adapters/member-agent/protocol.test.ts
+index 119ccac..4c70c6d 100644
+--- a/server/src/adapters/member-agent/protocol.test.ts
++++ b/server/src/adapters/member-agent/protocol.test.ts
+@@ -334,12 +334,74 @@ describe("member_agent phase 1", () => {
+   it("reserves one job atomically and releases it after completion", async () => {
+     const f = await fixture(), p = peer(f.key); await p.hello();
+     const first = execute(context(f)), job = await p.wait("job.start");
+-    expect(await execute(context(f))).toMatchObject({ errorCode: "member_agent_busy" });
++    const before = Date.now();
++    const busy = await execute(context(f));
++    expect(busy).toMatchObject({ errorCode: "member_agent_busy", errorFamily: "transient_upstream", executionRecovery: { kind: "bootstrap", providerWorkStarted: false } });
++    expect(new Date(busy.retryNotBefore!).getTime()).toBeGreaterThanOrEqual(before + 30000);
++    expect(p.frames.filter(frame => frame.type === "job.start")).toHaveLength(1);
+     p.send("job.accepted", { jobId: job.jobId });
+     p.send("job.result", { jobId: job.jobId, exitCode: 0, signal: null, timedOut: false });
+     expect(await first).toMatchObject({ exitCode: 0 });
+     expect(api.memberAgentConnections.get(f.companyId, f.agentId).currentJobId).toBeNull();
+   });
++
++  it("treats a valid pre-acceptance member busy rejection as retryable, not a protocol failure", async () => {
++    const f = await fixture(), p = peer(f.key); await p.hello();
++    const pending = execute(context(f)), job = await p.wait("job.start");
++    p.send("job.result", { jobId: job.jobId, exitCode: 1, signal: null, timedOut: false, errorCode: "member_agent_busy", errorMessage: "成员代理正在执行其他任务" });
++    const result = await pending;
++    expect(result).toMatchObject({ exitCode: 1, errorCode: "member_agent_busy", errorFamily: "transient_upstream", executionRecovery: { kind: "bootstrap", providerWorkStarted: false } });
++    expect(result.retryNotBefore).toEqual(expect.any(String));
++    expect(api.memberAgentConnections.get(f.companyId, f.agentId).currentJobId).toBeNull();
++  });
++
++  it("does not authorize automatic replay for a busy error after the member accepted work", async () => {
++    const f = await fixture(), p = peer(f.key); await p.hello();
++    const pending = execute(context(f)), job = await p.wait("job.start");
++    p.send("job.accepted", { jobId: job.jobId });
++    p.send("job.result", { jobId: job.jobId, exitCode: 1, signal: null, timedOut: false, errorCode: "member_agent_busy" });
++    const result = await pending;
++    expect(result).not.toHaveProperty("executionRecovery");
++    expect(result).not.toHaveProperty("errorFamily");
++  });
++
++  it.each(["server", "member"])("automatically schedules and redispatches an unstarted %s busy job through the heartbeat scheduler", async (source) => {
++    const f = await fixture(), p = peer(f.key); await p.hello();
++    await db.update(agents).set({ runtimeConfig: { heartbeat: { wakeOnDemand: true, maxConcurrentRuns: 1 } } }).where(eq(agents.id, f.agentId));
++    const held = source === "server" ? execute(context(f)) : null;
++    const heldJob = held ? await p.wait("job.start") : null;
++    const issueId = randomUUID();
++    await db.insert(issues).values({ id: issueId, companyId: f.companyId, title: "Busy retry integration", status: "in_progress", assigneeAgentId: f.agentId, responsibleUserId: "fixture-user" });
++    const queued = await heartbeat.invoke(f.agentId, "on_demand", { issueId, taskId: issueId }, "manual");
++    expect(queued).not.toBeNull();
++    if (source === "member") {
++      await expect.poll(() => p.frames.find(frame => frame.type === "job.start" && frame.jobId === queued!.id), { timeout: 10000 }).toBeDefined();
++      p.send("job.result", { jobId: queued!.id, exitCode: 1, signal: null, timedOut: false, errorCode: "member_agent_busy" });
++    }
++    await expect.poll(async () => (await heartbeat.getRun(queued!.id))?.status, { timeout: 10000 }).toBe("failed");
++    const failed = await heartbeat.getRun(queued!.id);
++    expect(failed?.resultJson).toMatchObject({ errorFamily: "transient_upstream", executionRecovery: { kind: "bootstrap", providerWorkStarted: false } });
++    let retry: typeof heartbeatRuns.$inferSelect | undefined;
++    await expect.poll(async () => {
++      [retry] = await db.select().from(heartbeatRuns).where(eq(heartbeatRuns.retryOfRunId, queued!.id));
++      return retry?.status;
++    }, { timeout: 10000 }).toBe("scheduled_retry");
++    expect(retry).toMatchObject({ issueId, scheduledRetryReason: "transient_failure", scheduledRetryAttempt: 1 });
++    expect(retry!.scheduledRetryAt!.getTime()).toBeGreaterThanOrEqual(new Date(String(failed!.resultJson!.retryNotBefore)).getTime());
++    if (heldJob) {
++      p.send("job.accepted", { jobId: heldJob.jobId });
++      p.send("job.result", { jobId: heldJob.jobId, exitCode: 0, signal: null, timedOut: false });
++      await held;
++    }
++    await expect.poll(() => api.memberAgentConnections.get(f.companyId, f.agentId)?.currentJobId, { timeout: 10000 }).toBeNull();
++    // Advance the scheduler's supplied clock, not the test's time budget.
++    await heartbeat.promoteDueScheduledRetries(retry!.scheduledRetryAt!);
++    await expect.poll(() => p.frames.find(frame => frame.type === "job.start" && frame.jobId === retry!.id), { timeout: 10000 }).toBeDefined();
++    await db.update(issues).set({ status: "done" }).where(eq(issues.id, issueId));
++    p.send("job.accepted", { jobId: retry!.id });
++    p.send("job.result", { jobId: retry!.id, exitCode: 0, signal: null, timedOut: false, summary: "Retried work completed" });
++    await expect.poll(async () => (await heartbeat.getRun(retry!.id))?.status, { timeout: 10000 }).toBe("succeeded");
++  }, 30000);
+   it.each(["version", "binary", "oversize", "result"])("fails safely for invalid %s frames", async kind => {
+     const f = await fixture(), p = peer(f.key); await p.hello();
+     const pending = execute(context(f)), job = await p.wait("job.start");
+diff --git a/server/src/routes/agents.ts b/server/src/routes/agents.ts
+index e481c66..932b4a4 100644
+--- a/server/src/routes/agents.ts
++++ b/server/src/routes/agents.ts
+@@ -2091,7 +2091,7 @@ export function agentRoutes(
+     };
+   }
+ 
+-  function normalizeNewAgentRuntimeConfig(runtimeConfig: unknown): Record<string, unknown> {
++  function normalizeNewAgentRuntimeConfig(runtimeConfig: unknown, adapterType: string): Record<string, unknown> {
+     const parsedRuntimeConfig = asRecord(runtimeConfig);
+     const normalizedRuntimeConfig = parsedRuntimeConfig ? { ...parsedRuntimeConfig } : {};
+     const parsedHeartbeat = asRecord(normalizedRuntimeConfig.heartbeat);
+@@ -2100,8 +2100,8 @@ export function agentRoutes(
+     if (parseBooleanLike(heartbeat.enabled) == null) {
+       heartbeat.enabled = false;
+     }
+-    if (parseNumberLike(heartbeat.maxConcurrentRuns) == null) {
+-      heartbeat.maxConcurrentRuns = AGENT_DEFAULT_MAX_CONCURRENT_RUNS;
++    if (adapterType === "member_agent" || parseNumberLike(heartbeat.maxConcurrentRuns) == null) {
++      heartbeat.maxConcurrentRuns = adapterType === "member_agent" ? 1 : AGENT_DEFAULT_MAX_CONCURRENT_RUNS;
+     }
+ 
+     normalizedRuntimeConfig.heartbeat = heartbeat;
+@@ -2116,7 +2116,7 @@ export function agentRoutes(
+     adapterConfig: Record<string, unknown>,
+     runtimeConfig: unknown,
+   ) {
+-    const normalized = normalizeNewAgentRuntimeConfig(runtimeConfig);
++    const normalized = normalizeNewAgentRuntimeConfig(runtimeConfig, adapterType);
+     if (req.actor.type !== "agent" || normalized.aiConnection) return normalized;
+     const manager = req.actor.agentId ? await svc.getById(req.actor.agentId) : null;
+     if (!manager || manager.companyId !== companyId) throw forbidden("Hiring agent is unavailable");
+diff --git a/server/src/services/agent-configuration.ts b/server/src/services/agent-configuration.ts
+index 8037f15..284a57d 100644
+--- a/server/src/services/agent-configuration.ts
++++ b/server/src/services/agent-configuration.ts
+@@ -55,6 +55,13 @@ export async function prepareAgentConfiguration(db: Db, existing: AgentConfigura
+     }
+   }
+   const normalizedPatch = { ...data } as AgentConfigurationPatch;
++  // A member connection can execute exactly one job. Enforce on every allowed
++  // configuration write, including profile-only edits and revision rollback.
++  if ((data.adapterType ?? existing.adapterType) === "member_agent") {
++    const runtimeConfig = isPlainRecord(data.runtimeConfig) ? data.runtimeConfig : existing.runtimeConfig;
++    const heartbeat = isPlainRecord(runtimeConfig?.heartbeat) ? runtimeConfig.heartbeat : {};
++    normalizedPatch.runtimeConfig = { ...runtimeConfig, heartbeat: { ...heartbeat, maxConcurrentRuns: 1 } };
++  }
+   if (data.permissions !== undefined) {
+     normalizedPatch.permissions = normalizeAgentPermissions(data.permissions);
+   }

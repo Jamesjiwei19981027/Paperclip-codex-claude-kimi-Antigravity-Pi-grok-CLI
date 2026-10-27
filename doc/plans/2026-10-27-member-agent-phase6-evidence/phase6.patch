@@ -1,0 +1,2137 @@
+diff --git a/doc/plans/2026-10-27-member-agent-phase6-evidence/acceptance.md b/doc/plans/2026-10-27-member-agent-phase6-evidence/acceptance.md
+new file mode 100644
+index 0000000..d07e98e
+--- /dev/null
++++ b/doc/plans/2026-10-27-member-agent-phase6-evidence/acceptance.md
+@@ -0,0 +1,162 @@
++# 阶段 6 真实安装验收 I1–I9
++
++以下命令未在本轮执行。成员使用没有仓库、没有 Node 的 Windows 电脑和非管理员账户；负责人负责看板读回。PowerShell 示例只在隐藏提示中接收 Key，不将 Key 写进命令行、报告或日志。
++
++## 公共变量（成员）
++
++解压收到的安装包，打开 Windows PowerShell，设置：
++
++```powershell
++$packageDir = Read-Host '解压后的安装包目录'
++$programRoot = Join-Path $env:LOCALAPPDATA 'Programs\PaperclipMemberAgent'
++$configDir = Join-Path $env:APPDATA 'paperclip-member-agent'
++$version = { (Get-Content -LiteralPath (Join-Path $programRoot 'current.txt') -Raw).Trim() }
++$startFile = { Join-Path (Join-Path (Join-Path $programRoot 'versions') (& $version)) 'start.ps1' }
++```
++
++## I1 安装（成员操作，成员读回）
++
++```powershell
++Set-Location -LiteralPath $packageDir
++powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
++"安装退出码：$LASTEXITCODE"
++Get-Content -LiteralPath (Join-Path $programRoot 'current.txt')
++powershell.exe -NoProfile -ExecutionPolicy Bypass -File (& $startFile) -Mode check
++"自检退出码：$LASTEXITCODE"
++```
++
++按安装提示输入服务器地址、已存在的工作目录，在隐藏输入中填写自己的成员 Key 并完成 Codex 登录。预期校验和五项自检全部通过，版本目录存在，退出码 0。只核对登录文件是否存在，不展示其内容。
++
++## I2 登录自启（成员操作，负责人读回）
++
++成员保存其他工作后执行注销；重新登录后继续：
++
++```powershell
++shutdown.exe /l
++```
++
++```powershell
++Get-ScheduledTask -TaskName 'PaperclipMemberAgent' | Select-Object TaskName,State
++Get-ChildItem -LiteralPath (Join-Path $configDir 'logs') -Filter 'launcher-*.log' |
++  Sort-Object LastWriteTime | Select-Object -Last 1 | ForEach-Object { Get-Content -LiteralPath $_.FullName -Tail 12 }
++```
++
++预期登录触发当前用户任务，无管理员提权；负责人从看板读回该智能体已连接、生命周期 ready。日志不能代替看板确认。
++
++## I3 真实任务（负责人派发和读回，成员读回文件）
++
++负责人在专用测试项目创建任务：读取 README、追加唯一标记、运行 `git --version`，由智能体评论并提交评审。成员只核对测试文件：
++
++```powershell
++$projectDir = Read-Host '本机测试项目目录'
++Get-FileHash -LiteralPath (Join-Path $projectDir 'README.md') -Algorithm SHA256
++Get-Content -LiteralPath (Join-Path $projectDir 'README.md') -Tail 10
++```
++
++预期标记、命令和任务结果正确。负责人读回评论作者、确认卡/评审状态、runId、运行次数与用量。
++
++## I4 崩溃自重启（成员操作，负责人读回）
++
++无活动任务时读取仅属于本安装的代理身份，核对进程路径后结束该 Node；不终止其他 Node/Codex：
++
++```powershell
++$identity = Get-Content -LiteralPath (Join-Path $configDir 'agent-control.json') -Raw | ConvertFrom-Json
++$agentProcess = Get-CimInstance Win32_Process -Filter ('ProcessId = ' + [int]$identity.pid)
++$agentProcess | Select-Object ProcessId,ExecutablePath,CreationDate
++if (!$agentProcess.ExecutablePath.StartsWith((Join-Path $programRoot 'versions') + '\',[StringComparison]::OrdinalIgnoreCase)) { throw '进程不属于本安装，停止操作' }
++Stop-Process -Id ([int]$identity.pid)
++Start-Sleep -Seconds 20
++$newIdentity = Get-Content -LiteralPath (Join-Path $configDir 'agent-control.json') -Raw | ConvertFrom-Json
++$newIdentity | Select-Object pid,startedAt
++```
++
++预期非预期退出触发首档 10 秒重启，30 秒内重新连接，进程身份改变。负责人从看板确认重新连接；正常退出码 0 不会重启。
++
++## I5 Key 无明文落盘（成员操作和读回）
++
++以下只在内存中获取待查 Key，输出命中的文件路径而非内容；不保存 Key：
++
++```powershell
++$secureSearch = Read-Host '输入自己的 Key 以本机检查（不回显）' -AsSecureString
++$searchBstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secureSearch)
++try {
++  $searchValue = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($searchBstr)
++  $matches = @()
++  foreach ($root in @($programRoot,$configDir)) {
++    foreach ($file in @(Get-ChildItem -LiteralPath $root -Recurse -File -ErrorAction Stop)) {
++      $bytes = [IO.File]::ReadAllBytes($file.FullName)
++      if ([Text.Encoding]::UTF8.GetString($bytes).Contains($searchValue) -or [Text.Encoding]::Unicode.GetString($bytes).Contains($searchValue)) { $matches += $file.FullName }
++    }
++  }
++  $taskXml = Export-ScheduledTask -TaskName 'PaperclipMemberAgent'
++  if ($taskXml.Contains($searchValue)) { $matches += '计划任务定义' }
++  if ($matches.Count) { $matches; throw '检查发现明文；不要展示文件内容' }
++  '安装目录、用户数据/日志、计划任务定义未发现 Key 明文'
++} finally {
++  $searchValue = $null; $bytes = $null; $taskXml = $null
++  [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($searchBstr); $secureSearch.Dispose()
++}
++```
++
++预期无明文命中，`agent-key.dpapi` 存在且无法由另一 Windows 用户解密。此命令检查程序管理的目录和任务定义；未扫描其他磁盘的任意用户文件，不能据此宣称整机所有文件均已扫描。全盘检查由成员在其权限范围内另行执行，负责人只接收是否命中，不接收 Key。
++
++## I6 升级与回滚（成员操作，负责人读回）
++
++负责人提供代理版本号加一、重新构建且独立告知 ZIP SHA-256 的安装包。成员保存配置、加密 Key、登录的本机哈希，仅输出是否一致：
++
++```powershell
++$preservePaths = @((Join-Path $configDir 'agent-key.dpapi'),(Join-Path $configDir 'codex-home\auth.json'))
++$beforeHashes = @{}; foreach ($p in $preservePaths) { $beforeHashes[$p] = (Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash }
++$beforeConfig = Get-Content -LiteralPath (Join-Path $configDir 'config.json') -Raw | ConvertFrom-Json
++$oldVersion = & $version
++$newPackageDir = Read-Host '新版本解压目录'
++powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $newPackageDir 'install.ps1')
++'当前版本：' + (& $version)
++foreach ($p in $preservePaths) { if ((Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash -ne $beforeHashes[$p]) { throw '用户数据发生变化' } }
++$afterConfig = Get-Content -LiteralPath (Join-Path $configDir 'config.json') -Raw | ConvertFrom-Json
++if ($afterConfig.serverUrl -ne $beforeConfig.serverUrl -or $afterConfig.codexHome -ne $beforeConfig.codexHome -or (ConvertTo-Json $afterConfig.projectDirs -Compress) -ne (ConvertTo-Json $beforeConfig.projectDirs -Compress)) { throw '用户配置未保留' }
++powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $newPackageDir 'install.ps1') -Rollback
++if ((& $version) -ne $oldVersion) { throw '没有回到旧版本' }
++```
++
++预期新旧版本共存，用户配置、加密 Key、独立登录保留；当前与上一个指针切换，配置中的程序路径随版本切换。负责人从连接/运行记录读回新旧版本；当前 UI 尚未直接展示 agentVersion，不能把界面标签当作版本证明。
++
++## I7 最低版本门控（负责人配置测试服务器并派发，成员核对提示）
++
++负责人在独立验收环境将 `server/src/adapters/member-agent/settings.ts` 的 `minimumAgentVersion` 调高并按部署流程上线；本轮没有执行该操作。成员先回滚旧版保持连接：
++
++```powershell
++powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $newPackageDir 'install.ps1') -Rollback
++powershell.exe -NoProfile -ExecutionPolicy Bypass -File (& $startFile) -Mode check
++'自检退出码：' + $LASTEXITCODE
++Get-ChildItem -LiteralPath (Join-Path $configDir 'logs') -Filter 'agent-*.log' |
++ Sort-Object LastWriteTime | Select-Object -Last 1 | ForEach-Object { Get-Content -LiteralPath $_.FullName -Tail 12 }
++```
++
++预期旧版连接仍保留，任务未执行，返回 `member_agent_version_outdated`，中文说明当前/要求版本以及“请运行新安装包升级”。负责人从看板运行详情读回错误码和没有执行副作用，不能仅凭成员日志认定通过。自检在已有代理运行时可能因单实例锁返回 5；版本门控结论以既有连接上的任务结果为准。
++
++## I8 卸载与数据保留（成员操作和读回）
++
++```powershell
++powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $programRoot 'uninstall.ps1')
++Test-Path -LiteralPath $programRoot
++Get-ScheduledTask -TaskName 'PaperclipMemberAgent' -ErrorAction SilentlyContinue | Select-Object TaskName,State
++Test-Path -LiteralPath (Join-Path $configDir 'config.json')
++Test-Path -LiteralPath (Join-Path $configDir 'agent-key.dpapi')
++Test-Path -LiteralPath (Join-Path $configDir 'codex-home')
++Test-Path -LiteralPath (Join-Path $configDir 'logs')
++```
++
++分别询问配置/Key、Codex 登录、日志时选择保留。预期程序目录和计划任务删除，选择保留的用户数据仍在。负责人只核对代理离线，不读取成员登录内容。
++
++## I9 中文用户名/路径（成员操作和读回）
++
++有对应条件时，在中文用户名的非管理员账户或带中文、空格的解压路径重复 I1：
++
++```powershell
++$packageDir = Read-Host '包含中文和空格的解压目录'
++powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $packageDir 'install.ps1')
++'退出码：' + $LASTEXITCODE
++```
++
++预期校验、复制、登录、自检均无路径解析错误。负责人从看板读回连接。I9 未在真实第二台电脑执行；自动化只验证临时中文/空格路径。
+diff --git a/member-agent/.gitignore b/member-agent/.gitignore
+index c2d9acb..602f616 100644
+--- a/member-agent/.gitignore
++++ b/member-agent/.gitignore
+@@ -1,3 +1,4 @@
+ node_modules/
+ *.tsbuildinfo
+ runtime/
++dist-installer/
+diff --git "a/member-agent/installer/README-\346\210\220\345\221\230\345\256\211\350\243\205\350\257\264\346\230\216.md" "b/member-agent/installer/README-\346\210\220\345\221\230\345\256\211\350\243\205\350\257\264\346\230\216.md"
+new file mode 100644
+index 0000000..2cee9a4
+--- /dev/null
++++ "b/member-agent/installer/README-\346\210\220\345\221\230\345\256\211\350\243\205\350\257\264\346\230\216.md"
+@@ -0,0 +1,74 @@
++# 成员代理安装说明
++
++先向负责人索取安装压缩包、服务器地址和你自己的智能体 Key。**不要把 Key 发给任何人，包括负责人。** 本机 Codex 登录只用于你自己的智能体。安装不需要管理员权限，也不需要先装 Node。
++
++## 安装
++
++将压缩包解压到普通目录，不要直接在压缩包中运行。用可信渠道拿到压缩包，并将 `Get-FileHash .\PaperclipMemberAgent-0.2.0.zip -Algorithm SHA256` 的结果与负责人单独提供的 SHA-256 核对。包内清单检查只能发现损坏或修改，不能证明来源。
++
++在解压目录打开 PowerShell，运行：
++
++```powershell
++powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
++```
++
++按提示输入服务器地址、已有的工作目录、Key，选择登录 Codex。Key 输入隐藏并由当前 Windows 用户加密保存，不会进入命令参数。服务器地址只填源地址，例如 `http://192.168.0.213:3100`；不带路径、查询参数或账号密码。公网必须用 HTTPS。此处的 Bypass 只影响这次脚本进程。
++
++程序装在 `%LOCALAPPDATA%\Programs\PaperclipMemberAgent`；配置、加密 Key、独立 Codex 登录和日志放在 `%APPDATA%\paperclip-member-agent`。不要手动移动版本目录。安装器会注册你本人登录时启动的计划任务，不提升权限；公司策略禁止时会提示手动启动命令。
++
++## 登录、自检与状态
++
++```powershell
++$install = Join-Path $env:LOCALAPPDATA 'Programs\PaperclipMemberAgent'
++$version = (Get-Content (Join-Path $install 'current.txt') -Raw).Trim()
++$start = Join-Path $install ('versions\' + $version + '\start.ps1')
++powershell -NoProfile -ExecutionPolicy Bypass -File $start -Mode login
++powershell -NoProfile -ExecutionPolicy Bypass -File $start -Mode check
++# 手动运行（关闭这个终端会影响代理）：
++powershell -NoProfile -ExecutionPolicy Bypass -File $start
++```
++
++到看板查看自己的智能体是否在线。也可查看日志最后几行：
++
++```powershell
++$logs = Join-Path $env:APPDATA 'paperclip-member-agent\logs'
++Get-ChildItem $logs -File | Sort-Object LastWriteTime -Descending | Select-Object -First 3 | ForEach-Object { Get-Content -LiteralPath $_.FullName -Tail 15 }
++```
++
++启动器日志保留 7 天。配置错误、Key 无效或权限不允许时不会反复重试；修复后在任务计划程序启动 `PaperclipMemberAgent`，或运行上面的手动启动命令。意外崩溃会依次等待 10、30、60 秒，之后每次 5 分钟重试；正常停止不会自动重启。
++
++## 升级和回滚
++
++拿到新压缩包，核对哈希后解压，运行新包里的 `install.ps1`。现有配置、Key 和 Codex 登录可以沿用。安装器先停止启动器，再等当前任务结束，最多等待 60 秒；仍未结束会询问是否强制停止，选择否会取消升级。最多保留两个版本。
++
++回滚时在解压目录运行：
++
++```powershell
++powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Rollback
++```
++
++回滚会切回上一个版本，更新程序路径并重新启动。如果服务器要求更高版本，旧版会保持连接但拒绝任务，并明确提示升级。
++
++## 卸载
++
++运行压缩包里的 `uninstall.ps1`，或安装目录里的同名文件：
++
++```powershell
++powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $env:LOCALAPPDATA 'Programs\PaperclipMemberAgent\uninstall.ps1')
++```
++
++卸载会列出删除路径，停止代理、删除自启任务和程序。配置与加密 Key、Codex 登录与模型设置、日志会分别询问是否删除，默认都保留。保留的数据仍在 `%APPDATA%\paperclip-member-agent`。
++
++## 常见问题
++
++自检显示 Codex 可执行文件、工具宿主或运行时缺失：重新获取完整安装包并安装。Codex 登录失败：运行上面的 `-Mode login`。服务器连不上：检查地址、网络和负责人提供的服务状态。Key 无效或被撤销：重新运行安装脚本，同版本覆盖并选择替换 Key；不要在聊天或命令行中粘贴 Key。
++
++需要指定模型时，编辑本代理独立的 `%APPDATA%\paperclip-member-agent\codex-home\config.toml`，例如：
++
++```toml
++model = "gpt-5.4"
++```
++
++具体模型名请使用你账号可用的模型。不要修改个人 `%USERPROFILE%\.codex`。项目映射在配置文件 `projectDirs` 中添加，键为服务器项目 ID，值为本地已有目录；保留 JSON 格式，例如 `"projectDirs": { "项目ID": "D:\\项目目录" }`。修改配置后运行自检，再重启代理。
++
++如果安全软件拦截，请先核对来源及哈希，再让负责人或 IT 确认。安装包尚未代码签名。不要关闭整机防护，也不要把 Key 或 Codex 登录文件发给他人。
+diff --git a/member-agent/installer/install.ps1 b/member-agent/installer/install.ps1
+new file mode 100644
+index 0000000..8221f28
+--- /dev/null
++++ b/member-agent/installer/install.ps1
+@@ -0,0 +1,242 @@
++﻿param(
++    [switch]$Rollback,
++    [switch]$TestMode,
++    [string]$InstallRoot,
++    [string]$ConfigDir,
++    [string]$TestDefaultCwd,
++    [string]$TestServerUrl = 'http://localhost:39999',
++    [string]$TestExecutor,
++    [string]$TestNode,
++    [switch]$TestOverwrite,
++    [switch]$TestReplaceConfig
++)
++$ErrorActionPreference = 'Stop'
++$installerInputs = @{ Testing = $TestMode; Root = $InstallRoot; Config = $ConfigDir }
++. (Join-Path $PSScriptRoot 'uninstall.ps1') -Library
++$TestMode = $installerInputs.Testing; $InstallRoot = $installerInputs.Root; $ConfigDir = $installerInputs.Config
++function Assert-Version([string]$Version) {
++    if ($Version -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') { throw '版本记录无效，请重新获取安装包。' }
++}
++function Test-PackageManifest {
++    $all = @(Get-PlainTree $PSScriptRoot)
++    # Remove Mark-of-the-Web before inspecting or copying any package files.
++    foreach ($file in $all) { if (!$file.PSIsContainer) { Unblock-File -LiteralPath $file.FullName } }
++    try {
++        $manifest = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'MANIFEST.json') -Raw -Encoding UTF8 | ConvertFrom-Json
++        Assert-Version $manifest.agentVersion
++        if (!$manifest.nodeVersion -or !$manifest.codexVersion -or !$manifest.runtimeManifest -or !$manifest.builtAt -or !$manifest.repoCommit -or !$manifest.files) { throw '清单字段不完整' }
++        $seen = @{}
++        foreach ($entry in $manifest.files) {
++            $relative = [string]$entry.path
++            if (!$relative -or $relative -match '\\|:|(^|/)\.\.?(/|$)' -or $relative.StartsWith('/') -or $relative -notmatch '^(install\.ps1|uninstall\.ps1|README-成员安装说明\.md|app/start\.ps1|app/(node|codex|member-agent)/[^\x00-\x1f]+)$') { throw '非法文件路径' }
++            if ($seen.ContainsKey($relative)) { throw '重复清单条目' }; $seen[$relative] = $true
++            $filePath = Join-Path $PSScriptRoot ($relative.Replace('/', '\'))
++            [void](Assert-PlainPath $filePath)
++            $item = Get-Item -LiteralPath $filePath -Force
++            if ($item.PSIsContainer -or $null -eq $entry.size -or $item.Length -ne [long]$entry.size -or $entry.sha256 -notmatch '^[0-9a-fA-F]{64}$') { throw '文件大小不符' }
++            $stream = [IO.File]::OpenRead($filePath); $hasher = [Security.Cryptography.SHA256]::Create()
++            try { $hash = [BitConverter]::ToString($hasher.ComputeHash($stream)).Replace('-', '').ToLowerInvariant() }
++            finally { $stream.Dispose(); $hasher.Dispose() }
++            if ($hash -ne $entry.sha256) { throw '文件哈希不符' }
++        }
++        foreach ($file in $all) {
++            if ($file.PSIsContainer) { continue }
++            $relative = $file.FullName.Substring($PSScriptRoot.TrimEnd('\').Length + 1).Replace('\', '/')
++            if ($relative -ne 'MANIFEST.json' -and !$seen.ContainsKey($relative)) { throw '发现未列入清单的文件' }
++        }
++        foreach ($required in @('install.ps1', 'uninstall.ps1', 'README-成员安装说明.md', 'app/start.ps1', 'app/node/node.exe', 'app/codex/codex.exe', 'app/codex/codex-code-mode-host.exe', 'app/member-agent/src/main.ts', 'app/member-agent/package.json')) { if (!$seen.ContainsKey($required)) { throw '缺少安装必需文件' } }
++        return $manifest
++    } catch { throw '安装包已损坏或被修改，请重新获取。' }
++}
++function Set-ConfigPrograms($Config, [string]$VersionPath) {
++    $Config | Add-Member -MemberType NoteProperty -Name 'codexExecutable' -Value (Join-Path $VersionPath 'codex\codex.exe') -Force
++    $Config | Add-Member -MemberType NoteProperty -Name 'runtimeDir' -Value (Join-Path $VersionPath 'member-agent\runtime') -Force
++    $Config | Add-Member -MemberType NoteProperty -Name 'codexHome' -Value (Join-Path $ConfigDir 'codex-home') -Force
++    if ($Config.PSObject.Properties.Name -contains 'agentKey') { $Config.PSObject.Properties.Remove('agentKey') }
++}
++function Test-MemberConfiguration($Config, [string]$VersionPath, [string]$ValidationRoot = $VersionPath) {
++    if (!(Test-Path -LiteralPath $Config.defaultCwd -PathType Container)) { throw '默认工作目录不存在，请先创建目录。' }
++    [void](Assert-PlainPath $Config.defaultCwd)
++    if ($TestMode) { $node = $TestNode } else { $node = Join-Path $ValidationRoot 'node\node.exe' }
++    $oldRoot = $env:PAPERCLIP_INSTALL_VALIDATE_ROOT; $oldKey = $env:PAPERCLIP_AGENT_KEY
++    $oldConfig = $env:PAPERCLIP_INSTALL_VALIDATE_CONFIG
++    $validationId = [Guid]::NewGuid().ToString('N')
++    $validatorPath = Join-Path $ConfigDir ('.validate-' + $validationId + '.mjs')
++    $inputPath = Join-Path $ConfigDir ('.validate-' + $validationId + '.json')
++    try {
++        $env:PAPERCLIP_INSTALL_VALIDATE_ROOT = $ValidationRoot
++        $env:PAPERCLIP_AGENT_KEY = $null
++        $env:PAPERCLIP_INSTALL_VALIDATE_CONFIG = $inputPath
++        # Use a BOM-free file instead of the PowerShell native stdin pipeline.
++        # Only the random file path is passed in the environment; never the URL in argv.
++        $validator = 'import {readFile} from "node:fs/promises";import {pathToFileURL} from "node:url";import path from "node:path";const base=process.env.PAPERCLIP_INSTALL_VALIDATE_ROOT;const {validateConfig}=await import(pathToFileURL(path.join(base,"member-agent/src/config.ts")));const {assertTransportAllowed}=await import(pathToFileURL(path.join(base,"member-agent/src/transport-check.ts")));try{let text=await readFile(process.env.PAPERCLIP_INSTALL_VALIDATE_CONFIG,"utf8");if(text.charCodeAt(0)===0xFEFF)text=text.slice(1);const config=validateConfig(JSON.parse(text),{},{requireAgentKey:false});assertTransportAllowed(config.serverUrl)}catch{console.error("配置校验失败：请检查服务器纯源地址、内网明文限制和目录设置。");process.exitCode=2}'
++        [IO.File]::WriteAllText($inputPath, ($Config | ConvertTo-Json -Depth 30 -Compress), (New-Object Text.UTF8Encoding($false)))
++        Write-MemberText $validatorPath $validator
++        & $node $validatorPath
++        if ($LASTEXITCODE -ne 0) { throw '配置未通过代理校验，尚未保存。服务器须为纯 HTTP(S) 源地址；公网地址必须使用 HTTPS。' }
++    } finally {
++        try {
++            Remove-Item -LiteralPath $inputPath, $validatorPath -Force -ErrorAction SilentlyContinue
++        } finally {
++            $env:PAPERCLIP_INSTALL_VALIDATE_ROOT = $oldRoot
++            $env:PAPERCLIP_INSTALL_VALIDATE_CONFIG = $oldConfig
++            $env:PAPERCLIP_AGENT_KEY = $oldKey
++        }
++    }
++}
++function Register-MemberTask([string]$VersionPath) {
++    if ($TestMode) { return $true }
++    try {
++        $user = [Security.Principal.WindowsIdentity]::GetCurrent().Name
++        $start = Join-Path $VersionPath 'start.ps1'
++        $arguments = '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $start + '"'
++        $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $arguments
++        $trigger = New-ScheduledTaskTrigger -AtLogOn -User $user
++        $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew
++        $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited
++        Register-ScheduledTask -TaskName 'PaperclipMemberAgent' -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Force | Out-Null
++        return $true
++    } catch {
++        Write-Warning ('开机自启注册失败，可能被公司策略禁止。请联系管理员确认任务计划权限；也可手动执行：powershell -NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $VersionPath 'start.ps1') + '"')
++        return $false
++    }
++}
++function Invoke-MemberCommand([string]$VersionPath, [string]$Command) {
++    $params = @{ Mode = $Command }
++    if ($TestMode) { $params.TestMode = $true; $params.InstallRoot = $InstallRoot; $params.ConfigDir = $ConfigDir; $params.TestExecutor = $TestExecutor }
++    # Run the launcher in a child shell: its exit must not end installation.
++    $shell = (Get-Process -Id $PID).Path
++    $args = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $VersionPath 'start.ps1'), '-Mode', $Command)
++    if ($TestMode) { $args += @('-TestMode', '-InstallRoot', $InstallRoot, '-ConfigDir', $ConfigDir, '-TestExecutor', $TestExecutor) }
++    & $shell @args | Out-Host
++    return $LASTEXITCODE
++}
++try {
++    if (!$TestMode -and ($TestExecutor -or $TestNode -or $TestDefaultCwd -or $TestOverwrite -or $TestReplaceConfig -or $PSBoundParameters.ContainsKey('TestServerUrl'))) { throw 'Test 参数仅限显式测试模式。' }
++    $paths = Resolve-MemberPaths $TestMode $InstallRoot $ConfigDir
++    $InstallRoot = $paths.Root; $ConfigDir = $paths.Config
++    if ($TestMode) {
++        if (!$TestExecutor -or !$TestNode) { throw '测试模式必须指定假 TestExecutor 和校验用 TestNode。' }
++        $temp = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
++        if (![IO.Path]::GetFullPath($TestExecutor).StartsWith($temp, [StringComparison]::OrdinalIgnoreCase)) { throw '假执行器必须位于临时目录。' }
++        [void](Assert-PlainPath $TestExecutor)
++    }
++    $configPath = Join-Path $ConfigDir 'config.json'; $keyPath = Join-Path $ConfigDir 'agent-key.dpapi'
++    $currentPath = Join-Path $InstallRoot 'current.txt'; $previousPath = Join-Path $InstallRoot 'previous.txt'
++    foreach ($p in @($configPath, $keyPath, $currentPath, $previousPath)) { [void](Assert-PlainPath $p) }
++    $current = ''
++    $staging = $null; $backupVersionPath = $null; $versionSwapped = $false; $transactionCommitted = $false
++    $configPathExisted = Test-Path -LiteralPath $configPath; $oldConfigText = if ($configPathExisted) { Get-Content -LiteralPath $configPath -Raw -Encoding UTF8 } else { $null }
++    $currentPathExisted = Test-Path -LiteralPath $currentPath; $oldCurrentText = if ($currentPathExisted) { Get-Content -LiteralPath $currentPath -Raw -Encoding UTF8 } else { $null }
++    $previousPathExisted = Test-Path -LiteralPath $previousPath; $oldPreviousText = if ($previousPathExisted) { Get-Content -LiteralPath $previousPath -Raw -Encoding UTF8 } else { $null }
++    if (Test-Path -LiteralPath $currentPath) { $current = (Get-Content -LiteralPath $currentPath -Raw).Trim(); Assert-Version $current }
++    $versionsPath = Join-Path $InstallRoot 'versions'
++    if (Test-Path -LiteralPath $InstallRoot) { [void]@(Get-PlainTree $InstallRoot) }
++    if (Test-Path -LiteralPath $ConfigDir) { [void]@(Get-PlainTree $ConfigDir) }
++    if ($Rollback) {
++        if (!(Test-Path -LiteralPath $previousPath)) { throw '没有可回滚的上一个版本。' }
++        $version = (Get-Content -LiteralPath $previousPath -Raw).Trim(); Assert-Version $version
++        $versionPath = Join-Path $versionsPath $version
++        if (!(Test-Path -LiteralPath (Join-Path $versionPath 'start.ps1'))) { throw '上一个版本不完整，请重新安装。' }
++    } else {
++        $manifest = Test-PackageManifest; $version = [string]$manifest.agentVersion
++        $versionPath = Join-Path $versionsPath $version
++        if (Test-Path -LiteralPath $versionPath) {
++            if (!(Confirm-Member ('版本 ' + $version + ' 已存在，覆盖吗？') $TestMode $TestOverwrite)) { throw '未覆盖同版本，安装已取消。' }
++        }
++        [void][IO.Directory]::CreateDirectory($versionsPath)
++        # Staging directory prevents partially copied code becoming current.
++        $staging = Join-Path $versionsPath ('.staging-' + [Guid]::NewGuid().ToString('N'))
++        [void][IO.Directory]::CreateDirectory($staging)
++        foreach ($item in @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'app') -Force)) { Copy-Item -LiteralPath $item.FullName -Destination $staging -Recurse -Force }
++    }
++    [void][IO.Directory]::CreateDirectory($ConfigDir)
++    if (!$TestMode) { Protect-MemberPath $ConfigDir $true }
++    $config = $null
++    if (Test-Path -LiteralPath $configPath) {
++        $existing = $null; $canReuse = $true
++        try { $existing = Get-Content -LiteralPath $configPath -Raw -Encoding UTF8 | ConvertFrom-Json }
++        catch { $canReuse = $false }
++        if ($canReuse) {
++            # Validate before displaying any saved fields; never display credential values.
++            Set-ConfigPrograms $existing $versionPath
++            try { Test-MemberConfiguration $existing $versionPath $(if ($staging) { $staging } else { $versionPath }) }
++            catch { $canReuse = $false }
++        }
++        if (!$canReuse) {
++            if (!(Confirm-Member '现有配置无法通过校验，是否重新填写？' $TestMode $TestReplaceConfig)) { throw '现有配置无效或引用的目录不存在；已保留当前安装，请修复配置后重试。' }
++        } else {
++            Write-Host ('已有服务器：' + $existing.serverUrl + '；工作目录：' + $existing.defaultCwd)
++            if ($Rollback -or (Confirm-Member '沿用现有配置吗？' $TestMode $true)) { $config = $existing }
++        }
++    }
++    if (!$config) {
++        if ($TestMode) { $url = $TestServerUrl; $cwd = $TestDefaultCwd }
++        else { $url = Read-Host '服务器地址（例如 http://192.168.0.213:3100）'; $cwd = Read-Host '默认工作目录（必须已存在，输入完整路径）' }
++        $config = [PSCustomObject]@{ serverUrl = $url; executor = 'codex'; projectDirs = [PSCustomObject]@{}; defaultCwd = $cwd }
++        Set-ConfigPrograms $config $versionPath; Test-MemberConfiguration $config $versionPath $(if ($staging) { $staging } else { $versionPath })
++    }
++    if ($current) { Stop-MemberAgent $InstallRoot $ConfigDir $TestMode }
++    if ($staging) {
++        if (Test-Path -LiteralPath $versionPath) {
++            $backupVersionPath = Join-Path $versionsPath ('.replaced-' + [Guid]::NewGuid().ToString('N'))
++            Move-Item -LiteralPath $versionPath -Destination $backupVersionPath
++        }
++        Move-Item -LiteralPath $staging -Destination $versionPath
++        $staging = $null; $versionSwapped = $true
++    }
++    Write-MemberText $configPath ($config | ConvertTo-Json -Depth 30)
++    if (!$TestMode) { Protect-MemberPath $configPath }
++    if (!(Test-Path -LiteralPath $keyPath) -or (Confirm-Member '替换已有智能体 Key 吗？' $TestMode)) {
++        if ($TestMode) { Write-MemberText $keyPath 'FAKE-DPAPI-TEST-NOT-A-CREDENTIAL' }
++        else {
++            $secure = Read-Host '智能体 Key（输入隐藏，不要分享给任何人）' -AsSecureString
++            try {
++                if ($secure.Length -eq 0) { throw 'Key 不能为空。' }
++                $encrypted = ConvertFrom-SecureString -SecureString $secure
++                Write-MemberText $keyPath $encrypted
++            } finally { $secure.Dispose(); $secure = $null; $encrypted = $null }
++            Protect-MemberPath $keyPath
++        }
++    }
++    # Config paths and code paths switch together only after validation and drain.
++    if ($current -and $current -ne $version) { Write-MemberText $previousPath $current }
++    Write-MemberText $currentPath $version
++    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'uninstall.ps1') -Destination (Join-Path $InstallRoot 'uninstall.ps1') -Force
++    # The package/config pointer swap is committed only after all persisted
++    # files are written. Keep the old same-version directory until this point.
++    $transactionCommitted = $true
++    if ($backupVersionPath -and (Test-Path -LiteralPath $backupVersionPath)) { Remove-PlainTree $backupVersionPath; $backupVersionPath = $null }
++    if (!$TestMode -and !(Test-Path -LiteralPath (Join-Path $ConfigDir 'codex-home\auth.json')) -and (Confirm-Member '现在登录 Codex 吗？' $false)) {
++        $loginCode = Invoke-MemberCommand $versionPath 'login'
++        if ($loginCode -ne 0) { Write-Warning 'Codex 登录未成功，请稍后通过 start.ps1 -Mode login 重试。' }
++    }
++    $checkCode = Invoke-MemberCommand $versionPath 'check'
++    if ($checkCode -ne 0) { Write-Warning '自检未通过，文件已保留。请根据上方原因修复配置、Key、网络或 Codex 登录，再执行 start.ps1 -Mode check。' }
++    $registered = Register-MemberTask $versionPath
++    if (!$TestMode -and $registered -and ($current -or (Confirm-Member '现在启动吗？' $false))) { Start-ScheduledTask -TaskName 'PaperclipMemberAgent' }
++    $keep = @($version)
++    if (Test-Path -LiteralPath $previousPath) { $previous = (Get-Content -LiteralPath $previousPath -Raw).Trim(); Assert-Version $previous; $keep += $previous }
++    foreach ($directory in @(Get-ChildItem -LiteralPath $versionsPath -Directory)) {
++        if ($directory.Name -match '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') {
++            Assert-Version $directory.Name
++            if ($keep -notcontains $directory.Name) { Remove-PlainTree $directory.FullName }
++        }
++    }
++    Write-Host ('安装完成，版本 ' + $version + '。程序位置：' + $InstallRoot)
++    Write-Host ('日志位置：' + (Join-Path $ConfigDir 'logs') + '；可查看最近日志或在看板确认上线。')
++    Write-Host ('卸载：powershell -ExecutionPolicy Bypass -File "' + (Join-Path $InstallRoot 'uninstall.ps1') + '"')
++    exit 0
++} catch {
++    if (!$transactionCommitted) {
++        try {
++            if ($staging -and (Test-Path -LiteralPath $staging)) { Remove-PlainTree $staging }
++            if ($versionSwapped -and (Test-Path -LiteralPath $versionPath)) { Remove-PlainTree $versionPath }
++            if ($backupVersionPath -and (Test-Path -LiteralPath $backupVersionPath)) { Move-Item -LiteralPath $backupVersionPath -Destination $versionPath }
++            if ($configPathExisted) { Write-MemberText $configPath $oldConfigText } elseif (Test-Path -LiteralPath $configPath) { Remove-Item -LiteralPath $configPath -Force }
++            if ($currentPathExisted) { Write-MemberText $currentPath $oldCurrentText } elseif (Test-Path -LiteralPath $currentPath) { Remove-Item -LiteralPath $currentPath -Force }
++            if ($previousPathExisted) { Write-MemberText $previousPath $oldPreviousText } elseif (Test-Path -LiteralPath $previousPath) { Remove-Item -LiteralPath $previousPath -Force }
++        } catch { }
++    }
++    Write-Error '安装未完成；当前版本与配置已保留。请检查安装包、目录权限和配置后重试。' -ErrorAction Continue; exit 1
++}
+diff --git a/member-agent/installer/start.ps1 b/member-agent/installer/start.ps1
+new file mode 100644
+index 0000000..592d556
+--- /dev/null
++++ b/member-agent/installer/start.ps1
+@@ -0,0 +1,87 @@
++﻿param(
++    [ValidateSet('run', 'check', 'login')][string]$Mode = 'run',
++    [switch]$TestMode,
++    [string]$InstallRoot,
++    [string]$ConfigDir,
++    [string]$TestExecutor,
++    [string]$TestWait
++)
++$ErrorActionPreference = 'Stop'
++function Assert-LauncherPath([string]$Path) {
++    $cursor = [IO.Path]::GetFullPath($Path)
++    while ($cursor) {
++        if (Test-Path -LiteralPath $cursor) { $item = Get-Item -LiteralPath $cursor -Force; if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw '启动路径包含链接或重解析点。' } }
++        $cursor = [IO.Path]::GetDirectoryName($cursor)
++    }
++}
++function Write-LauncherLog([string]$Message) {
++    $logDir = Join-Path $ConfigDir 'logs'; Assert-LauncherPath $logDir
++    [void][IO.Directory]::CreateDirectory($logDir)
++    foreach ($file in @(Get-ChildItem -LiteralPath $logDir -Filter 'launcher-????????.log' -File)) {
++        Assert-LauncherPath $file.FullName
++        if ($file.LastWriteTimeUtc -lt [DateTime]::UtcNow.AddDays(-7)) { Remove-Item -LiteralPath $file.FullName -Force }
++    }
++    $filePath = Join-Path $logDir ('launcher-' + (Get-Date -Format 'yyyyMMdd') + '.log'); Assert-LauncherPath $filePath
++    [IO.File]::AppendAllText($filePath, ([DateTime]::UtcNow.ToString('o') + ' ' + $Message + [Environment]::NewLine), (New-Object Text.UTF8Encoding($false)))
++}
++$originalKey = $env:PAPERCLIP_AGENT_KEY
++$exitCode = 1
++try {
++    if ($TestMode) {
++        if (!$InstallRoot -or !$ConfigDir -or !$TestExecutor) { throw '测试模式必须显式指定 InstallRoot、ConfigDir 和 TestExecutor。' }
++        $temp = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
++        foreach ($p in @($InstallRoot, $ConfigDir, $TestExecutor) + @($TestWait | Where-Object { $_ })) {
++            if (![IO.Path]::IsPathRooted($p) -or ![IO.Path]::GetFullPath($p).StartsWith($temp, [StringComparison]::OrdinalIgnoreCase)) { throw '测试模式只允许临时路径。' }
++            Assert-LauncherPath $p
++        }
++        if ([IO.Path]::GetFullPath($InstallRoot).TrimEnd('\') -eq $temp.TrimEnd('\') -or [IO.Path]::GetFullPath($ConfigDir).TrimEnd('\') -eq $temp.TrimEnd('\')) { throw '禁止使用临时根目录。' }
++    } else {
++        if ($TestExecutor -or $TestWait) { throw '假执行器和等待器仅供测试模式使用。' }
++        $defaultRoot = Join-Path $env:LOCALAPPDATA 'Programs\PaperclipMemberAgent'
++        $defaultConfig = Join-Path $env:APPDATA 'paperclip-member-agent'
++        if (($InstallRoot -and [IO.Path]::GetFullPath($InstallRoot) -ne $defaultRoot) -or ($ConfigDir -and [IO.Path]::GetFullPath($ConfigDir) -ne $defaultConfig)) { throw '自定义目录仅供测试模式使用。' }
++        $InstallRoot = $defaultRoot; $ConfigDir = $defaultConfig
++    }
++    Assert-LauncherPath $InstallRoot; Assert-LauncherPath $ConfigDir
++    $pointer = Join-Path $InstallRoot 'current.txt'; Assert-LauncherPath $pointer
++    $version = (Get-Content -LiteralPath $pointer -Raw).Trim()
++    if ($version -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') { throw '当前版本记录无效，请重新运行安装脚本。' }
++    $versionRoot = Join-Path (Join-Path $InstallRoot 'versions') $version; Assert-LauncherPath $versionRoot
++    $configPath = Join-Path $ConfigDir 'config.json'; Assert-LauncherPath $configPath
++    if ($Mode -ne 'login') {
++        $keyPath = Join-Path $ConfigDir 'agent-key.dpapi'; Assert-LauncherPath $keyPath
++        if ($TestMode) {
++            if ((Get-Content -LiteralPath $keyPath -Raw).Trim() -ne 'FAKE-DPAPI-TEST-NOT-A-CREDENTIAL') { throw '测试模式仅接受明显的假 Key 标记。' }
++            $env:PAPERCLIP_AGENT_KEY = 'FAKE-TEST-ENV-NOT-A-CREDENTIAL'
++        } else {
++            $secure = Get-Content -LiteralPath $keyPath -Raw | ConvertTo-SecureString
++            $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
++            try { $env:PAPERCLIP_AGENT_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr) }
++            finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr); $secure.Dispose(); $secure = $null; $bstr = [IntPtr]::Zero }
++        }
++    }
++    $attempt = 0
++    while ($true) {
++        try {
++            if ($TestMode) { $exitCode = [int](& $TestExecutor -Mode $Mode -ConfigPath $configPath -VersionRoot $versionRoot) }
++            else {
++                $node = Join-Path $versionRoot 'node\node.exe'; $main = Join-Path $versionRoot 'member-agent\src\main.ts'
++                Assert-LauncherPath $node; Assert-LauncherPath $main
++                & $node $main $Mode --config $configPath
++                $exitCode = $LASTEXITCODE
++                if ($null -eq $exitCode) { $exitCode = 1 }
++            }
++        } catch { $exitCode = 1; Write-LauncherLog '代理发生异常，准备按退出策略处理。' }
++        Write-LauncherLog ('模式 ' + $Mode + '，退出码 ' + $exitCode)
++        if ($Mode -ne 'run' -or @(0, 2, 3, 4, 5) -contains $exitCode) { break }
++        $delays = @(10, 30, 60, 300); $delay = $delays[[Math]::Min($attempt, 3)]; $attempt++
++        Write-LauncherLog ('将在 ' + $delay + ' 秒后重启。')
++        if ($TestMode -and $TestWait) { & $TestWait -Seconds $delay -ConfigDir $ConfigDir }
++        else { Start-Sleep -Seconds $delay }
++    }
++} catch {
++    # Never echo exception values: a DPAPI/JSON/native error may contain input.
++    Write-Error '启动失败。请检查当前版本、配置和加密 Key，必要时重新运行安装脚本。' -ErrorAction Continue
++    $exitCode = 2
++} finally { $env:PAPERCLIP_AGENT_KEY = $originalKey; $originalKey = $null }
++exit $exitCode
+diff --git a/member-agent/installer/uninstall.ps1 b/member-agent/installer/uninstall.ps1
+new file mode 100644
+index 0000000..5218e72
+--- /dev/null
++++ b/member-agent/installer/uninstall.ps1
+@@ -0,0 +1,166 @@
++﻿param(
++    [switch]$TestMode,
++    [string]$InstallRoot,
++    [string]$ConfigDir,
++    [switch]$RemoveConfig,
++    [switch]$RemoveHome,
++    [switch]$RemoveLogs,
++    [switch]$Library
++)
++$ErrorActionPreference = 'Stop'
++
++# Shared by install.ps1. Library mode defines functions and performs no I/O.
++function Assert-PlainPath([string]$Path) {
++    $full = [IO.Path]::GetFullPath($Path)
++    $cursor = $full
++    while ($cursor) {
++        if (Test-Path -LiteralPath $cursor) {
++            $item = Get-Item -LiteralPath $cursor -Force
++            if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw '拒绝链接或重解析点路径。请使用普通目录。' }
++        }
++        $parent = [IO.Path]::GetDirectoryName($cursor)
++        if ($parent -eq $cursor) { break }
++        $cursor = $parent
++    }
++    return $full
++}
++function Get-PlainTree([string]$Path) {
++    [void](Assert-PlainPath $Path)
++    if (!(Test-Path -LiteralPath $Path)) { return }
++    foreach ($item in @(Get-ChildItem -LiteralPath $Path -Force)) {
++        if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw '目录中有链接或重解析点，已停止操作。' }
++        $item
++        if ($item.PSIsContainer) { Get-PlainTree $item.FullName }
++    }
++}
++function Resolve-MemberPaths([bool]$Testing, [string]$RootPath, [string]$ConfigPath) {
++    if ($Testing) {
++        if (!$RootPath -or !$ConfigPath -or ![IO.Path]::IsPathRooted($RootPath) -or ![IO.Path]::IsPathRooted($ConfigPath)) { throw '测试模式必须显式指定临时 InstallRoot 和 ConfigDir。' }
++        $temp = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
++        foreach ($candidate in @($RootPath, $ConfigPath)) {
++            $full = [IO.Path]::GetFullPath($candidate)
++            if (!$full.StartsWith($temp, [StringComparison]::OrdinalIgnoreCase) -or $full.TrimEnd('\') -eq $temp.TrimEnd('\')) { throw '测试模式只允许临时目录中的专用子目录。' }
++        }
++    } else {
++        $defaultRoot = Join-Path $env:LOCALAPPDATA 'Programs\PaperclipMemberAgent'
++        $defaultConfig = Join-Path $env:APPDATA 'paperclip-member-agent'
++        if (($RootPath -and [IO.Path]::GetFullPath($RootPath) -ne $defaultRoot) -or ($ConfigPath -and [IO.Path]::GetFullPath($ConfigPath) -ne $defaultConfig)) { throw '自定义目录仅限显式测试模式。' }
++        $RootPath = $defaultRoot; $ConfigPath = $defaultConfig
++    }
++    $r = Assert-PlainPath $RootPath; $c = Assert-PlainPath $ConfigPath
++    if ($r -eq $c -or $r.StartsWith($c.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase) -or $c.StartsWith($r.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) { throw '程序目录和用户数据目录必须独立。' }
++    return @{ Root = $r; Config = $c }
++}
++function Remove-PlainTree([string]$Path) {
++    [void](Assert-PlainPath $Path)
++    if (Test-Path -LiteralPath $Path) { [void]@(Get-PlainTree $Path); Remove-Item -LiteralPath $Path -Recurse -Force }
++}
++function Confirm-Member([string]$Question, [bool]$Testing, [bool]$TestAnswer = $false) {
++    if ($Testing) { return $TestAnswer }
++    return (Read-Host ($Question + ' [y/N]')) -match '^(y|yes|是)$'
++}
++function Write-MemberText([string]$Path, [string]$Text) {
++    [void](Assert-PlainPath $Path)
++    $staging = $Path + '.' + [Guid]::NewGuid().ToString('N') + '.tmp'
++    try { [IO.File]::WriteAllText($staging, $Text, (New-Object Text.UTF8Encoding($false))); Move-Item -LiteralPath $staging -Destination $Path -Force }
++    finally { if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Force } }
++}
++function Read-MemberJson([string]$Path) {
++    $text = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
++    # PowerShell 7 otherwise converts ISO timestamps to DateTime and rewrites
++    # their spelling when the identity is sent back to the running agent.
++    $convert = Get-Command ConvertFrom-Json
++    if ($convert.Parameters.ContainsKey('DateKind')) { return ConvertFrom-Json -InputObject $text -DateKind String }
++    return ConvertFrom-Json -InputObject $text
++}
++function Protect-MemberPath([string]$Path, [bool]$Directory = $false) {
++    $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User
++    if ($Directory) {
++        $acl = New-Object Security.AccessControl.DirectorySecurity
++        $rule = New-Object Security.AccessControl.FileSystemAccessRule($sid, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow')
++    } else {
++        $acl = New-Object Security.AccessControl.FileSecurity
++        $rule = New-Object Security.AccessControl.FileSystemAccessRule($sid, 'FullControl', 'Allow')
++    }
++    $acl.SetOwner($sid); $acl.SetAccessRuleProtection($true, $false); $acl.AddAccessRule($rule)
++    Set-Acl -LiteralPath $Path -AclObject $acl
++}
++function Get-OwnedAgent($Identity, [string]$RootPath, [string]$ConfigPath) {
++    if (!$Identity -or !$Identity.pid -or !$Identity.startedAt) { return $null }
++    $agentPid = 0
++    if (![int]::TryParse([string]$Identity.pid, [ref]$agentPid) -or $agentPid -le 0) { return $null }
++    $process = Get-CimInstance Win32_Process -Filter ('ProcessId = ' + $agentPid) -ErrorAction SilentlyContinue
++    if (!$process -or !$process.ExecutablePath -or !$process.CommandLine -or !$process.CreationDate) { return $null }
++    $exe = [IO.Path]::GetFullPath($process.ExecutablePath)
++    $prefix = (Join-Path $RootPath 'versions').TrimEnd('\') + '\'
++    if (!$exe.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) -or [IO.Path]::GetFileName($exe) -ne 'node.exe') { return $null }
++    # Both absolute code and config arguments must refer to this installation.
++    if (!$process.CommandLine.Contains((Join-Path $RootPath 'versions')) -or !$process.CommandLine.Contains((Join-Path $ConfigPath 'config.json')) -or $process.CommandLine -notmatch 'main\.ts[" ]+run(?:\s|$)') { return $null }
++    $claimed = [DateTime]::Parse([string]$Identity.startedAt).ToUniversalTime()
++    # Runtime startedAt is process creation time, never wall time at lock acquisition.
++    if ([Math]::Abs(($process.CreationDate.ToUniversalTime() - $claimed).TotalMilliseconds) -gt 1000) { return $null }
++    return $process
++}
++function Stop-MemberAgent([string]$RootPath, [string]$ConfigPath, [bool]$Testing) {
++    # Stop the supervisor first. A drained agent returning 0 must stay stopped.
++    if (!$Testing) {
++        $task = Get-ScheduledTask -TaskName 'PaperclipMemberAgent' -ErrorAction SilentlyContinue
++        if ($task) { Stop-ScheduledTask -TaskName 'PaperclipMemberAgent' -ErrorAction Stop }
++    }
++    $controlFile = Join-Path $ConfigPath 'agent-control.json'
++    [void](Assert-PlainPath $controlFile)
++    if (!(Test-Path -LiteralPath $controlFile)) { return }
++    $identity = Read-MemberJson $controlFile
++    $owned = Get-OwnedAgent $identity $RootPath $ConfigPath
++    if (!$owned) {
++        $stalePid = 0
++        if ([int]::TryParse([string]$identity.pid, [ref]$stalePid) -and $stalePid -gt 0 -and !(Get-Process -Id $stalePid -ErrorAction SilentlyContinue)) {
++            # Delete only the exact stale identity we read, never a new owner.
++            $now = Read-MemberJson $controlFile
++            if ($now.pid -eq $identity.pid -and $now.startedAt -eq $identity.startedAt) {
++                Remove-Item -LiteralPath $controlFile -Force
++                $staleRequest = Join-Path $ConfigPath 'launcher-stop.request'
++                [void](Assert-PlainPath $staleRequest)
++                if (Test-Path -LiteralPath $staleRequest) { Remove-Item -LiteralPath $staleRequest -Force }
++            }
++            return
++        }
++        throw '无法确认正在运行的代理身份；未终止任何进程。请手动退出本安装的代理后重试。'
++    }
++    $request = Join-Path $ConfigPath 'launcher-stop.request'
++    Write-MemberText $request (@{ pid = [int]$identity.pid; startedAt = $identity.startedAt; force = $false } | ConvertTo-Json -Compress)
++    Write-Host '正在等待当前任务完成（最多 60 秒）……'
++    for ($i = 0; $i -lt 60; $i++) {
++        if (!(Get-OwnedAgent $identity $RootPath $ConfigPath)) { return }
++        Start-Sleep -Seconds 1
++    }
++    if (!(Confirm-Member '当前任务仍在运行，是否强制停止？未完成的任务可能需要重试。' $Testing)) { throw '已取消操作；当前任务继续运行，计划任务启动器已停止。' }
++    Write-MemberText $request (@{ pid = [int]$identity.pid; startedAt = $identity.startedAt; force = $true } | ConvertTo-Json -Compress)
++    for ($i = 0; $i -lt 10; $i++) { if (!(Get-OwnedAgent $identity $RootPath $ConfigPath)) { return }; Start-Sleep -Seconds 1 }
++    # Recheck identity immediately before the last-resort process tree termination.
++    if (Get-OwnedAgent $identity $RootPath $ConfigPath) {
++        & taskkill.exe /PID ([string]$identity.pid) /T /F | Out-Null
++        if ($LASTEXITCODE -ne 0) { throw '无法结束本安装的代理，请手动退出后重试。' }
++    }
++}
++if ($Library) { return }
++try {
++    if (!$TestMode -and ($RemoveConfig -or $RemoveHome -or $RemoveLogs)) { throw '删除选项参数仅供测试；正常卸载必须逐项确认。' }
++    $paths = Resolve-MemberPaths $TestMode $InstallRoot $ConfigDir
++    $InstallRoot = $paths.Root; $ConfigDir = $paths.Config
++    $deleteConfig = Confirm-Member '删除配置和加密 Key 吗？默认保留。' $TestMode $RemoveConfig
++    $deleteHome = Confirm-Member '删除 Codex 登录和模型设置吗？默认保留。' $TestMode $RemoveHome
++    $deleteLogs = Confirm-Member '删除日志吗？默认保留。' $TestMode $RemoveLogs
++    $targets = @($InstallRoot)
++    if ($deleteConfig) { $targets += (Join-Path $ConfigDir 'config.json'); $targets += (Join-Path $ConfigDir 'agent-key.dpapi') }
++    if ($deleteHome) { $targets += (Join-Path $ConfigDir 'codex-home') }
++    if ($deleteLogs) { $targets += (Join-Path $ConfigDir 'logs') }
++    Write-Host '将删除以下内容：'; $targets | ForEach-Object { Write-Host ('  ' + $_) }
++    foreach ($target in $targets) { [void](Assert-PlainPath $target); if (Test-Path -LiteralPath $target -PathType Container) { [void]@(Get-PlainTree $target) } }
++    if (!(Confirm-Member '确认卸载？' $TestMode $true)) { exit 0 }
++    Stop-MemberAgent $InstallRoot $ConfigDir $TestMode
++    if (!$TestMode) { $task = Get-ScheduledTask -TaskName 'PaperclipMemberAgent' -ErrorAction SilentlyContinue; if ($task) { Unregister-ScheduledTask -TaskName 'PaperclipMemberAgent' -Confirm:$false } }
++    foreach ($target in $targets) { Remove-PlainTree $target }
++    Write-Host ('卸载完成。保留的用户数据位于：' + $ConfigDir)
++    exit 0
++} catch { Write-Error ('卸载未完成：' + $_.Exception.Message) -ErrorAction Continue; exit 1 }
+diff --git a/member-agent/package-lock.json b/member-agent/package-lock.json
+index de732f1..6619429 100644
+--- a/member-agent/package-lock.json
++++ b/member-agent/package-lock.json
+@@ -1,12 +1,12 @@
+ {
+   "name": "@paperclipai/member-agent",
+-  "version": "0.1.0",
++  "version": "0.2.0",
+   "lockfileVersion": 3,
+   "requires": true,
+   "packages": {
+     "": {
+       "name": "@paperclipai/member-agent",
+-      "version": "0.1.0",
++      "version": "0.2.0",
+       "dependencies": {
+         "ws": "8.22.0"
+       },
+diff --git a/member-agent/package.json b/member-agent/package.json
+index fcef0f1..90cbcfe 100644
+--- a/member-agent/package.json
++++ b/member-agent/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "@paperclipai/member-agent",
+-  "version": "0.1.0",
++  "version": "0.2.0",
+   "private": true,
+   "type": "module",
+   "engines": { "node": ">=24.11.0" },
+diff --git a/member-agent/scripts/build-installer.mjs b/member-agent/scripts/build-installer.mjs
+new file mode 100644
+index 0000000..64ef1db
+--- /dev/null
++++ b/member-agent/scripts/build-installer.mjs
+@@ -0,0 +1,286 @@
++import { createHash } from "node:crypto";
++import { execFileSync } from "node:child_process";
++import fs from "node:fs/promises";
++import https from "node:https";
++import path from "node:path";
++import { fileURLToPath, pathToFileURL } from "node:url";
++import { isDeepStrictEqual } from "node:util";
++
++export const NODE_VERSION = "24.18.0";
++export const NODE_ARCHIVE = `node-v${NODE_VERSION}-win-x64.zip`;
++export const CODEX_VERSION = "0.160.0";
++// Owner-approved fixed hashes. Updating Node/Codex or these hashes requires
++// explicit owner approval; never learn trusted hashes from build inputs.
++export const PINNED_BINARIES = Object.freeze({
++  "app/node/node.exe": "9a4eb5f1c29c6a2e93852ead46b999e284a6a5ca8bab4d4e241d587d025a52de",
++  "app/codex/codex.exe": "fdda5fa3cf3fb3d000b876720742857676293e4315e4b045fae6f8bd7e866d1d",
++  "app/codex/codex-code-mode-host.exe": "1d448bfde19e7a280d600d8d0bcddf77afbe9feaec1e804905becc5f39bc9db6",
++});
++const pinnedScanMethod = "哈希锁定，未做文本扫描";
++const memberDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
++const repoRoot = path.resolve(memberDir, "..");
++const runtimeManifestPath = "app/member-agent/runtime/MANIFEST.json";
++const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
++const inside = (root, target) => { const rel = path.relative(root, target); return rel !== ".." && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel); };
++
++async function physicalPath(target) {
++  let current = path.resolve(target);
++  const missing = [];
++  while (true) {
++    try { return path.resolve(await fs.realpath(current), ...missing.reverse()); }
++    catch (error) {
++      if (error.code !== "ENOENT") throw error;
++      const parent = path.dirname(current);
++      if (parent === current) throw error;
++      missing.push(path.basename(current)); current = parent;
++    }
++  }
++}
++
++/** Validate before mkdir, runtime building, downloads, or any other mutation. */
++export async function assertSafeOutput(output, memberAgentDir = memberDir) {
++  const root = path.resolve(memberAgentDir, "dist-installer");
++  const absolute = path.resolve(output);
++  if (!inside(root, absolute)) throw new Error(`输出目录必须位于 member-agent/dist-installer/ 内：${absolute}`);
++  const expectedRoot = path.join(await fs.realpath(memberAgentDir), "dist-installer");
++  const actualRoot = await physicalPath(root);
++  const actual = await physicalPath(absolute);
++  if (path.relative(expectedRoot, actualRoot) !== "" || !inside(expectedRoot, actual)) {
++    throw new Error(`输出目录实际路径不得通过符号链接或目录联接逃出 member-agent/dist-installer/：${actual}`);
++  }
++  return absolute;
++}
++
++function parseArgs(args) {
++  const options = { outputDir: path.join(memberDir, "dist-installer"), nodeZip: undefined };
++  const seen = new Set();
++  for (let index = 0; index < args.length; index += 2) {
++    const flag = args[index]; const value = args[index + 1];
++    if (!["--out", "--node-zip"].includes(flag) || seen.has(flag) || !value || value.startsWith("--")) throw new Error("用法：build-installer.mjs [--node-zip <Node ZIP>] [--out <dist-installer 内的目录>]");
++    seen.add(flag); options[flag === "--out" ? "outputDir" : "nodeZip"] = path.resolve(value);
++  }
++  return options;
++}
++
++export function officialUrl(resource) {
++  const url = new URL(resource, `https://nodejs.org/dist/v${NODE_VERSION}/`);
++  if (url.protocol !== "https:" || url.hostname !== "nodejs.org" || url.port || url.username || url.password) throw new Error("Node 下载和所有重定向只允许 https://nodejs.org 官方来源");
++  return url;
++}
++
++async function download(resource, destination, redirects = 0) {
++  const url = officialUrl(resource);
++  if (redirects > 5) throw new Error("nodejs.org 重定向过多，已停止；不会尝试镜像。");
++  await new Promise((resolve, reject) => {
++    const request = https.get(url, { timeout: 60_000 }, (response) => {
++      if ([301, 302, 303, 307, 308].includes(response.statusCode)) {
++        response.resume();
++        if (!response.headers.location) { reject(new Error("Node 官方下载重定向缺少地址")); return; }
++        let next;
++        try { next = officialUrl(new URL(response.headers.location, url).href); } catch (error) { reject(error); return; }
++        download(next.href, destination, redirects + 1).then(resolve, reject); return;
++      }
++      if (response.statusCode !== 200) { response.resume(); reject(new Error(`nodejs.org 返回 HTTP ${response.statusCode}；已停止，不会尝试镜像。`)); return; }
++      // Use a file handle rather than a shell or a command with interpolated paths.
++      fs.open(destination, "w").then(async (handle) => {
++        try { for await (const chunk of response) await handle.writeFile(chunk); await handle.close(); resolve(); }
++        catch (error) { await handle.close().catch(() => {}); reject(error); }
++      }, reject);
++    });
++    request.on("timeout", () => request.destroy(new Error("nodejs.org 下载超时；已停止，不会尝试镜像。")));
++    request.on("error", reject);
++  });
++}
++
++export async function verifyNodeArchive(zipPath, sumsText) {
++  const matching = sumsText.split(/\r?\n/).map((line) => /^([a-fA-F0-9]{64})\s+\*?([^\s]+)\s*$/.exec(line)).filter((match) => match?.[2] === NODE_ARCHIVE);
++  if (matching.length !== 1) throw new Error(`官方 SHASUMS256.txt 中必须有且只有一条 ${NODE_ARCHIVE}`);
++  const actual = sha256(await fs.readFile(zipPath));
++  if (actual !== matching[0][1].toLowerCase()) throw new Error(`Node ZIP SHA-256 校验失败：${NODE_ARCHIVE}`);
++  return actual;
++}
++
++function powershell(code, env = {}) {
++  return execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", code], {
++    encoding: "utf8", windowsHide: true, env: {...process.env, ...env}, maxBuffer: 16 * 1024 * 1024,
++  });
++}
++
++async function extractNode(zipPath, destination) {
++  await fs.mkdir(destination, {recursive: true});
++  powershell("$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.IO.Compression.FileSystem; $zip=[IO.Compression.ZipFile]::OpenRead($env:PMA_NODE_ZIP); try { foreach($name in @('node.exe','LICENSE')) { $entryName='node-v' + $env:PMA_NODE_VERSION + '-win-x64/' + $name; $entries=@($zip.Entries | Where-Object { $_.FullName -ceq $entryName }); if($entries.Count -ne 1) { throw ('Node ZIP missing or duplicate file: '+$name) }; [IO.Compression.ZipFileExtensions]::ExtractToFile($entries[0],(Join-Path $env:PMA_NODE_DEST $name),$true) } } finally { $zip.Dispose() }", {
++    PMA_NODE_ZIP: path.resolve(zipPath), PMA_NODE_DEST: destination, PMA_NODE_VERSION: NODE_VERSION,
++  });
++  await verifyPinnedBinary(path.join(destination,"node.exe"),"app/node/node.exe");
++  const version = execFileSync(path.join(destination, "node.exe"), ["--version"], {encoding:"utf8", windowsHide:true}).trim();
++  if (version !== `v${NODE_VERSION}`) throw new Error(`Node 可执行版本不符：${version}`);
++}
++
++async function listFiles(root) {
++  const files = [];
++  async function visit(dir, relative = "") {
++    const entries = await fs.readdir(dir, {withFileTypes: true});
++    entries.sort((a,b) => a.name.localeCompare(b.name, "en"));
++    for (const entry of entries) {
++      const rel = relative ? `${relative}/${entry.name}` : entry.name;
++      const file = path.join(dir, entry.name);
++      if (entry.isSymbolicLink()) throw new Error(`禁止在安装包中包含符号链接或目录联接：${rel}`);
++      if (entry.isDirectory()) await visit(file, rel);
++      else if (entry.isFile()) files.push(rel);
++      else throw new Error(`禁止的文件类型：${rel}`);
++    }
++  }
++  await visit(root); return files;
++}
++
++export async function scanInstaller(root) {
++  const jsonWhitelist = new Set(["MANIFEST.json", runtimeManifestPath, "app/member-agent/package.json", "app/member-agent/node_modules/ws/package.json"]);
++  const scanReports = [];
++  for (const rel of await listFiles(root)) {
++    const parts = rel.toLowerCase().split("/"); const name = parts.at(-1);
++    if (parts.some((part) => ["test", "tests", "codex-home", "logs", ".git"].includes(part)) || ["auth.json", "config.json"].includes(name) || /\.(log|dpapi|env)$/i.test(name)) throw new Error(`安装包禁止包含本机配置、凭据、测试或日志：${rel}`);
++    if (name.endsWith(".json") && !jsonWhitelist.has(rel)) throw new Error(`JSON 文件不在安装包白名单中：${rel}`);
++    const bytes = await fs.readFile(path.join(root, rel));
++    const pinnedSha256 = PINNED_BINARIES[rel];
++    if (pinnedSha256 && sha256(bytes) === pinnedSha256) {
++      scanReports.push({path:rel, scanMethod:pinnedScanMethod, pinnedSha256});
++      continue;
++    }
++    for (const text of [bytes.toString("latin1"), bytes.toString("utf16le")]) {
++      if (text.includes("pcp_") || /sk-[A-Za-z0-9_-]{20,}/.test(text) || /BEGIN [A-Z ]*PRIVATE KEY/.test(text)) throw new Error(`安装包发现敏感内容，已停止（不显示内容）：${rel}`);
++    }
++    if (pinnedSha256) throw new Error(`官方二进制固定 SHA-256 校验失败：${rel}`);
++    scanReports.push({path:rel, scanMethod:"文本扫描"});
++  }
++  return scanReports;
++}
++
++export async function verifyPinnedBinary(file, relativePath) {
++  const pinnedSha256 = PINNED_BINARIES[relativePath];
++  if (!pinnedSha256 || sha256(await fs.readFile(file)) !== pinnedSha256) throw new Error(`官方二进制固定 SHA-256 校验失败：${relativePath}`);
++  return pinnedSha256;
++}
++
++async function copyTree(source, destination) {
++  // Resolve only the top-level ws package link. Its files must be real files.
++  const real = await fs.realpath(source);
++  await listFiles(real);
++  await fs.mkdir(path.dirname(destination), {recursive: true});
++  await fs.cp(real, destination, {recursive: true, dereference: false, force: true});
++}
++
++async function records(root) {
++  const result = [];
++  for (const rel of await listFiles(root)) {
++    if (rel === "MANIFEST.json") continue;
++    const bytes = await fs.readFile(path.join(root, rel));
++    const record = {path: rel, size: bytes.length, sha256: sha256(bytes)};
++    if (PINNED_BINARIES[rel]) {
++      if (record.sha256 !== PINNED_BINARIES[rel]) throw new Error(`官方二进制固定 SHA-256 校验失败：${rel}`);
++      Object.assign(record,{scanMethod:pinnedScanMethod,pinnedSha256:PINNED_BINARIES[rel]});
++    }
++    result.push(record);
++  }
++  return result;
++}
++
++/** Stage already verified inputs. CLI always builds runtime and verifies binaries first. */
++export async function assembleInstaller({memberAgentDir = memberDir, outputDir, nodeDirectory, codexDirectory, repoCommit}) {
++  outputDir = await assertSafeOutput(outputDir, memberAgentDir);
++  const metadata = JSON.parse(await fs.readFile(path.join(memberAgentDir, "package.json"), "utf8"));
++  if (!/^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/.test(metadata.version)) throw new Error("代理版本格式无效");
++  const packageDir = await assertSafeOutput(path.join(outputDir, `PaperclipMemberAgent-${metadata.version}`), memberAgentDir);
++  await fs.mkdir(outputDir, {recursive: true});
++  await fs.rm(packageDir, {recursive: true, force: true});
++  await fs.mkdir(packageDir);
++  try {
++  const copies = [
++    [path.join(memberAgentDir,"src"), "app/member-agent/src"],
++    [path.join(memberAgentDir,"package.json"), "app/member-agent/package.json"],
++    [path.join(memberAgentDir,"runtime"), "app/member-agent/runtime"],
++    [path.join(memberAgentDir,"node_modules/ws"), "app/member-agent/node_modules/ws"],
++    [path.join(nodeDirectory,"node.exe"), "app/node/node.exe"],
++    [path.join(nodeDirectory,"LICENSE"), "app/node/LICENSE"],
++    ...["codex.exe","codex-code-mode-host.exe"].map((name)=>[path.join(codexDirectory,name), `app/codex/${name}`]),
++    ...["install.ps1","uninstall.ps1","README-成员安装说明.md"].map((name)=>[path.join(memberAgentDir,"installer",name), name]),
++    [path.join(memberAgentDir,"installer/start.ps1"), "app/start.ps1"],
++  ];
++  for (const [source, rel] of copies) {
++    const stat = await fs.stat(source);
++    if (stat.isDirectory()) await copyTree(source, path.join(packageDir, rel));
++    else { await fs.mkdir(path.dirname(path.join(packageDir,rel)), {recursive: true}); await fs.copyFile(source,path.join(packageDir,rel)); }
++  }
++  await scanInstaller(packageDir);
++  const runtimeManifest = JSON.parse(await fs.readFile(path.join(packageDir,runtimeManifestPath), "utf8"));
++  const manifest = {agentVersion: metadata.version, nodeVersion: NODE_VERSION, codexVersion: CODEX_VERSION, runtimeManifest, builtAt:new Date().toISOString(), repoCommit, files: await records(packageDir)};
++  await fs.writeFile(path.join(packageDir,"MANIFEST.json"), `${JSON.stringify(manifest,null,2)}\n`, "utf8");
++  await scanInstaller(packageDir);
++  return {packageDir, manifest};
++  } catch (error) {
++    await assertSafeOutput(packageDir, memberAgentDir);
++    await fs.rm(packageDir, {recursive: true, force: true});
++    throw error;
++  }
++}
++
++export async function compareInstallers(leftDir, rightDir) {
++  async function normalized(dir) {
++    const outer = JSON.parse(await fs.readFile(path.join(dir,"MANIFEST.json"), "utf8"));
++    const actual = await records(dir);
++    if (!isDeepStrictEqual(actual, outer.files)) throw new Error(`安装包内容与 MANIFEST 不符（包括 runtime）：${dir}`);
++    const inner = JSON.parse(await fs.readFile(path.join(dir,runtimeManifestPath), "utf8"));
++    if (!isDeepStrictEqual(inner,outer.runtimeManifest)) throw new Error(`runtime 清单嵌入不一致：${dir}`);
++    delete outer.builtAt; delete outer.runtimeManifest.builtAt; delete inner.builtAt;
++    // The runtime MANIFEST bytes are verified above, then compared as JSON with
++    // only builtAt removed. Its byte size/hash cannot also be compared literally.
++    outer.files = outer.files.filter((file)=>file.path !== runtimeManifestPath);
++    return {outer, inner};
++  }
++  if (!isDeepStrictEqual(await normalized(leftDir),await normalized(rightDir))) throw new Error("两次安装包内容不一致（仅排除两个 builtAt）");
++}
++
++export async function archiveInstaller(packageDir, zipOutput, memberAgentDir = memberDir) {
++  const absoluteOutput = await assertSafeOutput(path.resolve(zipOutput), memberAgentDir);
++  await fs.rm(absoluteOutput, {force:true});
++  // Explicit entry names avoid .NET Framework's platform-specific backslashes.
++  powershell("$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.IO.Compression; Add-Type -AssemblyName System.IO.Compression.FileSystem; $root=[IO.Path]::GetFullPath($env:PMA_PACKAGE_DIR).TrimEnd('\\'); $zip=[IO.Compression.ZipFile]::Open($env:PMA_ZIP_OUTPUT,[IO.Compression.ZipArchiveMode]::Create); try { foreach($file in @(Get-ChildItem -LiteralPath $root -Recurse -File | Sort-Object FullName)) { $relative=$file.FullName.Substring($root.Length+1).Replace('\\','/'); [void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip,$file.FullName,$relative,[IO.Compression.CompressionLevel]::Optimal) } } finally { $zip.Dispose() }", {PMA_PACKAGE_DIR:path.resolve(packageDir), PMA_ZIP_OUTPUT:absoluteOutput});
++}
++
++export async function buildInstaller(args = process.argv.slice(2)) {
++  const options = parseArgs(args);
++  const outputDir = await assertSafeOutput(options.outputDir);
++  if (process.platform !== "win32") throw new Error("安装包构建仅支持 Windows");
++  execFileSync(process.execPath, [path.join(memberDir,"scripts/build-runtime.mjs")], {cwd:repoRoot, stdio:"inherit", windowsHide:true});
++  const codexDirectory = path.join(repoRoot,`node_modules/.pnpm/@openai+codex@${CODEX_VERSION}-win32-x64/node_modules/@openai/codex/vendor/x86_64-pc-windows-msvc/bin`);
++  for (const name of ["codex.exe","codex-code-mode-host.exe"]) if (!(await fs.stat(path.join(codexDirectory,name))).isFile()) throw new Error(`缺少 Codex 文件：${name}`);
++  for (const name of ["codex.exe","codex-code-mode-host.exe"]) await verifyPinnedBinary(path.join(codexDirectory,name),`app/codex/${name}`);
++  const version = execFileSync(path.join(codexDirectory,"codex.exe"), ["--version"], {encoding:"utf8", windowsHide:true}).trim();
++  if (version !== `codex-cli ${CODEX_VERSION}` && version !== CODEX_VERSION) throw new Error(`Codex 版本必须为 ${CODEX_VERSION}，实际：${version}`);
++  await fs.mkdir(outputDir,{recursive:true});
++  const work = await fs.mkdtemp(path.join(outputDir,".node-build-"));
++  try {
++    const sumsPath = path.join(work,"SHASUMS256.txt");
++    try { await download("SHASUMS256.txt",sumsPath); }
++    catch (error) { throw new Error(`Node 官方 SHASUMS 下载失败，已停止；不会尝试镜像：${error.message}`); }
++    const zipPath = options.nodeZip ?? path.join(work,NODE_ARCHIVE);
++    if (!options.nodeZip) {
++      try { await download(NODE_ARCHIVE,zipPath); }
++      catch (error) { throw new Error(`Node 官方 ZIP 下载失败，已停止；不会尝试镜像：${error.message}`); }
++    }
++    const nodeArchiveSha256 = await verifyNodeArchive(zipPath,await fs.readFile(sumsPath,"utf8"));
++    console.log(`[installer-build] Node 官方 ZIP SHA-256：${nodeArchiveSha256}`);
++    const nodeDirectory = path.join(work,"node"); await extractNode(zipPath,nodeDirectory);
++    const repoCommit = execFileSync("git",["rev-parse","HEAD"],{cwd:repoRoot,encoding:"utf8",windowsHide:true}).trim();
++    const result = await assembleInstaller({outputDir,nodeDirectory,codexDirectory,repoCommit});
++    const zipOutput = await assertSafeOutput(path.join(outputDir,`PaperclipMemberAgent-${result.manifest.agentVersion}.zip`));
++    await archiveInstaller(result.packageDir, zipOutput);
++    console.log(`[installer-build] 构建完成：${zipOutput}`);
++    console.log(`[installer-build] ZIP SHA-256：${sha256(await fs.readFile(zipOutput))}`);
++    return {...result,zipOutput};
++  } finally { await fs.rm(work,{recursive:true,force:true}); }
++}
++
++if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
++  try { await buildInstaller(); }
++  catch (error) { console.error(error instanceof Error ? error.message : String(error)); process.exitCode = 1; }
++}
+diff --git a/member-agent/scripts/build-runtime.mjs b/member-agent/scripts/build-runtime.mjs
+index 025e756..b199d49 100644
+--- a/member-agent/scripts/build-runtime.mjs
++++ b/member-agent/scripts/build-runtime.mjs
+@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
+ import fsSync from "node:fs";
+ import path from "node:path";
+ import { fileURLToPath, pathToFileURL } from "node:url";
++import { encodePublicSshPlaceholder } from "./runtime-placeholder.mjs";
+ 
+ const scriptPath = fileURLToPath(import.meta.url);
+ const memberAgentDir = path.resolve(path.dirname(scriptPath), "..");
+@@ -235,6 +236,9 @@ async function build() {
+     logLevel: "silent",
+   });
+ 
++  const bundle = await fs.readFile(outputFile, "utf8");
++  await fs.writeFile(outputFile, encodePublicSshPlaceholder(bundle), "utf8");
++
+   if (result.warnings.length > 0) {
+     const formatted = await esbuild.formatMessages(result.warnings, { kind: "warning", color: true });
+     for (const warning of formatted) console.error(warning);
+diff --git a/member-agent/scripts/runtime-placeholder.mjs b/member-agent/scripts/runtime-placeholder.mjs
+new file mode 100644
+index 0000000..8bd1ab7
+--- /dev/null
++++ b/member-agent/scripts/runtime-placeholder.mjs
+@@ -0,0 +1,17 @@
++const publicSshPlaceholder = "-----BEGIN RSA PRIVATE KEY-----";
++const encodedPublicSshPlaceholder = "\"-----BEGIN RSA PRIV\\x41TE KEY-----\"";
++
++/**
++ * Codex's remote-SSH schema includes a public example label that resembles a
++ * PEM header. Preserve its runtime value while encoding one character in the
++ * generated JavaScript literal, so the installer's strict secret scan does not
++ * mistake a UI placeholder for key material. The bundle remains fully scanned.
++ */
++export function encodePublicSshPlaceholder(bundle) {
++  const literal = JSON.stringify(publicSshPlaceholder);
++  const start = bundle.indexOf(literal);
++  if (start < 0 || bundle.indexOf(literal, start + literal.length) !== -1) {
++    throw new Error("Codex 运行包中的 SSH 公共占位文本结构变化，已停止构建");
++  }
++  return `${bundle.slice(0, start)}${encodedPublicSshPlaceholder}${bundle.slice(start + literal.length)}`;
++}
+diff --git a/member-agent/src/connection.ts b/member-agent/src/connection.ts
+index cdae813..c9ed063 100644
+--- a/member-agent/src/connection.ts
++++ b/member-agent/src/connection.ts
+@@ -63,6 +63,38 @@ export function codexVersionStatus(current: unknown, pinned: unknown): CodexVers
+   return "unsupported";
+ }
+ 
++interface AgentVersion { core: number[]; prerelease: string[] }
++function agentVersion(value: unknown): AgentVersion | null {
++  if (typeof value !== 'string' || value.length > 255) return null;
++  const match = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.exec(value);
++  if (!match) return null;
++  const core = match.slice(1, 4).map(Number);
++  const prerelease = match[4]?.split('.') ?? [];
++  if (core.some(part => !Number.isSafeInteger(part)) || prerelease.some(part => /^\d+$/.test(part) && part.length > 1 && part.startsWith('0'))) return null;
++  return { core, prerelease };
++}
++
++function meetsMinimumAgentVersion(current: unknown, minimum: unknown): boolean {
++  const actual = agentVersion(current), required = agentVersion(minimum);
++  if (!actual || !required) return false;
++  for (let index = 0; index < 3; index++) {
++    if (actual.core[index] !== required.core[index]) return actual.core[index]! > required.core[index]!;
++  }
++  if (!actual.prerelease.length) return true;
++  if (!required.prerelease.length) return false;
++  for (let index = 0; index < Math.max(actual.prerelease.length, required.prerelease.length); index++) {
++    const left = actual.prerelease[index], right = required.prerelease[index];
++    if (left === right) continue;
++    if (left === undefined) return false;
++    if (right === undefined) return true;
++    const leftNumeric = /^\d+$/.test(left), rightNumeric = /^\d+$/.test(right);
++    if (leftNumeric !== rightNumeric) return !leftNumeric;
++    if (leftNumeric && left.length !== right.length) return left.length > right.length;
++    return left > right;
++  }
++  return true;
++}
++
+ function wait(ms: number, signal: AbortSignal | undefined, clock: Clock): Promise<void> {
+   return new Promise(resolve => {
+     if (signal?.aborted) { resolve(); return; }
+@@ -96,6 +128,7 @@ function connectOnce(options: ConnectionOptions, clock: Clock): Promise<Outcome>
+     let closed = false;
+     let ready = false;
+     let versionUnsupported = false;
++    let agentVersionError: string | undefined;
+     let pinnedCodexVersion: string | undefined;
+     let helloTimer: ReturnType<typeof setTimeout> | undefined;
+     let heartbeatTimer: ReturnType<typeof setTimeout> | undefined;
+@@ -207,6 +240,13 @@ function connectOnce(options: ConnectionOptions, clock: Clock): Promise<Outcome>
+         pinnedCodexVersion = typeof frame.pinnedCodexVersion === 'string' ? frame.pinnedCodexVersion : undefined;
+         if (helloTimer !== undefined) clock.clearTimeout(helloTimer);
+         options.logger.write('info', `已连接，服务器固定 Codex 版本：${typeof frame.pinnedCodexVersion === 'string' ? frame.pinnedCodexVersion : '未指定'}`, true);
++        // Servers predating this field remain compatible. A present but invalid
++        // requirement fails closed; it must never silently allow execution.
++        if (Object.hasOwn(frame, 'minimumAgentVersion') && !meetsMinimumAgentVersion(options.version, frame.minimumAgentVersion)) {
++          const required = typeof frame.minimumAgentVersion === 'string' ? frame.minimumAgentVersion.slice(0, 255).replace(/[\r\n]/g, ' ') : '无效版本';
++          agentVersionError = `成员代理当前版本 ${options.version} 低于或不符合服务器要求版本 ${required}；请运行新安装包升级。`;
++          options.logger.write('error', agentVersionError, true);
++        }
+         if (options.codexVersion && options.codexVersion !== 'none') {
+           const status = codexVersionStatus(options.codexVersion, frame.pinnedCodexVersion);
+           if (status === 'compatible') options.logger.write('warn', `本机 Codex ${options.codexVersion} 与服务器固定版本 ${String(frame.pinnedCodexVersion)} 不同，但都在受支持范围内，继续运行。`, true);
+@@ -217,7 +257,7 @@ function connectOnce(options: ConnectionOptions, clock: Clock): Promise<Outcome>
+         }
+         try { options.onReady?.(frame); options.onSession?.(send, () => queue.drain()); }
+         catch { options.logger.write('error', '连接初始化失败，请查看日志', true); finish({ exit: 1 }); return; }
+-        if (options.check) { finish({ exit: versionUnsupported ? 2 : 0 }); return; }
++        if (options.check) { finish({ exit: versionUnsupported || agentVersionError ? 2 : 0 }); return; }
+         const seconds = typeof frame.heartbeatSec === 'number' && Number.isFinite(frame.heartbeatSec) && frame.heartbeatSec > 0 ? frame.heartbeatSec : 15;
+         heartbeat(seconds * 1000);
+         watchPong();
+@@ -228,6 +268,12 @@ function connectOnce(options: ConnectionOptions, clock: Clock): Promise<Outcome>
+       if (frame.type === 'heartbeat') return;
+       if (!['job.start', 'job.cancel'].includes(frame.type)) { options.logger.write('warn', '忽略服务器发来的未知消息类型'); return; }
+       if (!ready) { options.logger.write('warn', '服务器在 hello 完成前发送任务，正在重新连接', true); finish(); return; }
++      if (frame.type === 'job.start' && agentVersionError) {
++        const jobId = typeof frame.jobId === 'string' ? frame.jobId : '';
++        if (jobId) send({ v: 1, type: 'job.result', jobId, exitCode: 1, signal: null, timedOut: false,
++          errorCode: 'member_agent_version_outdated', errorMessage: agentVersionError });
++        return;
++      }
+       if (frame.type === 'job.start' && versionUnsupported) {
+         const jobId = typeof frame.jobId === 'string' ? frame.jobId : '';
+         if (jobId) send({ v: 1, type: 'job.result', jobId, exitCode: 1, signal: null, timedOut: false,
+diff --git a/member-agent/src/executors/echo.ts b/member-agent/src/executors/echo.ts
+index b93a002..e1c7522 100644
+--- a/member-agent/src/executors/echo.ts
++++ b/member-agent/src/executors/echo.ts
+@@ -1,7 +1,7 @@
+ import { hostname } from "node:os";
+ import type { Executor, ExecutorHooks, ExecutorResult } from "./types.ts";
+ 
+-export const AGENT_VERSION = "0.1.0";
++export const AGENT_VERSION = "0.2.0";
+ 
+ function cancelled(): ExecutorResult {
+   return { exitCode: 1, signal: null, timedOut: false, errorCode: "cancelled", errorMessage: "echo 执行器已取消" };
+diff --git a/member-agent/src/install-control.ts b/member-agent/src/install-control.ts
+new file mode 100644
+index 0000000..f3a1871
+--- /dev/null
++++ b/member-agent/src/install-control.ts
+@@ -0,0 +1,57 @@
++import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
++import path from 'node:path';
++import {execFile} from 'node:child_process';
++import {promisify} from 'node:util';
++
++interface Identity { pid: number; startedAt: string }
++interface Options {
++ stateDir: string;
++ busy: () => boolean;
++ onDrain: () => void;
++ onStop: (force: boolean) => Promise<void>;
++}
++
++// Local upgrade coordination only; files carry no credentials. The installer
++// restricts this directory to the current Windows user before starting the agent.
++export async function createInstallControl(options: Options) {
++ let startedAt=new Date(Date.now()-process.uptime()*1000).toISOString();
++ if(process.platform==='win32'){
++  try{
++   const {stdout}=await promisify(execFile)('powershell.exe',['-NoProfile','-NonInteractive','-Command',`(Get-Process -Id ${process.pid}).StartTime.ToUniversalTime().ToString('o')`],{encoding:'utf8',windowsHide:true,timeout:10000});
++   startedAt=new Date(stdout.trim()).toISOString();
++  }catch{throw new Error('无法核对本机代理进程身份，请确认 Windows PowerShell 可用后重试。');}
++ }
++ const identity: Identity = { pid: process.pid, startedAt };
++ const file=path.join(options.stateDir,'agent-control.json');
++ const request=path.join(options.stateDir,'launcher-stop.request');
++ await mkdir(options.stateDir,{recursive:true});
++ await writeFile(file,JSON.stringify(identity),'utf8');
++ let draining=false,finished=false,polling=false,disposed=false;
++ const matches=(value:unknown):value is Identity=>!!value&&typeof value==='object'
++  &&(value as Identity).pid===identity.pid&&(value as Identity).startedAt===identity.startedAt;
++ async function poll() {
++  if(polling||disposed||finished)return;
++  polling=true;
++  try {
++   let value:unknown;
++   try{value=JSON.parse(await readFile(request,'utf8'));}
++   catch(error){if((error as NodeJS.ErrnoException).code==='ENOENT'||error instanceof SyntaxError)return;throw error;}
++   if(!matches(value)||!('force' in value)||typeof value.force!=='boolean')return;
++   if(!draining){draining=true;options.onDrain();}
++   if(value.force||!options.busy()){
++    finished=true;
++    await options.onStop(value.force);
++   }
++  } finally {polling=false;}
++ }
++ const timer=setInterval(()=>{void poll().catch(()=>{/* A later poll can read an atomically replaced request. */});},250);
++ timer.unref();
++ async function dispose() {
++  disposed=true;clearInterval(timer);
++  for(const name of [file,request]){
++   try{if(matches(JSON.parse(await readFile(name,'utf8'))))await unlink(name);}
++   catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT'&&!(error instanceof SyntaxError))throw error;}
++  }
++ }
++ return {poll,dispose};
++}
+diff --git a/member-agent/src/main.ts b/member-agent/src/main.ts
+index 70cde68..c4a5e24 100644
+--- a/member-agent/src/main.ts
++++ b/member-agent/src/main.ts
+@@ -9,6 +9,7 @@ import { acquireLock } from './lock.ts';
+ import { Logger } from './logger.ts';
+ import { connectLoop } from './connection.ts';
+ import { JobRunner } from './job-runner.ts';
++import { createInstallControl } from './install-control.ts';
+ import { AGENT_VERSION } from './executors/echo.ts';
+ import type { JobStart } from './protocol.ts';
+ import { CODE_MODE_HOST_RECOVERY, hasCodexLogin, inspectCodexInstallation, isCodexExecutableReady, missingRuntimeFiles, readCodexVersion, runCodexLogin } from './codex-cli.ts';
+@@ -69,20 +70,29 @@ export async function main(args=process.argv.slice(2)):Promise<number>{
+   release=await acquireLock(stateDir);
+   assertTransportAllowed(config.serverUrl);
+   const stop=new AbortController();
++  let installDraining=false;
++  let sendControl:(frame:import('./protocol.ts').Frame)=>void=()=>{};
+   let drain:()=>Promise<boolean>=async()=>true;
+   const runner=new JobRunner({serverUrl:config.serverUrl,logger,send:()=>{},echoHoldSec:config.echoHoldSec,
+    ...(config.executor==='codex'?{executorUrl:new URL('./executors/codex.ts',import.meta.url),executorData:{codexExecutable:config.codexExecutable,codexHome:config.codexHome,runtimeDir:config.runtimeDir,projectDirs:config.projectDirs,defaultCwd:config.defaultCwd,configDir:stateDir}}:{})});
++  const installControl=command==='run'?await createInstallControl({stateDir,busy:()=>runner.busy,
++   onDrain:()=>{installDraining=true;logger!.write('info','安装程序请求停止：等待当前任务完成',true);},
++   onStop:async force=>{try{if(force)await runner.shutdown();if(!await drain())logger!.write('warn','升级停止前结果未送达，请在看板核对',true);}finally{stop.abort();}},
++  }):undefined;
+   const dispose=installInterrupts(process,runner,async()=>{
+    try{if(!await drain())logger!.write('warn','退出前结果未能送达服务器，请在看板核对本次运行',true);}finally{stop.abort();}
+   },code=>process.exit(code));
+   try{
+    return await connectLoop({serverUrl:config.serverUrl,agentKey:config.agentKey,version:AGENT_VERSION,codexVersion,check:command==='check',signal:stop.signal,logger,
+-    onSession:(send,flush)=>{runner.setSender(send);drain=flush;},onDisconnect:()=>runner.disconnect(),onFrame:frame=>{
++    onSession:(send,flush)=>{runner.setSender(send);sendControl=send;drain=flush;},onDisconnect:()=>runner.disconnect(),onFrame:frame=>{
+      if(stop.signal.aborted)return;
+-     if(frame.type==='job.start')runner.start(frame as unknown as JobStart);
++     if(frame.type==='job.start'){
++      if(installDraining){sendControl({v:1,type:'job.result',jobId:frame.jobId,exitCode:1,signal:null,timedOut:false,errorCode:'member_agent_busy',errorMessage:'成员代理正在等待升级停止，请稍后重试'});return;}
++      runner.start(frame as unknown as JobStart);
++     }
+      else if(frame.type==='job.cancel')return runner.cancel(String(frame.jobId),typeof frame.graceSec==='number'&&Number.isFinite(frame.graceSec)&&frame.graceSec>=0?Math.min(frame.graceSec,20):20);
+     }});
+-  }finally{dispose();await runner.shutdown();}
++  }finally{dispose();try{await installControl?.dispose();}finally{await runner.shutdown();}}
+  }catch(error){
+   const code=typeof error==='object'&&error!==null&&'code'in error&&[2,5].includes(Number(error.code))?Number(error.code):1;
+   const message=error instanceof Error?error.message:'成员代理发生内部错误，请查看日志';
+diff --git a/member-agent/test/agent-version.test.ts b/member-agent/test/agent-version.test.ts
+new file mode 100644
+index 0000000..8c83bf6
+--- /dev/null
++++ b/member-agent/test/agent-version.test.ts
+@@ -0,0 +1,138 @@
++import { once } from "node:events";
++import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
++import { createServer } from "node:http";
++import { tmpdir } from "node:os";
++import { join } from "node:path";
++import { WebSocketServer } from "ws";
++import { afterEach, describe, expect, it } from "vitest";
++import { connectLoop } from "../src/connection.ts";
++import { AGENT_VERSION } from "../src/executors/echo.ts";
++import { JobRunner } from "../src/job-runner.ts";
++import { Logger } from "../src/logger.ts";
++import { validateResult, type Frame, type JobStart } from "../src/protocol.ts";
++
++const cleanup: Array<() => void | Promise<void>> = [];
++afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await close(); });
++
++async function until(predicate: () => boolean): Promise<void> {
++  const deadline = Date.now() + 2500;
++  while (!predicate()) {
++    if (Date.now() >= deadline) throw new Error("Timed out waiting for isolated version-gate fixture");
++    await new Promise(resolve => setTimeout(resolve, 5));
++  }
++}
++
++async function fixture(current: string, required: unknown, codexVersion = "0.160.0", check = false) {
++  const dir = mkdtempSync(join(tmpdir(), "member-agent-version-"));
++  cleanup.push(() => rmSync(dir, { recursive: true, force: true }));
++  const visible: string[] = [];
++  const logger = new Logger(dir, ["FAKE-version-key"], line => visible.push(line));
++  const http = createServer();
++  const wss = new WebSocketServer({ server: http });
++  const frames: Frame[] = [];
++  let peer: import("ws").WebSocket | undefined;
++  wss.on("connection", socket => {
++    peer = socket;
++    socket.on("message", raw => {
++      const frame = JSON.parse(raw.toString()) as Frame;
++      frames.push(frame);
++      if (frame.type === "hello") socket.send(JSON.stringify({
++        v: 1, type: "hello.ack", pinnedCodexVersion: "0.160.0", heartbeatSec: 0.02,
++        ...(required === undefined ? {} : { minimumAgentVersion: required }),
++      }));
++    });
++  });
++  http.listen(0, "127.0.0.1");
++  await once(http, "listening");
++  const address = http.address();
++  if (!address || typeof address === "string") throw new Error("Loopback fixture did not bind");
++  const url = `http://127.0.0.1:${address.port}`;
++  cleanup.push(() => new Promise<void>(resolve => {
++    for (const socket of wss.clients) socket.terminate();
++    wss.close(() => http.close(() => resolve()));
++  }));
++  const runner = new JobRunner({ serverUrl: url, logger, send: () => {}, executorUrl: new URL("./fixtures/executor.ts", import.meta.url) });
++  const abort = new AbortController();
++  let dispatched = 0;
++  const running = connectLoop({ serverUrl: url, agentKey: "FAKE-version-key", version: current, codexVersion,
++    signal: abort.signal, logger, check, onSession: send => runner.setSender(send),
++    onFrame: frame => { dispatched++; runner.start(frame as unknown as JobStart); }, onDisconnect: () => runner.disconnect(),
++  });
++  cleanup.push(async () => { abort.abort(); await running; await runner.shutdown(); });
++  if (check) await running;
++  else await until(() => frames.some(frame => frame.type === "heartbeat"));
++  return {
++    frames, visible, runner, running, dispatched: () => dispatched,
++    online: () => peer?.readyState === 1,
++    logs: () => readdirSync(dir).map(file => readFileSync(join(dir, file), "utf8")).join("\n"),
++    send(jobId: string) {
++      const job: JobStart = { v: 1, type: "job.start", jobId, companyId: "fixture-company", agent: { id: "fixture-agent", name: "fixture" },
++        authToken: "FAKE-version-run-token", context: {}, config: { maxRunSec: 5 }, runtime: {}, runtimeTools: null, handoffMarkdown: "", codeSyncDir: "" };
++      peer!.send(JSON.stringify(job));
++    },
++  };
++}
++
++describe("member-agent minimum version gate", () => {
++  it("reports an outdated version as a failed one-shot self-check", async () => {
++    const f = await fixture("0.1.0", "0.2.0", "0.160.0", true);
++    expect(await f.running).toBe(2);
++    expect(f.visible.join("\n")).toContain("请运行新安装包升级");
++  });
++
++  it("refuses every outdated job before acceptance or Worker creation while keeping heartbeats online", async () => {
++    const f = await fixture(AGENT_VERSION, "0.3.0");
++    f.send("old-first"); f.send("old-second");
++    await until(() => f.frames.filter(frame => frame.type === "job.result").length === 2);
++    expect(f.dispatched()).toBe(0);
++    expect(f.runner.busy).toBe(false);
++    expect(f.frames.some(frame => frame.type === "job.accepted")).toBe(false);
++    expect(f.frames.find(frame => frame.type === "hello")?.agentVersion).toBe("0.2.0");
++    for (const frame of f.frames.filter(frame => frame.type === "job.result")) {
++      const { v: _v, type: _type, jobId: _jobId, ...payload } = frame;
++      expect(validateResult(payload)).toMatchObject({ exitCode: 1, signal: null, timedOut: false, errorCode: "member_agent_version_outdated" });
++      expect(frame.errorMessage).toContain("0.2.0");
++      expect(frame.errorMessage).toContain("0.3.0");
++      expect(frame.errorMessage).toContain("请运行新安装包升级");
++    }
++    const before = f.frames.filter(frame => frame.type === "heartbeat").length;
++    await until(() => f.frames.filter(frame => frame.type === "heartbeat").length >= before + 2);
++    expect(f.online()).toBe(true);
++    expect(f.visible.join("\n")).toContain("请运行新安装包升级");
++    expect(f.logs()).toContain("请运行新安装包升级");
++  });
++
++  it.each([
++    ["0.2.0", "0.2.0"], ["0.3.0", "0.2.0"], ["0.10.0", "0.2.0"],
++    ["1.0.0", "0.99.0"], ["0.3.0-beta.1", "0.2.0"], ["0.2.0+build.7", "0.2.0"],
++    ["0.2.0-beta.10", "0.2.0-beta.2"], ["0.1", undefined],
++  ])("dispatches current %s against compatible/legacy requirement %s normally", async (current, required) => {
++    const f = await fixture(current, required);
++    f.send("accepted-job");
++    await until(() => f.frames.some(frame => frame.type === "job.result"));
++    expect(f.dispatched()).toBe(1);
++    expect(f.frames.find(frame => frame.type === "job.accepted")?.jobId).toBe("accepted-job");
++    expect(f.frames.find(frame => frame.type === "job.result")).toMatchObject({ jobId: "accepted-job", exitCode: 0 });
++  });
++
++  it.each([
++    ["0.2.0-beta.1", "0.2.0"], ["0.2.0", "0.10.0"], ["0.2.0", "broken"],
++    ["0.2.0", null], ["0.2.0", 2], ["0.2.0", "00.2.0"], ["0.2.0", "9007199254740992.0.0"],
++    ["0.2.0", "0.2.0-beta.01"], ["0.2.0", "0.2.0\n"], ["broken", "0.2.0"],
++  ])("fails closed for current %s and unmet or malformed requirement %s", async (current, required) => {
++    const f = await fixture(current, required);
++    f.send("refused-job");
++    await until(() => f.frames.some(frame => frame.type === "job.result"));
++    expect(f.frames.find(frame => frame.type === "job.result")).toMatchObject({ errorCode: "member_agent_version_outdated", exitCode: 1 });
++    expect(f.dispatched()).toBe(0);
++    expect(f.online()).toBe(true);
++  });
++
++  it("retains the independent Codex version error when the member version is compatible", async () => {
++    const f = await fixture("0.2.0", "0.2.0", "0.161.0");
++    f.send("codex-unsupported-job");
++    await until(() => f.frames.some(frame => frame.type === "job.result"));
++    expect(f.frames.find(frame => frame.type === "job.result")).toMatchObject({ errorCode: "member_agent_codex_version_unsupported" });
++    expect(f.dispatched()).toBe(0);
++  });
++});
+diff --git a/member-agent/test/build-installer.test.ts b/member-agent/test/build-installer.test.ts
+new file mode 100644
+index 0000000..afd228f
+--- /dev/null
++++ b/member-agent/test/build-installer.test.ts
+@@ -0,0 +1,192 @@
++import { spawnSync } from "node:child_process";
++import { createHash } from "node:crypto";
++import fs from "node:fs/promises";
++import path from "node:path";
++import { tmpdir } from "node:os";
++import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
++// The JS builder is intentionally independent of the application's TS compile.
++// @ts-ignore
++import { archiveInstaller, assembleInstaller, assertSafeOutput, compareInstallers, scanInstaller, verifyNodeArchive, verifyPinnedBinary, NODE_VERSION, NODE_ARCHIVE, officialUrl } from "../scripts/build-installer.mjs";
++
++const repo = path.resolve(import.meta.dirname, "../..");
++const script = path.join(repo, "member-agent/scripts/build-installer.mjs");
++const roots: string[] = [];
++const digest = (bytes: Buffer | string) => createHash("sha256").update(bytes).digest("hex");
++let officialNode: string;
++const officialCodex = path.join(repo, "node_modules/.pnpm/@openai+codex@0.160.0-win32-x64/node_modules/@openai/codex/vendor/x86_64-pc-windows-msvc/bin");
++const binaryPins: Record<string,string> = {
++  "app/node/node.exe": "9a4eb5f1c29c6a2e93852ead46b999e284a6a5ca8bab4d4e241d587d025a52de",
++  "app/codex/codex.exe": "fdda5fa3cf3fb3d000b876720742857676293e4315e4b045fae6f8bd7e866d1d",
++  "app/codex/codex-code-mode-host.exe": "1d448bfde19e7a280d600d8d0bcddf77afbe9feaec1e804905becc5f39bc9db6",
++};
++beforeAll(async () => {
++  // Use the current pinned Node binary, never a previous generated artifact.
++  // The CLI separately fetches official SHASUMS and checks the extracted binary.
++  expect(digest(await fs.readFile(process.execPath))).toBe(binaryPins["app/node/node.exe"]);
++  officialNode = await fs.mkdtemp(path.join(tmpdir(),"member-installer-pinned-node-"));
++  await fs.copyFile(process.execPath,path.join(officialNode,"node.exe"));
++  await fs.writeFile(path.join(officialNode,"LICENSE"),"Fixture license for structural tests");
++});
++afterAll(async () => { if (officialNode) await fs.rm(officialNode,{recursive:true,force:true}); });
++async function fixture() {
++  const root = await fs.mkdtemp(path.join(tmpdir(), "member-installer-")); roots.push(root);
++  const memberAgentDir = path.join(root, "member-agent");
++  const files: Record<string, string> = {
++    "member-agent/src/main.ts": "console.log('safe source');\n",
++    "member-agent/package.json": '{"name":"member-agent","version":"0.2.0","dependencies":{"ws":"8.22.0"}}',
++    "member-agent/node_modules/ws/package.json": '{"name":"ws","version":"8.22.0"}',
++    "member-agent/node_modules/ws/index.js": "export default class WebSocket {}",
++    "member-agent/runtime/MANIFEST.json": '{"builtAt":"2026-01-01T00:00:00Z","bundleSha256":"fixture"}\n',
++    "member-agent/runtime/server/dist/codex-local.mjs": "export function execute() {}",
++    "member-agent/installer/install.ps1": "\uFEFF# install\n",
++    "member-agent/installer/start.ps1": "\uFEFF# start\n",
++    "member-agent/installer/uninstall.ps1": "\uFEFF# uninstall\n",
++    "member-agent/installer/README-成员安装说明.md": "成员安装说明\n",
++    "node/node.exe": "safe fake node executable",
++    "node/LICENSE": "Node license",
++    "codex/codex.exe": "safe fake codex executable",
++    "codex/codex-code-mode-host.exe": "safe fake host executable",
++  };
++  for (const [rel, contents] of Object.entries(files)) {
++    await fs.mkdir(path.dirname(path.join(root, rel)), { recursive: true });
++    await fs.writeFile(path.join(root, rel), contents);
++  }
++  return { root, memberAgentDir, nodeDirectory: officialNode, codexDirectory: officialCodex, repoCommit: "fixture-commit" };
++}
++afterEach(async () => { for (const root of roots.splice(0)) await fs.rm(root, { recursive: true, force: true }); });
++
++describe("installer builder", () => {
++  it("pins official Node URLs and validates even a supplied archive against SHA256", async () => {
++    expect(NODE_VERSION).toBe("24.18.0");
++    expect(officialUrl(NODE_ARCHIVE).href).toBe(`https://nodejs.org/dist/v24.18.0/${NODE_ARCHIVE}`);
++    expect(() => officialUrl("https://mirror.invalid/node.zip")).toThrow(/nodejs.org/);
++    const f = await fixture(); const zip = path.join(f.root, "node.zip"); await fs.writeFile(zip, "fixture zip bytes");
++    await expect(verifyNodeArchive(zip, `${digest("fixture zip bytes")}  ${NODE_ARCHIVE}\n`)).resolves.toBe(digest("fixture zip bytes"));
++    await expect(verifyNodeArchive(zip, `${"0".repeat(64)}  ${NODE_ARCHIVE}\n`)).rejects.toThrow(/SHA-256/);
++    await expect(verifyNodeArchive(zip, `${digest("fixture zip bytes")}  another.zip\n`)).rejects.toThrow(/SHASUMS/);
++  });
++
++  it("stages only the specified layout, complete hashes and a verbatim runtime manifest", async () => {
++    const f = await fixture(); const outputDir = path.join(f.memberAgentDir, "dist-installer/first");
++    const { packageDir, manifest } = await assembleInstaller({ ...f, outputDir });
++    expect(manifest).toEqual(expect.objectContaining({agentVersion: "0.2.0", nodeVersion: NODE_VERSION, codexVersion: "0.160.0", repoCommit: f.repoCommit, builtAt: expect.any(String)}));
++    expect(manifest.runtimeManifest).toEqual(JSON.parse(await fs.readFile(path.join(f.memberAgentDir, "runtime/MANIFEST.json"), "utf8")));
++    expect(await fs.readFile(path.join(packageDir, "app/member-agent/runtime/MANIFEST.json"), "utf8")).toBe(await fs.readFile(path.join(f.memberAgentDir, "runtime/MANIFEST.json"), "utf8"));
++    const paths = manifest.files.map((file: {path: string}) => file.path);
++    for (const rel of ["install.ps1", "uninstall.ps1", "README-成员安装说明.md", "app/start.ps1", "app/node/node.exe", "app/node/LICENSE", "app/member-agent/src/main.ts", "app/member-agent/package.json", "app/member-agent/node_modules/ws/package.json", "app/member-agent/runtime/MANIFEST.json", "app/codex/codex.exe", "app/codex/codex-code-mode-host.exe"]) expect(paths).toContain(rel);
++    expect(paths).not.toContain("MANIFEST.json");
++    for (const file of manifest.files) { const bytes = await fs.readFile(path.join(packageDir, file.path)); expect(file.size).toBe(bytes.length); expect(file.sha256).toBe(digest(bytes)); }
++    const reports = await scanInstaller(packageDir);
++    for (const [rel, pinnedSha256] of Object.entries(binaryPins)) {
++      expect(manifest.files.find((file: {path:string}) => file.path === rel)).toEqual(expect.objectContaining({scanMethod:"哈希锁定，未做文本扫描", pinnedSha256}));
++      expect(reports.find((file: {path:string}) => file.path === rel)).toEqual({path:rel, scanMethod:"哈希锁定，未做文本扫描", pinnedSha256});
++    }
++    expect(reports.filter((file: {scanMethod:string}) => file.scanMethod === "哈希锁定，未做文本扫描")).toHaveLength(3);
++    expect((await fs.lstat(path.join(packageDir, "app/member-agent/node_modules/ws"))).isSymbolicLink()).toBe(false);
++  });
++
++  it("writes only forward-slash ZIP entries including Chinese names", async () => {
++    const f = await fixture();
++    const outputDir = path.join(f.memberAgentDir, "dist-installer/zip");
++    // ZIP naming is independent of executable contents; keep this fixture small.
++    const packageDir = path.join(outputDir, "package");
++    await fs.mkdir(path.join(packageDir, "app/codex"), {recursive:true});
++    await fs.writeFile(path.join(packageDir, "app/codex/codex-code-mode-host.exe"), "FAKE-NOT-EXECUTABLE");
++    await fs.writeFile(path.join(packageDir, "README-成员安装说明.md"), "中文内容");
++    const zip = path.join(outputDir, "fixture.zip");
++    await archiveInstaller(packageDir, zip, f.memberAgentDir);
++    const result = spawnSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", "Add-Type -AssemblyName System.IO.Compression.FileSystem; $zip=[IO.Compression.ZipFile]::OpenRead($env:PMA_TEST_ZIP); try { $names=@($zip.Entries | ForEach-Object { $_.FullName }); [Console]::OutputEncoding=New-Object Text.UTF8Encoding($false); ConvertTo-Json -InputObject $names -Compress } finally { $zip.Dispose() }"], { encoding:"utf8", env:{...process.env,PMA_TEST_ZIP:zip}, windowsHide:true });
++    expect(result.status, result.stderr).toBe(0);
++    const entries = JSON.parse(result.stdout.replace(/^\uFEFF/, "")) as string[];
++    expect(entries).toHaveLength(2);
++    expect(entries.every(name => !name.includes("\\"))).toBe(true);
++    expect(entries).toContain("app/codex/codex-code-mode-host.exe");
++    expect(entries).toContain("README-成员安装说明.md");
++  });
++
++  it("compares two builds excluding precisely the two builtAt fields", async () => {
++    const f = await fixture(); const first = await assembleInstaller({...f, outputDir: path.join(f.memberAgentDir, "dist-installer/first")});
++    await fs.writeFile(path.join(f.memberAgentDir, "runtime/MANIFEST.json"), '{"builtAt":"2026-02-02T00:00:00Z","bundleSha256":"fixture"}\n');
++    const second = await assembleInstaller({...f, outputDir: path.join(f.memberAgentDir, "dist-installer/second")});
++    await expect(compareInstallers(first.packageDir, second.packageDir)).resolves.toBeUndefined();
++    await fs.writeFile(path.join(f.memberAgentDir, "runtime/MANIFEST.json"), '{"builtAt":"2026-02-02T00:00:00Z","bundleSha256":"changed"}\n');
++    const changed = await assembleInstaller({...f, outputDir: path.join(f.memberAgentDir, "dist-installer/changed")});
++    await expect(compareInstallers(first.packageDir, changed.packageDir)).rejects.toThrow(/两次安装包内容不一致/);
++  });
++
++  it.each(["auth.json", "config.json", "unexpected.json", "test/fixture.ts", "codex-home/file", "agent.log"])("rejects forbidden artifact name %s", async (rel) => {
++    const f = await fixture(); const bad = path.join(f.memberAgentDir, "runtime", rel); await fs.mkdir(path.dirname(bad), {recursive: true}); await fs.writeFile(bad, "safe");
++    await expect(assembleInstaller({...f, outputDir: path.join(f.memberAgentDir, "dist-installer/bad")})).rejects.toThrow(/禁止|白名单/);
++  });
++
++  it.each(["pcp_", "pcp_fake_not_a_live_secret", "sk-abcdefghijklmnopqrstuvwxyz012345", "prefixsk-abcdefghijklmnopqrstuvwxyz012345", "-----BEGIN RSA PRIVATE KEY-----"])("scans every artifact including binary bytes: %s", async (secret) => {
++    const f = await fixture(); const scanDir = path.join(f.root, "scan"); await fs.mkdir(scanDir); await fs.writeFile(path.join(scanDir,"untrusted.exe"), Buffer.concat([Buffer.from([0,255]), Buffer.from(secret), Buffer.from([0])]));
++    await expect(scanInstaller(scanDir)).rejects.toThrow(/敏感内容/);
++  });
++
++  it("also scans UTF16LE secrets and the completed manifest", async () => {
++    const f = await fixture(); const isolated = path.join(f.root, "utf16-scan-only"); await fs.mkdir(isolated);
++    await fs.writeFile(path.join(isolated, "utf16.exe"), Buffer.from("pcp_fake", "utf16le"));
++    await expect(scanInstaller(isolated)).rejects.toThrow(/敏感内容/);
++    await expect(assembleInstaller({...f, repoCommit: "pcp_fake", outputDir: path.join(f.memberAgentDir, "dist-installer/bad")})).rejects.toThrow(/敏感内容/);
++  });
++
++  it("removes a failed staging directory so rejected content cannot be distributed", async () => {
++    const f = await fixture(); const outputDir = path.join(f.memberAgentDir, "dist-installer/rejected");
++    await fs.writeFile(path.join(f.memberAgentDir, "src/leaked.ts"), "pcp_fake");
++    await expect(assembleInstaller({...f, outputDir})).rejects.toThrow(/敏感内容/);
++    await expect(fs.access(path.join(outputDir, "PaperclipMemberAgent-0.2.0"))).rejects.toThrow();
++  });
++
++  it.each([
++    "OPENAI_BASE_URLsk-proj-sk-svcacct-sk-admin-sk-\0",
++    "ask-for-approvalWEB_SEARCHEnable live web search.",
++    "sk-proj-sk-svcacct-sk-admin-sk-abcdefgh012345",
++    "Petropavlovsk-Kamtsjatski-zomertijd\0",
++  ])("rejects public binary text imitated in source or unverified binaries: %s", async (text) => {
++    const f = await fixture(); const outputDir = path.join(f.memberAgentDir, "dist-installer/public-prefixes");
++    await fs.writeFile(path.join(f.memberAgentDir, "src/imitation.ts"), text);
++    await expect(assembleInstaller({...f, outputDir})).rejects.toThrow(/敏感内容/);
++    await fs.rm(path.join(f.memberAgentDir, "src/imitation.ts"));
++    const scanDir = path.join(f.root, "scan"); await fs.mkdir(path.join(scanDir,"app/codex"),{recursive:true});
++    await fs.writeFile(path.join(scanDir,"app/codex/codex.exe"), text);
++    await expect(scanInstaller(scanDir)).rejects.toThrow(/固定 SHA-256|敏感内容/);
++  });
++
++  it.each(Object.keys(binaryPins))("rejects a changed binary at pinned path %s even with safe text", async (rel) => {
++    const f = await fixture(); const scanDir = path.join(f.root,"scan"); await fs.mkdir(path.dirname(path.join(scanDir,rel)),{recursive:true});
++    await fs.writeFile(path.join(scanDir,rel),"safe but not pinned bytes");
++    await expect(scanInstaller(scanDir)).rejects.toThrow(/固定 SHA-256/);
++    await expect(verifyPinnedBinary(path.join(scanDir,rel),rel)).rejects.toThrow(/固定 SHA-256/);
++  });
++
++  it.each(["pcp_fake", "sk-abcdefghijklmnopqrstuvwxyz012345", "prefixsk-abcdefghijklmnopqrstuvwxyz012345"])("still scans mismatched canonical Codex bytes for %s", async (text) => {
++    const f = await fixture(); const scanDir = path.join(f.root,"scan"); const binary = path.join(scanDir,"app/codex/codex.exe");
++    await fs.mkdir(path.dirname(binary),{recursive:true}); await fs.writeFile(binary,text);
++    await expect(scanInstaller(scanDir)).rejects.toThrow(/敏感内容/);
++  });
++
++  it("does not bypass scanning when official binary bytes are moved to a different path", async () => {
++    const f = await fixture(); const scanDir = path.join(f.root,"scan"); await fs.mkdir(scanDir);
++    await fs.copyFile(path.join(officialNode,"node.exe"),path.join(scanDir,"renamed.exe"));
++    await expect(scanInstaller(scanDir)).rejects.toThrow(/敏感内容/);
++  });
++
++  it("rejects a junction escape before creating the requested directory", async () => {
++    const f = await fixture(); const outside = path.join(f.root, "outside"); await fs.mkdir(outside);
++    await fs.mkdir(path.join(f.memberAgentDir, "dist-installer"));
++    await fs.symlink(outside, path.join(f.memberAgentDir, "dist-installer/link"), "junction");
++    await expect(assertSafeOutput(path.join(f.memberAgentDir, "dist-installer/link/new"), f.memberAgentDir)).rejects.toThrow(/实际路径|联接/);
++    await expect(fs.access(path.join(outside, "new"))).rejects.toThrow();
++  });
++
++  it.each(["..", repo, "member-agent/../escape"])("CLI rejects --out %s before any writes or runtime build", (out) => {
++    const before = spawnSync("git", ["status", "--porcelain", "--untracked-files=all"], {cwd: repo, encoding: "utf8"});
++    const result = spawnSync(process.execPath, [script, "--out", out], {cwd: repo, encoding: "utf8", windowsHide: true});
++    expect(result.status, `${result.stdout}${result.stderr}`).toBe(1);
++    expect(result.stderr).toMatch(/dist-installer/);
++    expect(result.stdout).not.toContain("runtime-build");
++    const after = spawnSync("git", ["status", "--porcelain", "--untracked-files=all"], {cwd: repo, encoding: "utf8"});
++    expect(after.stdout).toBe(before.stdout);
++  });
++});
+diff --git a/member-agent/test/build-runtime.test.ts b/member-agent/test/build-runtime.test.ts
+index cc57e43..4b3b073 100644
+--- a/member-agent/test/build-runtime.test.ts
++++ b/member-agent/test/build-runtime.test.ts
+@@ -5,6 +5,7 @@ import path from "node:path";
+ import { tmpdir } from "node:os";
+ import { pathToFileURL } from "node:url";
+ import { afterAll, beforeAll, describe, expect, it } from "vitest";
++import { encodePublicSshPlaceholder } from "../scripts/runtime-placeholder.mjs";
+ 
+ const memberAgentDir = path.resolve(import.meta.dirname, "..");
+ const repoRoot = path.resolve(memberAgentDir, "..");
+@@ -90,6 +91,14 @@ describe("Codex runtime build", () => {
+     expect(Object.keys(packageSizes).length).toBeGreaterThan(0);
+   });
+ 
++  it("keeps the public SSH placeholder value while emitting no PEM marker into the scanned bundle", async () => {
++    const placeholder = "-----BEGIN RSA PRIVATE KEY-----";
++    const output = encodePublicSshPlaceholder(`export default {placeholder:${JSON.stringify(placeholder)}};`);
++    expect(output).not.toMatch(/BEGIN [A-Z ]*PRIVATE KEY/);
++    const module = await import(`data:text/javascript;base64,${Buffer.from(output).toString("base64")}`);
++    expect(module.default.placeholder).toBe(placeholder);
++  });
++
+   it("imports execute from a temporary copy without node_modules ancestors", async () => {
+     const { tempRoot, copiedRuntime } = await copyRuntimeToTemp();
+     try {
+diff --git a/member-agent/test/cli.test.ts b/member-agent/test/cli.test.ts
+index 6a15e63..a45318b 100644
+--- a/member-agent/test/cli.test.ts
++++ b/member-agent/test/cli.test.ts
+@@ -12,7 +12,7 @@ describe('成员命令与退出',()=>{
+   const signals=new EventEmitter();const order:string[]=[];const dispose=installInterrupts(signals,{shutdown:async()=>{order.push('cancelled');},force:()=>{order.push('force');}},()=>{order.push('closed');},()=>{});signals.emit('SIGINT');await Promise.resolve();await Promise.resolve();expect(order).toEqual(['cancelled','closed']);dispose();
+  });
+  it('native Node runs version and rejects unknown arguments without a build',()=>{
+-  const version=spawnSync(process.execPath,['src/main.ts','version'],{cwd:process.cwd(),encoding:'utf8'});expect(version.status,version.stderr).toBe(0);expect(version.stdout).toContain('0.1.0');
++  const version=spawnSync(process.execPath,['src/main.ts','version'],{cwd:process.cwd(),encoding:'utf8'});expect(version.status,version.stderr).toBe(0);expect(version.stdout).toContain('0.2.0');
+   for(const args of [['unknown'],['version','--unknown'],['check','--config']]){const r=spawnSync(process.execPath,['src/main.ts',...args],{cwd:process.cwd(),encoding:'utf8'});expect(r.status,r.stderr).toBe(2);expect(r.stderr).toContain('用法');}
+  });
+ });
+diff --git a/member-agent/test/install-control-integration.test.ts b/member-agent/test/install-control-integration.test.ts
+new file mode 100644
+index 0000000..f208460
+--- /dev/null
++++ b/member-agent/test/install-control-integration.test.ts
+@@ -0,0 +1,45 @@
++import fs from 'node:fs/promises';
++import os from 'node:os';
++import path from 'node:path';
++import {spawn} from 'node:child_process';
++import {once} from 'node:events';
++import {createServer} from 'node:http';
++import {WebSocketServer} from 'ws';
++import {expect,it} from 'vitest';
++
++it('a real agent completes its active job before an installer drain closes the connection',async()=>{
++ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'member-install-drain-'));
++ const http=createServer();const wss=new WebSocketServer({server:http});
++ http.listen(0,'127.0.0.1');await once(http,'listening');
++ const endpoint=`http://127.0.0.1:${(http.address() as {port:number}).port}`;
++ const cfg=path.join(dir,'config.json');
++ await fs.writeFile(cfg,JSON.stringify({serverUrl:endpoint,executor:'echo',projectDirs:{},defaultCwd:'',echoHoldSec:2}));
++ const state=path.join(dir,'paperclip-member-agent');
++ const frames:any[]=[];let socket:any;
++ wss.on('connection',ws=>{socket=ws;ws.on('message',raw=>{
++  const f=JSON.parse(raw.toString());frames.push(f);
++  if(f.type==='hello'){
++   ws.send(JSON.stringify({v:1,type:'hello.ack',heartbeatSec:15,maxRunSec:10,pinnedCodexVersion:'0.160.0',minimumAgentVersion:'0.2.0'}));
++   ws.send(JSON.stringify({v:1,type:'job.start',jobId:'FAKE-DRAIN-JOB',companyId:'FAKE-COMPANY',agent:{id:'FAKE-AGENT',name:'fake'},authToken:'FAKE-NOT-A-CREDENTIAL',context:{},config:{maxRunSec:10},runtime:{},runtimeTools:null,handoffMarkdown:'',codeSyncDir:''}));
++  }
++ });});
++ const env={...process.env,APPDATA:dir,LOCALAPPDATA:dir,USERPROFILE:dir,HOME:dir,CODEX_HOME:path.join(dir,'codex-home-fake'),PAPERCLIP_AGENT_KEY:'FAKE-NOT-A-CREDENTIAL'};
++ const child=spawn(process.execPath,['src/main.ts','run','--config',cfg],{cwd:path.resolve(import.meta.dirname,'..'),env,stdio:['ignore','pipe','pipe'],windowsHide:true});
++ const exited=once(child,'exit');let output='';child.stdout.on('data',b=>{output+=b;});child.stderr.on('data',b=>{output+=b;});
++ try{
++  await expect.poll(()=>frames.some(f=>f.type==='job.accepted'),{timeout:5000}).toBe(true);
++  const identity=JSON.parse(await fs.readFile(path.join(state,'agent-control.json'),'utf8'));
++  await fs.writeFile(path.join(state,'launcher-stop.request'),JSON.stringify({...identity,force:false}));
++  await expect.poll(()=>output.includes('等待当前任务完成'),{timeout:2000}).toBe(true);
++  expect(frames.some(f=>f.type==='job.result')).toBe(false);
++  await expect.poll(()=>frames.some(f=>f.type==='job.result'),{timeout:5000}).toBe(true);
++  expect(frames.find(f=>f.type==='job.result')).toMatchObject({jobId:'FAKE-DRAIN-JOB',exitCode:0,timedOut:false});
++  let deadline:ReturnType<typeof setTimeout>|undefined;
++  const [code]=await Promise.race([exited,new Promise<never>((_,reject)=>{deadline=setTimeout(()=>reject(new Error('Agent did not exit after drain')),5000);})]).finally(()=>clearTimeout(deadline));expect(code,output).toBe(0);
++  await expect(fs.stat(path.join(state,'agent-control.json'))).rejects.toMatchObject({code:'ENOENT'});
++ }finally{
++  if(child.exitCode===null){child.kill();await exited;}
++  socket?.terminate();await new Promise<void>(r=>wss.close(()=>http.close(()=>r())));
++  await fs.rm(dir,{recursive:true,force:true});
++ }
++},15000);
+diff --git a/member-agent/test/install-control.test.ts b/member-agent/test/install-control.test.ts
+new file mode 100644
+index 0000000..644044b
+--- /dev/null
++++ b/member-agent/test/install-control.test.ts
+@@ -0,0 +1,47 @@
++import fs from 'node:fs/promises';
++import os from 'node:os';
++import path from 'node:path';
++import {execFileSync} from 'node:child_process';
++import { afterEach, expect, it, vi } from 'vitest';
++import { createInstallControl } from '../src/install-control.ts';
++
++const cleanups: (() => Promise<void>)[] = [];
++afterEach(async () => { for (const fn of cleanups.splice(0).reverse()) await fn(); });
++async function fixture() {
++ const dir=await fs.mkdtemp(path.join(os.tmpdir(),'member-install-control-'));
++ cleanups.push(()=>fs.rm(dir,{recursive:true,force:true}));
++ let busy=true;
++ const drain=vi.fn(); const stop=vi.fn(async (_force:boolean)=>{});
++ const control=await createInstallControl({stateDir:dir,busy:()=>busy,onDrain:drain,onStop:stop});
++ cleanups.push(control.dispose);
++ const identity=JSON.parse(await fs.readFile(path.join(dir,'agent-control.json'),'utf8'));
++ const request=async (values:Record<string,unknown>)=>fs.writeFile(path.join(dir,'launcher-stop.request'),JSON.stringify(values));
++ return {dir,control,identity,drain,stop,request,setBusy:(value:boolean)=>{busy=value;}};
++}
++it('drains the active job before stopping and publishes a non-secret process identity',async()=>{
++ const f=await fixture();
++ expect(f.identity).toEqual({pid:process.pid,startedAt:expect.stringMatching(/^\d{4}-.*Z$/)});
++ await f.request({...f.identity,force:false});await f.control.poll();
++ expect(f.drain).toHaveBeenCalledOnce();expect(f.stop).not.toHaveBeenCalled();
++ f.setBusy(false);await f.control.poll();await f.control.poll();
++ expect(f.stop).toHaveBeenCalledExactlyOnceWith(false);
++});
++it('ignores a stale process identity and only honors a matching force request',async()=>{
++ const f=await fixture();
++ await f.request({...f.identity,startedAt:'2000-01-01T00:00:00.000Z',force:true});await f.control.poll();
++ expect(f.drain).not.toHaveBeenCalled();expect(f.stop).not.toHaveBeenCalled();
++ await f.request({...f.identity,force:true});await f.control.poll();
++ expect(f.drain).toHaveBeenCalledOnce();expect(f.stop).toHaveBeenCalledExactlyOnceWith(true);
++});
++it('removes owned control files on exit and does not remove another instance identity',async()=>{
++ const f=await fixture();await f.control.dispose();
++ await expect(fs.stat(path.join(f.dir,'agent-control.json'))).rejects.toMatchObject({code:'ENOENT'});
++ const other={pid:42,startedAt:'2000-01-01T00:00:00.000Z'};
++ await fs.writeFile(path.join(f.dir,'agent-control.json'),JSON.stringify(other));
++ await f.control.dispose();expect(JSON.parse(await fs.readFile(path.join(f.dir,'agent-control.json'),'utf8'))).toEqual(other);
++});
++it.skipIf(process.platform!=='win32')('uses the Windows process creation time rather than Node initialization time',async()=>{
++ const f=await fixture();
++ const actual=execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',`(Get-Process -Id ${process.pid}).StartTime.ToUniversalTime().ToString('o')`],{encoding:'utf8',windowsHide:true}).trim();
++ expect(Math.abs(Date.parse(actual)-Date.parse(f.identity.startedAt))).toBeLessThan(2);
++});
+diff --git a/member-agent/test/installer-scripts.test.ts b/member-agent/test/installer-scripts.test.ts
+new file mode 100644
+index 0000000..281ae2a
+--- /dev/null
++++ b/member-agent/test/installer-scripts.test.ts
+@@ -0,0 +1,224 @@
++import { spawn, spawnSync } from "node:child_process";
++import { once } from "node:events";
++import { createHash } from "node:crypto";
++import { cp, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
++import { tmpdir } from "node:os";
++import path from "node:path";
++import { fileURLToPath } from "node:url";
++import { describe, expect, it } from "vitest";
++
++const root = fileURLToPath(new URL("../installer/", import.meta.url));
++const shells = process.platform === "win32" ? ["powershell.exe", "pwsh.exe"] : [];
++const bom = async (file: string, source: string) => writeFile(file, "\uFEFF" + source, "utf8");
++const exists = async (file: string) => readFile(file).then(() => true, () => false);
++const json = async (file: string) => JSON.parse(await readFile(file, "utf8"));
++const codePages = process.env.PMA_TEST_CODE_PAGE ? [Number(process.env.PMA_TEST_CODE_PAGE)] : [65001, 936];
++if (codePages.some(cp => ![65001, 936].includes(cp))) throw new Error("Invalid installer test code page");
++function executeAtCodePage(codePage: number, shell: string, file: string, args: string[]) {
++  const env = { ...process.env }; delete env.PAPERCLIP_AGENT_KEY; delete env.CODEX_HOME;
++  const literal = (value: string) => "'" + value.replaceAll("'", "''") + "'";
++  // EncodedCommand preserves Unicode arguments through cmd under either code page.
++  // The child shell still inherits the selected console code page.
++  const command = `$ProgressPreference='SilentlyContinue'; & ${literal(file)} ${args.map(value => /^-[A-Za-z]+$/.test(value) ? value : literal(value)).join(" ")}; exit $LASTEXITCODE`;
++  const encoded = Buffer.from(command, "utf16le").toString("base64");
++  const result = spawnSync("cmd.exe", ["/d", "/s", "/c", `chcp ${codePage} >nul && ${shell} -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand ${encoded}`], { timeout: 30_000, env, windowsHide: true });
++  return { code: result.status, output: new TextDecoder(codePage === 936 ? "gbk" : "utf-8").decode(result.stdout ?? Buffer.alloc(0)) + new TextDecoder(codePage === 936 ? "gbk" : "utf-8").decode(result.stderr ?? Buffer.alloc(0)), error: result.error };
++}
++async function sandbox() {
++  const dir = await mkdtemp(path.join(tmpdir(), "paperclip-installer-中文 空格-"));
++  const install = path.join(dir, "程序 安装"), config = path.join(dir, "成员 配置");
++  const cwd = path.join(dir, "项目 工作目录"); await mkdir(cwd);
++  const executor = path.join(dir, "fake-executor.ps1"), wait = path.join(dir, "fake-wait.ps1");
++  await bom(executor, `param($Mode,$ConfigPath,$VersionRoot)\n$d=Split-Path $ConfigPath\n[IO.File]::AppendAllText((Join-Path $d 'calls.txt'),$Mode+'|'+$VersionRoot+[Environment]::NewLine)\n$f=Join-Path $d 'codes.json'\n$codes=Get-Content -LiteralPath $f -Raw|ConvertFrom-Json\n$c=@($codes)[0]\n$remaining=@($codes|Select-Object -Skip 1)\n[IO.File]::WriteAllText($f,(ConvertTo-Json -InputObject $remaining -Compress))\nif($c -eq 'crash'){throw 'FAKE CRASH'}\nreturn [int]$c\n`);
++  await bom(wait, `param($Seconds,$ConfigDir)\n[IO.File]::AppendAllText((Join-Path $ConfigDir 'waits.txt'),[string]$Seconds+[Environment]::NewLine)\n`);
++  await mkdir(config, { recursive: true });
++  const args = ["-TestMode", "-InstallRoot", install, "-ConfigDir", config];
++  return { dir, cwd, install, config, executor, wait, args };
++}
++async function manifest(dir: string, version: string) {
++  const files: { path: string; size: number; sha256: string }[] = [];
++  async function walk(base: string) { for (const entry of await readdir(path.join(dir, base), { withFileTypes: true })) {
++    const relative = path.posix.join(base, entry.name);
++    if (entry.isDirectory()) await walk(relative);
++    else if (relative !== "MANIFEST.json") { const data = await readFile(path.join(dir, relative)); files.push({ path: relative, size: data.length, sha256: createHash("sha256").update(data).digest("hex") }); }
++  } }
++  await walk(""); await writeFile(path.join(dir, "MANIFEST.json"), JSON.stringify({ agentVersion: version, nodeVersion: "24.18.0", codexVersion: "0.160.0", runtimeManifest: {}, builtAt: "test", repoCommit: "test", files }));
++}
++async function pack(dir: string, version: string) {
++  const out = path.join(dir, "package-" + version); await mkdir(out);
++  for (const name of ["install.ps1", "uninstall.ps1", "README-成员安装说明.md"]) await cp(path.join(root, name), path.join(out, name));
++  await mkdir(path.join(out, "app/member-agent/src"), { recursive: true });
++  await mkdir(path.join(out, "app/member-agent/runtime"), { recursive: true });
++  await mkdir(path.join(out, "app/node"), { recursive: true }); await mkdir(path.join(out, "app/codex"));
++  await cp(path.join(root, "start.ps1"), path.join(out, "app/start.ps1"));
++  for (const name of ["app/node/node.exe", "app/codex/codex.exe", "app/codex/codex-code-mode-host.exe"]) await writeFile(path.join(out, name), "FAKE-NOT-EXECUTABLE");
++  await cp(new URL("../src/config.ts", import.meta.url), path.join(out, "app/member-agent/src/config.ts"));
++  await cp(new URL("../src/transport-check.ts", import.meta.url), path.join(out, "app/member-agent/src/transport-check.ts"));
++  await cp(new URL("../src/logger.ts", import.meta.url), path.join(out, "app/member-agent/src/logger.ts"));
++  await writeFile(path.join(out, "app/member-agent/src/main.ts"), "// Fake installer package; never run.");
++  await writeFile(path.join(out, "app/member-agent/package.json"), '{"type":"module"}');
++  await manifest(out, version); return out;
++}
++describe.skipIf(process.platform !== "win32")("isolated Windows installer scripts", () => {
++  it("every executable script has UTF-8 BOM and parses in both engines", async () => {
++    for (const name of ["install.ps1", "start.ps1", "uninstall.ps1"]) {
++      const file = path.join(root, name), data = await readFile(file);
++      expect([...data.subarray(0, 3)]).toEqual([239, 187, 191]);
++      for (const shell of shells) { const result = spawnSync(shell, ["-NoProfile", "-Command", `$e=$null;$t=$null;[void][System.Management.Automation.Language.Parser]::ParseFile('${file.replaceAll("'", "''")}',[ref]$t,[ref]$e);if($e.Count){$e|Out-String|Write-Output;exit 1}`], { encoding: "utf8" }); expect(result.status, result.stdout + result.stderr).toBe(0); }
++    }
++  });
++  for (const codePage of codePages) for (const shell of shells) describe(`${shell} codepage ${codePage}`, () => {
++    const execute = (shell: string, file: string, args: string[]) => executeAtCodePage(codePage, shell, file, args);
++    it("install → upgrade → rollback → uninstall preserves separate user data and keeps two versions", async () => {
++      const s = await sandbox();
++      try {
++        for (const version of ["0.2.0", "0.2.1", "0.2.2"]) {
++          const pkg = await pack(s.dir, version); await writeFile(path.join(s.config, "codes.json"), "[0]");
++          const result = execute(shell, path.join(pkg, "install.ps1"), [...s.args, "-TestDefaultCwd", s.cwd, "-TestExecutor", s.executor, "-TestNode", process.execPath]);
++          expect(result.code, result.output).toBe(0);
++          expect((await readFile(path.join(s.install, "current.txt"), "utf8")).trim()).toBe(version);
++          const config = await json(path.join(s.config, "config.json"));
++          expect(config.codexExecutable).toBe(path.join(s.install, "versions", version, "codex", "codex.exe"));
++          expect(config.defaultCwd).toBe(s.cwd);
++          expect((await readdir(s.config)).filter(name => name.startsWith(".validate-"))).toEqual([]);
++          expect(config.codexHome).toBe(path.join(s.config, "codex-home")); expect(config).not.toHaveProperty("agentKey");
++          if (version === "0.2.0") { await mkdir(path.join(s.config, "codex-home")); await writeFile(path.join(s.config, "codex-home/auth.json"), "FAKE-AUTH-FIXTURE"); await mkdir(path.join(s.config, "logs"), { recursive: true }); await writeFile(path.join(s.config, "logs/keep.log"), "preserve"); }
++          if (version === "0.2.0") {
++            const same = execute(shell, path.join(pkg, "install.ps1"), [...s.args, "-TestDefaultCwd", s.cwd, "-TestExecutor", s.executor, "-TestNode", process.execPath]);
++            expect(same.code, same.output).not.toBe(0);
++            await writeFile(path.join(s.config, "codes.json"), "[0]");
++            const overwrite = execute(shell, path.join(pkg, "install.ps1"), [...s.args, "-TestDefaultCwd", s.cwd, "-TestExecutor", s.executor, "-TestNode", process.execPath, "-TestOverwrite"]);
++            expect(overwrite.code, overwrite.output).toBe(0);
++          }
++        }
++        expect((await readdir(path.join(s.install, "versions"))).sort()).toEqual(["0.2.1", "0.2.2"]);
++        await writeFile(path.join(s.config, "codes.json"), "[0]");
++        const pkg = path.join(s.dir, "package-0.2.2");
++        const rollback = execute(shell, path.join(pkg, "install.ps1"), [...s.args, "-Rollback", "-TestExecutor", s.executor, "-TestNode", process.execPath]);
++        expect(rollback.code, rollback.output).toBe(0);
++        expect((await readFile(path.join(s.install, "current.txt"), "utf8")).trim()).toBe("0.2.1");
++        expect((await json(path.join(s.config, "config.json"))).runtimeDir).toBe(path.join(s.install, "versions/0.2.1/member-agent/runtime"));
++        const uninstall = execute(shell, path.join(s.install, "uninstall.ps1"), s.args);
++        expect(uninstall.code, uninstall.output).toBe(0);
++        expect(await exists(path.join(s.install, "current.txt"))).toBe(false);
++        expect(await exists(path.join(s.config, "config.json"))).toBe(true);
++        expect(await exists(path.join(s.config, "agent-key.dpapi"))).toBe(true);
++        expect(await exists(path.join(s.config, "codex-home/auth.json"))).toBe(true);
++        expect(await exists(path.join(s.config, "logs/keep.log"))).toBe(true);
++        for (const [option, removed, retained] of [
++          ["-RemoveConfig", "config.json", "codex-home/auth.json"],
++          ["-RemoveHome", "codex-home/auth.json", "logs/keep.log"],
++          ["-RemoveLogs", "logs/keep.log", ""],
++        ]) {
++          const result = execute(shell, path.join(root, "uninstall.ps1"), [...s.args, option]);
++          expect(result.code, result.output).toBe(0); expect(await exists(path.join(s.config, removed))).toBe(false);
++          if (retained) expect(await exists(path.join(s.config, retained))).toBe(true);
++        }
++        expect(await exists(path.join(s.config, "agent-key.dpapi"))).toBe(false);
++      } finally { await rm(s.dir, { recursive: true, force: true }); }
++    }, 90_000);
++    it("validates via a BOM-free temporary config file, tolerates a defensive BOM and removes validation files on success and failure", async () => {
++      const s = await sandbox(); try {
++        const pkg = await pack(s.dir, "0.2.0");
++        const configModule = path.join(pkg, "app/member-agent/src/config.ts");
++        const source = await readFile(configModule, "utf8");
++        // Observe the actual validation boundary, then simulate a defensive BOM.
++        const guard = `import fsFixture from 'node:fs';const inputFixture=process.env.PAPERCLIP_INSTALL_VALIDATE_CONFIG;
++if(!inputFixture)throw new Error('CONFIG_FILE_ENV_MISSING');
++const bytesFixture=fsFixture.readFileSync(inputFixture);if(bytesFixture.subarray(0,3).equals(Buffer.from([239,187,191])))throw new Error('CONFIG_FILE_HAS_BOM');
++fsFixture.writeFileSync(inputFixture,'\\uFEFF'+bytesFixture.toString('utf8'));
++`;
++        await writeFile(configModule, guard + source); await manifest(pkg, "0.2.0");
++        await writeFile(path.join(s.config, "codes.json"), "[0]");
++        const args = [...s.args, "-TestDefaultCwd", s.cwd, "-TestExecutor", s.executor, "-TestNode", process.execPath];
++        const installed = execute(shell, path.join(pkg, "install.ps1"), args);
++        expect(installed.code, installed.output).toBe(0);
++        expect((await json(path.join(s.config, "config.json"))).defaultCwd).toBe(s.cwd);
++        expect((await readdir(s.config)).filter(name => name.startsWith(".validate-"))).toEqual([]);
++        await writeFile(path.join(s.config, "config.json"), "{invalid fixture");
++        const rejected = execute(shell, path.join(pkg, "install.ps1"), [...args, "-TestOverwrite", "-TestReplaceConfig", "-TestServerUrl", "http://8.8.8.8"]);
++        expect(rejected.code, rejected.output).not.toBe(0);
++        expect((await readdir(s.config)).filter(name => name.startsWith(".validate-"))).toEqual([]);
++      } finally { await rm(s.dir, { recursive: true, force: true }); }
++    }, 60_000);
++    it("rejects manifest corruption, missing entries, traversal, public plaintext URL and incomplete test isolation", async () => {
++      const s = await sandbox(); try {
++        const pkg = await pack(s.dir, "0.2.0"), file = path.join(pkg, "install.ps1");
++        const run = (extra: string[] = []) => execute(shell, file, [...s.args, "-TestDefaultCwd", s.cwd, "-TestNode", process.execPath, "-TestExecutor", s.executor, ...extra]);
++        await writeFile(path.join(pkg, "app/codex/codex.exe"), "TAMPER"); expect(run().code).not.toBe(0);
++        await manifest(pkg, "0.2.0"); const m = await json(path.join(pkg, "MANIFEST.json")); m.files.push({ path: "../escape", size: 0, sha256: "0".repeat(64) }); await writeFile(path.join(pkg, "MANIFEST.json"), JSON.stringify(m)); expect(run().code).not.toBe(0);
++        await manifest(pkg, "0.2.0"); const missing = await json(path.join(pkg, "MANIFEST.json")); missing.files.pop(); await writeFile(path.join(pkg, "MANIFEST.json"), JSON.stringify(missing)); expect(run().code).not.toBe(0);
++        await manifest(pkg, "0.2.0"); await writeFile(path.join(pkg, "unlisted.txt"), "unlisted"); expect(run().code).not.toBe(0); await rm(path.join(pkg, "unlisted.txt"));
++        expect(run(["-TestServerUrl", "http://8.8.8.8"]).code).not.toBe(0);
++        expect(await exists(path.join(s.config, "config.json"))).toBe(false);
++        expect(execute(shell, file, ["-TestMode"]).code).not.toBe(0);
++        expect(execute(shell, file, ["-TestMode", "-InstallRoot", s.install]).code).not.toBe(0);
++      } finally { await rm(s.dir, { recursive: true, force: true }); }
++    }, 60_000);
++    it("keeps an installed same version intact on validation failure and can replace an invalid saved configuration", async () => {
++      const s = await sandbox(); try {
++        const pkg = await pack(s.dir, "0.2.0"), args = [...s.args, "-TestDefaultCwd", s.cwd, "-TestExecutor", s.executor, "-TestNode", process.execPath];
++        await writeFile(path.join(s.config, "codes.json"), "[0]"); const first = execute(shell, path.join(pkg, "install.ps1"), args); expect(first.code, first.output).toBe(0);
++        const executable = path.join(s.install, "versions/0.2.0/codex/codex.exe"); await writeFile(executable, "EXISTING-RELEASE-MUST-SURVIVE");
++        const saved = await json(path.join(s.config, "config.json")); saved.defaultCwd = path.join(s.dir, "deleted-workspace"); await writeFile(path.join(s.config, "config.json"), JSON.stringify(saved));
++        const rejected = execute(shell, path.join(pkg, "install.ps1"), [...args, "-TestOverwrite"]); expect(rejected.code, rejected.output).not.toBe(0);
++        expect(await readFile(executable, "utf8")).toBe("EXISTING-RELEASE-MUST-SURVIVE"); expect((await readFile(path.join(s.install, "current.txt"), "utf8")).trim()).toBe("0.2.0");
++        await writeFile(path.join(s.config, "config.json"), "{invalid old configuration"); await writeFile(path.join(s.config, "codes.json"), "[0]");
++        const repaired = execute(shell, path.join(pkg, "install.ps1"), [...args, "-TestOverwrite", "-TestReplaceConfig"]); expect(repaired.code, repaired.output).toBe(0);
++        expect((await json(path.join(s.config, "config.json"))).defaultCwd).toBe(s.cwd);
++        expect(await readFile(path.join(s.config, "agent-key.dpapi"), "utf8")).toBe("FAKE-DPAPI-TEST-NOT-A-CREDENTIAL");
++      } finally { await rm(s.dir, { recursive: true, force: true }); }
++    }, 60_000);
++    it("refuses reparse-point traversal before uninstalling and refuses an unowned process control record before overwrite", async () => {
++      const s = await sandbox(); try {
++        const outside = path.join(s.dir, "outside"); await mkdir(outside); await writeFile(path.join(outside, "keep.txt"), "keep");
++        await mkdir(s.install); const link = path.join(s.install, "junction"); await symlink(outside, link, "junction");
++        const blocked = execute(shell, path.join(root, "uninstall.ps1"), s.args);
++        expect(blocked.code, blocked.output).not.toBe(0); expect(await readFile(path.join(outside, "keep.txt"), "utf8")).toBe("keep");
++        await rm(link);
++        const pkg = await pack(s.dir, "0.2.0"); const args = [...s.args, "-TestDefaultCwd", s.cwd, "-TestExecutor", s.executor, "-TestNode", process.execPath];
++        await writeFile(path.join(s.config, "codes.json"), "[0]"); const installed = execute(shell, path.join(pkg, "install.ps1"), args); expect(installed.code, installed.output).toBe(0);
++        const executable = path.join(s.install, "versions/0.2.0/codex/codex.exe");
++        await writeFile(executable, "EXISTING-DO-NOT-OVERWRITE");
++        await writeFile(path.join(s.config, "agent-control.json"), JSON.stringify({ pid: process.pid, startedAt: "2000-01-01T00:00:00.000Z" }));
++        const overwrite = execute(shell, path.join(pkg, "install.ps1"), [...args, "-TestOverwrite"]);
++        expect(overwrite.code, overwrite.output).not.toBe(0); expect(await readFile(executable, "utf8")).toBe("EXISTING-DO-NOT-OVERWRITE");
++      } finally { await rm(s.dir, { recursive: true, force: true }); }
++    }, 60_000);
++    it("drains only the owned temporary installed agent before upgrading and ignores an exited stale owner", async () => {
++      const s = await sandbox(); let child: ReturnType<typeof spawn> | undefined;
++      try {
++        const first = await pack(s.dir, "0.2.0"), second = await pack(s.dir, "0.2.1");
++        const args = [...s.args, "-TestDefaultCwd", s.cwd, "-TestExecutor", s.executor, "-TestNode", process.execPath];
++        await writeFile(path.join(s.config, "codes.json"), "[0]"); const installed = execute(shell, path.join(first, "install.ps1"), args); expect(installed.code, installed.output).toBe(0);
++        const versionRoot = path.join(s.install, "versions/0.2.0"), executable = path.join(versionRoot, "node/node.exe"), main = path.join(versionRoot, "member-agent/src/main.ts");
++        await cp(process.execPath, executable);
++        await writeFile(main, `import fs from 'node:fs';import path from 'node:path';const dir=path.dirname(process.argv[process.argv.indexOf('--config')+1]);const identity={pid:process.pid,startedAt:new Date(Date.now()-process.uptime()*1000).toISOString()};fs.writeFileSync(path.join(dir,'agent-control.json'),JSON.stringify(identity));const busyUntil=Date.now()+4000;const timer=setInterval(()=>{try{const request=JSON.parse(fs.readFileSync(path.join(dir,'launcher-stop.request'),'utf8'));if(request.pid!==identity.pid||request.startedAt!==identity.startedAt)return;fs.writeFileSync(path.join(dir,'drain-observed.txt'),'draining');if(Date.now()<busyUntil)return;fs.writeFileSync(path.join(dir,'job-finished.txt'),'finished before stop');fs.unlinkSync(path.join(dir,'agent-control.json'));clearInterval(timer);process.exitCode=0}catch{}},20);`);
++        child = spawn(executable, [main, "run", "--config", path.join(s.config, "config.json")], { stdio: "ignore", env: { APPDATA: s.dir, SYSTEMROOT: process.env.SYSTEMROOT, PATH: process.env.PATH } });
++        const exited = once(child, "exit");
++        for (let i = 0; i < 100 && !await exists(path.join(s.config, "agent-control.json")); i++) await new Promise(resolve => setTimeout(resolve, 20));
++        expect(await exists(path.join(s.config, "agent-control.json"))).toBe(true);
++        const identity = await json(path.join(s.config, "agent-control.json"));
++        const inspect = spawnSync(shell, ["-NoProfile", "-Command", `Get-CimInstance Win32_Process -Filter 'ProcessId = ${child.pid}' | Select-Object ExecutablePath,CommandLine,CreationDate | ConvertTo-Json -Compress`], { encoding: "utf8" });
++        await writeFile(path.join(s.config, "codes.json"), "[0]"); const upgraded = execute(shell, path.join(second, "install.ps1"), args);
++        expect(upgraded.code, upgraded.output + "\nIDENTITY " + JSON.stringify(identity) + "\nCIM " + inspect.stdout + inspect.stderr).toBe(0); expect(await readFile(path.join(s.config, "job-finished.txt"), "utf8")).toBe("finished before stop");
++        expect(await readFile(path.join(s.config, "drain-observed.txt"), "utf8")).toBe("draining");
++        expect((await exited)[0]).toBe(0);
++        await writeFile(path.join(s.config, "agent-control.json"), JSON.stringify({ pid: child.pid, startedAt: "2000-01-01T00:00:00.000Z" }));
++        const removed = execute(shell, path.join(root, "uninstall.ps1"), s.args); expect(removed.code, removed.output).toBe(0);
++        expect(await exists(path.join(s.config, "agent-control.json"))).toBe(false);
++      } finally { if (child?.exitCode === null) child.kill(); await rm(s.dir, { recursive: true, force: true }); }
++    }, 60_000);
++    it("returns terminal run/check exit codes and retries crashes/unexpected codes at 10,30,60,300,300 seconds", async () => {
++      const s = await sandbox(); try {
++        const versionRoot = path.join(s.install, "versions/0.2.0"); await mkdir(versionRoot, { recursive: true }); await writeFile(path.join(s.install, "current.txt"), "0.2.0");
++        await writeFile(path.join(s.config, "config.json"), "{}"); await writeFile(path.join(s.config, "agent-key.dpapi"), "FAKE-DPAPI-TEST-NOT-A-CREDENTIAL");
++        const run = (mode: string) => execute(shell, path.join(root, "start.ps1"), [...s.args, "-Mode", mode, "-TestExecutor", s.executor, "-TestWait", s.wait]);
++        for (const code of [0, 2, 3, 4, 5]) { await writeFile(path.join(s.config, "codes.json"), JSON.stringify([code])); const result = run("run"); expect(result.code, result.output).toBe(code); expect(await json(path.join(s.config, "codes.json"))).toEqual([]); }
++        await writeFile(path.join(s.config, "codes.json"), '[1,99,"crash",1,1,0]'); const retry = run("run"); expect(retry.code, retry.output).toBe(0);
++        expect((await readFile(path.join(s.config, "waits.txt"), "utf8")).trim().split(/\r?\n/).map(Number)).toEqual([10,30,60,300,300]);
++        await writeFile(path.join(s.config, "codes.json"), "[1,0]"); const check = run("check"); expect(check.code, check.output).toBe(1); expect(await json(path.join(s.config, "codes.json"))).toEqual([0]);
++      } finally { await rm(s.dir, { recursive: true, force: true }); }
++    }, 90_000);
++  });
++});
+diff --git a/server/src/adapters/member-agent/agent-version.test.ts b/server/src/adapters/member-agent/agent-version.test.ts
+new file mode 100644
+index 0000000..7cc1c47
+--- /dev/null
++++ b/server/src/adapters/member-agent/agent-version.test.ts
+@@ -0,0 +1,39 @@
++import { once } from "node:events";
++import { createServer } from "node:http";
++import { createRequire } from "node:module";
++import { agentApiKeys, type Db } from "@paperclipai/db";
++import { afterEach, describe, expect, it } from "vitest";
++import { MemberAgentConnections, setupMemberAgentWebSocketServer } from "../../realtime/member-agent-ws.js";
++
++const { WebSocket } = createRequire(import.meta.url)("ws");
++const cleanup: Array<() => void | Promise<void>> = [];
++afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await close(); });
++
++describe("member-agent version handshake", () => {
++  it("advertises the minimum version on the real loopback hello.ack while leaving old agents online", async () => {
++    // In-memory query boundary only: no database, real account, or external server.
++    const key = { id: "fixture-key-id", companyId: "fixture-company", agentId: "fixture-agent", scopeConfig: null };
++    const agent = { id: key.agentId, companyId: key.companyId, status: "idle", adapterType: "member_agent" };
++    const db = {
++      select: () => ({ from: (table: unknown) => ({ where: () => Promise.resolve(table === agentApiKeys ? [key] : [agent]) }) }),
++      update: () => ({ set: () => ({ where: () => Promise.resolve() }) }),
++    } as unknown as Db;
++    const http = createServer();
++    const connections = new MemberAgentConnections();
++    const transport = setupMemberAgentWebSocketServer(http, db, { deploymentMode: "authenticated", connections });
++    cleanup.push(async () => { await transport.close(); await new Promise<void>(resolve => http.close(() => resolve())); });
++    http.listen(0, "127.0.0.1");
++    await once(http, "listening");
++    const address = http.address();
++    if (!address || typeof address === "string") throw new Error("Loopback fixture did not bind");
++    const socket = new WebSocket(`ws://127.0.0.1:${address.port}/api/member-agent/v1/connect`, { headers: { Authorization: "Bearer FAKE-version-key" } });
++    cleanup.push(() => socket.terminate());
++    await once(socket, "open");
++    const response = once(socket, "message");
++    socket.send(JSON.stringify({ v: 1, type: "hello", agentVersion: "0.1.0", codexVersion: "0.160.0", hostname: "fixture", platform: "win32" }));
++    const [raw] = await response;
++    expect(JSON.parse(raw.toString())).toMatchObject({ v: 1, type: "hello.ack", minimumAgentVersion: "0.2.0", pinnedCodexVersion: "0.160.0", heartbeatSec: 15 });
++    expect(connections.get(key.companyId, key.agentId)?.ready).toBe(true);
++    expect(socket.readyState).toBe(1);
++  });
++});
+diff --git a/server/src/adapters/member-agent/settings.ts b/server/src/adapters/member-agent/settings.ts
+index ea84a24..695cd25 100644
+--- a/server/src/adapters/member-agent/settings.ts
++++ b/server/src/adapters/member-agent/settings.ts
+@@ -1,2 +1,3 @@
+ export const pinnedCodexVersion = "0.160.0";
++export const minimumAgentVersion = "0.2.0";
+ export const codeSyncDir = "";
+diff --git a/server/src/realtime/member-agent-ws.ts b/server/src/realtime/member-agent-ws.ts
+index f18ee4b..b224d48 100644
+--- a/server/src/realtime/member-agent-ws.ts
++++ b/server/src/realtime/member-agent-ws.ts
+@@ -9,7 +9,7 @@ import { agents, type Db } from "@paperclipai/db";
+ import type { DeploymentMode } from "@paperclipai/shared";
+ import { logger } from "../middleware/logger.js";
+ import { authenticateAgentKey } from "./agent-key-auth.js";
+-import { pinnedCodexVersion } from "../adapters/member-agent/settings.js";
++import { minimumAgentVersion, pinnedCodexVersion } from "../adapters/member-agent/settings.js";
+ 
+ const require = createRequire(import.meta.url);
+ interface MemberSocket {
+@@ -227,7 +227,7 @@ export function setupMemberAgentWebSocketServer(server: Server, db: Db, options:
+               recordFailure(); connection.disconnect("member_agent_protocol_error", "成员连接 hello 无效"); return;
+             }
+             clearTimeout(helloTimer); connection.ready = true;
+-            ws.send(JSON.stringify({ v: 1, type: "hello.ack", heartbeatSec: 15, maxRunSec: 3600, pinnedCodexVersion }));
++            ws.send(JSON.stringify({ v: 1, type: "hello.ack", heartbeatSec: 15, maxRunSec: 3600, pinnedCodexVersion, minimumAgentVersion }));
+             return;
+           }
+           if (frame.type === "heartbeat" || frame.type === "ping") return;

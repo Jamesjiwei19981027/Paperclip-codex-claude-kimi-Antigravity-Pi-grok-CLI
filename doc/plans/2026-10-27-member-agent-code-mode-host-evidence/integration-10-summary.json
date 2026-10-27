@@ -1,0 +1,78 @@
+{
+  "total": 10,
+  "passed": 10,
+  "failed": 0,
+  "testsPerRun": 2,
+  "results": [
+    {
+      "run": 1,
+      "exitCode": 0,
+      "passed": true,
+      "realToolRoundtrip": true,
+      "log": "run-01.log"
+    },
+    {
+      "run": 2,
+      "exitCode": 0,
+      "passed": true,
+      "realToolRoundtrip": true,
+      "log": "run-02.log"
+    },
+    {
+      "run": 3,
+      "exitCode": 0,
+      "passed": true,
+      "realToolRoundtrip": true,
+      "log": "run-03.log"
+    },
+    {
+      "run": 4,
+      "exitCode": 0,
+      "passed": true,
+      "realToolRoundtrip": true,
+      "log": "run-04.log"
+    },
+    {
+      "run": 5,
+      "exitCode": 0,
+      "passed": true,
+      "realToolRoundtrip": true,
+      "log": "run-05.log"
+    },
+    {
+      "run": 6,
+      "exitCode": 0,
+      "passed": true,
+      "realToolRoundtrip": true,
+      "log": "run-06.log"
+    },
+    {
+      "run": 7,
+      "exitCode": 0,
+      "passed": true,
+      "realToolRoundtrip": true,
+      "log": "run-07.log"
+    },
+    {
+      "run": 8,
+      "exitCode": 0,
+      "passed": true,
+      "realToolRoundtrip": true,
+      "log": "run-08.log"
+    },
+    {
+      "run": 9,
+      "exitCode": 0,
+      "passed": true,
+      "realToolRoundtrip": true,
+      "log": "run-09.log"
+    },
+    {
+      "run": 10,
+      "exitCode": 0,
+      "passed": true,
+      "realToolRoundtrip": true,
+      "log": "run-10.log"
+    }
+  ]
+}

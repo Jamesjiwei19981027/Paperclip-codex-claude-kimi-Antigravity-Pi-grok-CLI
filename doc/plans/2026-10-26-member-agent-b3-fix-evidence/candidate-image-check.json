@@ -1,0 +1,5 @@
+{
+  "code": 0,
+  "stdout": "f8b9968d22ed969f2628303e485cfa3c23181dce9aac655c7182c6e2c8836bc4  /app/server/src/adapters/member-agent/execute.ts\nBUILT_ADAPTER_STOP_ACK=PASS\nsha256:63eee16371c563b6be911e31af1c96c79d4896268347897d54d74d687a9d54cb 5965318025\n",
+  "stderr": ""
+}

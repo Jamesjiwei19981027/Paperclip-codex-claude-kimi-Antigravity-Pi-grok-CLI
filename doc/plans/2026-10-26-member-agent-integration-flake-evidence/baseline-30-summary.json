@@ -1,0 +1,250 @@
+{
+  "startedAt": "2026-10-26T14:24:49.2266844Z",
+  "total": 30,
+  "passed": 26,
+  "failed": 4,
+  "attempts": [
+    {
+      "number": 1,
+      "exitCode": 0,
+      "passed": true,
+      "log": "run-01.log"
+    },
+    {
+      "number": 2,
+      "exitCode": 0,
+      "passed": true,
+      "log": "run-02.log"
+    },
+    {
+      "number": 3,
+      "exitCode": 0,
+      "passed": true,
+      "log": "run-03.log"
+    },
+    {
+      "number": 4,
+      "exitCode": 0,
+      "passed": true,
+      "log": "run-04.log"
+    },
+    {
+      "number": 5,
+      "exitCode": 0,
+      "passed": true,
+      "log": "run-05.log"
+    },
+    {
+      "number": 6,
+      "exitCode": 0,
+      "passed": true,
+      "log": "run-06.log"
+    },
+    {
+      "number": 7,
+      "exitCode": 1,
+      "passed": false,
+      "log": "run-07.log"
+    },
+    {
+      "number": 8,
+      "exitCode": 0,
+      "passed": true,
+      "log": "run-08.log"
+    },
+    {
+      "number": 9,
+      "exitCode": 0,
+      "passed": true,
+      "log": "run-09.log"
+    },
+    {
+      "number": 10,
+      "exitCode": 0,
+      "passed": true,
+      "log": "run-10.log"
+    },
+    {
+      "number": 11,
+      "exitCode": 0,
+      "passed": true,
+      "log": "run-11.log"
+    },
+    {
+      "number": 12,
+      "exitCode": 0,
+      "passed": true,
+      "log": "run-12.log"
+    },
+    {
+      "number": 13,
+      "exitCode": 0,
+      "passed": true,
+      "log": "run-13.log"
+    },
+    {
+      "number": 14,
+      "exitCode": 0,
+      "passed": true,
+      "log": "run-14.log"
+    },
+    {
+      "number": 15,
+      "exitCode": 0,
+      "passed": true,
+      "log": "run-15.log"
+    },
+    {
+      "number": 16,
+      "exitCode": 0,
+      "passed": true,
+      "log": "run-16.log"
+    },
+    {
+      "number": 17,
+      "exitCode": 0,
+      "passed": true,
+      "log": "run-17.log"
+    },
+    {
+      "number": 18,
+      "exitCode": 1,
+      "passed": false,
+      "log": "run-18.log"
+    },
+    {
+      "number": 19,
+      "exitCode": 0,
+      "passed": true,
+      "log": "run-19.log"
+    },
+    {
+      "number": 20,
+      "exitCode": 0,
+      "passed": true,
+      "log": "run-20.log"
+    },
+    {
+      "number": 21,
+      "exitCode": 0,
+      "passed": true,
+      "log": "run-21.log"
+    },
+    {
+      "number": 22,
+      "exitCode": 0,
+      "passed": true,
+      "log": "run-22.log"
+    },
+    {
+      "number": 23,
+      "exitCode": 0,
+      "passed": true,
+      "log": "run-23.log"
+    },
+    {
+      "number": 24,
+      "exitCode": 0,
+      "passed": true,
+      "log": "run-24.log"
+    },
+    {
+      "number": 25,
+      "exitCode": 0,
+      "passed": true,
+      "log": "run-25.log"
+    },
+    {
+      "number": 26,
+      "exitCode": 1,
+      "passed": false,
+      "log": "run-26.log"
+    },
+    {
+      "number": 27,
+      "exitCode": 1,
+      "passed": false,
+      "log": "run-27.log"
+    },
+    {
+      "number": 28,
+      "exitCode": 0,
+      "passed": true,
+      "log": "run-28.log"
+    },
+    {
+      "number": 29,
+      "exitCode": 0,
+      "passed": true,
+      "log": "run-29.log"
+    },
+    {
+      "number": 30,
+      "exitCode": 0,
+      "passed": true,
+      "log": "run-30.log"
+    }
+  ],
+  "failures": [
+    {
+      "number": 7,
+      "exitCode": 1,
+      "errorCode": null,
+      "errorMessage": null,
+      "summary": null,
+      "recentJobLogs": null,
+      "diagnosticFound": false,
+      "log": "run-07.log",
+      "jobResultDiagnosticCaptured": false,
+      "jobResultErrorCode": null,
+      "jobResultErrorMessage": null,
+      "cleanupErrorCode": "EBUSY",
+      "cleanupErrorMessage": "EBUSY: resource busy or locked, unlink 'C:\\Users\\11580\\AppData\\Local\\Temp\\member-codex-integration-doCAIv\\codex-0.160.0.exe'"
+    },
+    {
+      "number": 18,
+      "exitCode": 1,
+      "errorCode": null,
+      "errorMessage": null,
+      "summary": null,
+      "recentJobLogs": null,
+      "diagnosticFound": false,
+      "log": "run-18.log",
+      "jobResultDiagnosticCaptured": false,
+      "jobResultErrorCode": null,
+      "jobResultErrorMessage": null,
+      "cleanupErrorCode": "EBUSY",
+      "cleanupErrorMessage": "EBUSY: resource busy or locked, unlink 'C:\\Users\\11580\\AppData\\Local\\Temp\\member-codex-integration-fst10A\\codex-0.160.0.exe'"
+    },
+    {
+      "number": 26,
+      "exitCode": 1,
+      "errorCode": null,
+      "errorMessage": null,
+      "summary": null,
+      "recentJobLogs": null,
+      "diagnosticFound": false,
+      "log": "run-26.log",
+      "jobResultDiagnosticCaptured": false,
+      "jobResultErrorCode": null,
+      "jobResultErrorMessage": null,
+      "cleanupErrorCode": "EBUSY",
+      "cleanupErrorMessage": "EBUSY: resource busy or locked, unlink 'C:\\Users\\11580\\AppData\\Local\\Temp\\member-codex-integration-8FcHyP\\codex-0.160.0.exe'"
+    },
+    {
+      "number": 27,
+      "exitCode": 1,
+      "errorCode": null,
+      "errorMessage": null,
+      "summary": null,
+      "recentJobLogs": null,
+      "diagnosticFound": false,
+      "log": "run-27.log",
+      "jobResultDiagnosticCaptured": false,
+      "jobResultErrorCode": null,
+      "jobResultErrorMessage": null,
+      "cleanupErrorCode": "EBUSY",
+      "cleanupErrorMessage": "EBUSY: resource busy or locked, unlink 'C:\\Users\\11580\\AppData\\Local\\Temp\\member-codex-integration-TH79lc\\codex-0.160.0.exe'"
+    }
+  ]
+}

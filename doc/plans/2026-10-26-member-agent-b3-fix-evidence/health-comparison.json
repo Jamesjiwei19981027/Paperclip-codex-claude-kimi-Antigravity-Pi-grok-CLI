@@ -1,0 +1,15 @@
+{
+  "before": {
+    "status": "ok",
+    "pid": 36504,
+    "processStartedAt": "2026-10-25T12:03:57.742Z"
+  },
+  "after": {
+    "listeners": [],
+    "health": "GET http://localhost:3100/api/health failed: connection refused",
+    "baselineProcess": null
+  },
+  "unchanged": false,
+  "cause": "负责人随后确认重启了计算机；跨重启无法保持相同 PID/processStartedAt。本次未执行服务启停。",
+  "causeSource": "User statement in current conversation on 2026-10-26"
+}

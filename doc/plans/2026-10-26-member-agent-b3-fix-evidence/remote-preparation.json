@@ -1,0 +1,15 @@
+{
+  "releaseDir": "/root/paperclip-deploy/releases/b3-20261026T094951Z",
+  "candidateTag": "paperclip-b3-candidate:b3-20261026T094951Z",
+  "rollbackTag": "paperclip-b3-rollback:b3-20261026T094951Z",
+  "prepare": {
+    "code": 0,
+    "stdout": "SOURCE_BACKUP=afff0b5af3efe8596e9907286cc7edde7ee5d08e93755705ec36d8469d802bf4  /root/paperclip-deploy/releases/b3-20261026T094951Z/adapter-before.tar.gz\nCANDIDATE_SRC=/root/paperclip-deploy/releases/b3-20261026T094951Z/src\n{\"image\": null, \"target\": null, \"project\": \"paperclip-deploy\"}\n",
+    "stderr": ""
+  },
+  "apply": {
+    "code": 0,
+    "stdout": "725c01c3f773fa57bd5e84598ec05846c5d3401976e599e5841244ccc0bb680f  /root/paperclip-deploy/releases/b3-20261026T094951Z/b3-stop-confirmation.patch\nf8b9968d22ed969f2628303e485cfa3c23181dce9aac655c7182c6e2c8836bc4  server/src/adapters/member-agent/execute.ts\n926a4851805cd02eabf0cb3fe9db8294e9495d6a6131b07b3105abe600102487  server/src/adapters/member-agent/cancellation.test.ts\nCANDIDATE_PATCH_APPLIED=PASS\n",
+    "stderr": ""
+  }
+}

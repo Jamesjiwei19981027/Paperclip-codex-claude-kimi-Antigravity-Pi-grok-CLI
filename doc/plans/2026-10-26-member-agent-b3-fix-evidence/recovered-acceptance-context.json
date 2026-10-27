@@ -1,0 +1,24 @@
+{
+  "sourceSessionFile": "C:\\Users\\11580\\.claude\\projects\\D--paperclip\\6ab6046d-dde6-4102-b82b-75f1fdc0f02b.jsonl",
+  "source": "Claude session records; not a new remote-server readback",
+  "B2": {
+    "issue": "BOS-6",
+    "issueId": "4fd0ab00-19be-49d1-b2af-a17164ab502a",
+    "state": "previously reported passed by Claude; fake model triggered additional continuation runs; not rerun here"
+  },
+  "B3": {
+    "cancelHttp": 409,
+    "testCodexPid": 18508,
+    "localReportedCancelledAt": "2026-10-26T06:13:35.466Z",
+    "finishedAt": "2026-10-26T06:13:31.186Z",
+    "cancelRequestedAt": "2026-10-26T06:13:14.765Z",
+    "exitCode": 1,
+    "issueId": "24901318-021e-43ca-9edf-ce8d619b8928",
+    "errorCode": "cancelled",
+    "runStatus": "cancelled",
+    "runId": "10cd2ac8-ee39-4640-b491-c0e740188a19",
+    "issue": "BOS-7",
+    "pauseAttempt": "Claude tool use was rejected; no successful pause response; current server state not re-read"
+  },
+  "currentWorkScope": "User approved E-only server adapter and necessary tests; independent patch, no D edits or deployment"
+}

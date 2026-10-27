@@ -1,0 +1,16 @@
+{
+  "bundle": "E:\\workspace\\paperclip-member-agent-dev\\doc\\plans\\2026-10-26-member-agent-b3-fix-evidence\\b3-review-bundle.zip",
+  "bytes": 15141,
+  "sha256": "770C1E23C9BCA0C52C36B9F01E6AA9BE9F4E0E3E63E30FB13095A8185718EF68",
+  "entries": [
+    "b3-stop-confirmation.patch",
+    "deployment-and-b3.md",
+    "report.md",
+    "verification-summary.json",
+    "patch-verification.json"
+  ],
+  "archiveContentsVerified": true,
+  "DGitStatusDifferences": 0,
+  "DSourceStillUnchanged": true,
+  "deploymentPerformed": false
+}

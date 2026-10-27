@@ -1,0 +1,20 @@
+{
+  "baselineMemberPassed": 212,
+  "baselineServerPassed": 173,
+  "baselineFailures": 0,
+  "memberPassed": 216,
+  "serverPassed": 182,
+  "memberTypeErrorsBefore": 0,
+  "memberTypeErrorsAfter": 0,
+  "serverTypeErrorsBefore": 0,
+  "serverTypeErrorsAfter": 0,
+  "addedTypeErrors": 0,
+  "realBusyScheduleAndRedispatchCases": 2,
+  "busyAutoRetryLimit": 2,
+  "applyCheckExitCode": 0,
+  "patchSha256": "11456BEDAB606E697F1DBD9F1A7421D215A6F0EFD774B9F52C8DE0E451DDF530",
+  "patchFiles": 7,
+  "dSourceTargetsUnchanged": true,
+  "credentialPatternHits": 0,
+  "knownIntermediateInfrastructureFailure": "server-red.log: hoistModuleGraph hook timeout; subsequent explicit red and full green recorded without timeout changes"
+}

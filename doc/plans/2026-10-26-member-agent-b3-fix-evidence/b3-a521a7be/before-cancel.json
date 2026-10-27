@@ -1,0 +1,35 @@
+{
+  "capturedAt": "2026-10-26T12:20:20.0824964Z",
+  "issueIdentifier": "BOS-8",
+  "issueId": "c828b180-cad4-460a-a48d-201760be5c13",
+  "runId": "ec139891-435a-4e2e-8124-4a882810df5a",
+  "codexVersion": "0.160.0",
+  "codexExecutable": "E:\\AI_Data\\tools\\codex-0.160.0\\codex.exe",
+  "codexProcesses": [
+    {
+      "ProcessId": 10776,
+      "ParentProcessId": 15300,
+      "Name": "codex.exe",
+      "CreationDate": "2026-10-26T20:18:54.4689+08:00",
+      "ExecutablePath": "E:\\AI_Data\\tools\\codex-0.160.0\\codex.exe"
+    }
+  ],
+  "memberAgentProcesses": [
+    {
+      "ProcessId": 15300,
+      "ParentProcessId": 40212,
+      "Name": "node.exe",
+      "CreationDate": "2026-10-26T20:18:05.535874+08:00",
+      "ExecutablePath": "C:\\Program Files\\nodejs\\node.exe"
+    }
+  ],
+  "fakeModelConnections": [
+    {
+      "LocalAddress": "127.0.0.1",
+      "LocalPort": 12210,
+      "RemoteAddress": "127.0.0.1",
+      "RemotePort": 57493,
+      "OwningProcess": 29652
+    }
+  ]
+}

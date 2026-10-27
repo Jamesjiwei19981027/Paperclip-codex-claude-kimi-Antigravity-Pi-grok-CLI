@@ -1,0 +1,2695 @@
+diff --git a/member-agent/.gitignore b/member-agent/.gitignore
+index ff2c585..c2d9acb 100644
+--- a/member-agent/.gitignore
++++ b/member-agent/.gitignore
+@@ -1,2 +1,3 @@
+ node_modules/
+ *.tsbuildinfo
++runtime/
+diff --git a/member-agent/README.md b/member-agent/README.md
+index ea5517d..6afe98d 100644
+--- a/member-agent/README.md
++++ b/member-agent/README.md
+@@ -1,6 +1,6 @@
+-# 成员代理：阶段 2
++# 成员代理：阶段 3
+ 
+-这个程序在成员 Windows 电脑上常驻，连接 Paperclip 并执行测试用 echo。需要 Node 24.11.0 或更新版本。直接运行 TypeScript，不需要编译。本阶段不启动 Codex，也不提供安装包、自动升级或开机自启。
++这个程序在成员 Windows 电脑上常驻，连接 Paperclip 并通过 echo 或本机 Codex 执行任务。需要 Node 24.11.0 或更新版本。代理源码直接运行 TypeScript；Codex 适配器在首次使用前单独打包到 `member-agent/runtime/`。本阶段不提供代理安装包、自动升级或开机自启。
+ 
+ 在仓库根目录安装唯一运行依赖：
+ 
+@@ -11,7 +11,7 @@ node .\member-agent\src\main.ts version
+ 
+ `member-agent/node_modules` 必须是独立目录，不能联接到服务器依赖目录。依赖精确固定为 ws 8.22.0。开发测试使用仓库既有的 Vitest、TypeScript 和类型声明；这些不是成员端的运行依赖。
+ 
+-配置默认位于 `%APPDATA%\paperclip-member-agent\config.json`，保存为无 BOM 的 UTF-8。配置示例不包含 Key：
++配置默认位于 `%APPDATA%\paperclip-member-agent\config.json`，保存为无 BOM 的 UTF-8。echo 配置示例不包含 Key：
+ 
+ ```json
+ {
+@@ -22,6 +22,36 @@ node .\member-agent\src\main.ts version
+ }
+ ```
+ 
++Codex 配置示例（路径请替换成成员电脑上的绝对路径）：
++
++```json
++{
++  "serverUrl": "http://100.64.0.1:3100",
++  "executor": "codex",
++  "projectDirs": { "项目 UUID": "E:\\workspace\\my-project" },
++  "defaultCwd": "",
++  "codexExecutable": "C:\\Tools\\Codex\\codex.exe",
++  "codexHome": "C:\\Users\\me\\AppData\\Roaming\\paperclip-member-agent\\codex-home",
++  "runtimeDir": "E:\\workspace\\paperclip\\member-agent\\runtime"
++}
++```
++
++`codexHome` 必须是成员代理专属目录，不能使用 `%USERPROFILE%\\.codex`。每个项目的本机目录都必须已存在，并通过 `projectDirs` 映射；映射缺失时只使用非空 `defaultCwd`，不会退回代理自己的目录。`codexExecutable` 必须指向 `.exe`，不接受 `.cmd` 或 `.bat`。
++
++在仓库根目录构建 Codex 运行时（构建产物不进入补丁）：
++
++```powershell
++node .\member-agent\scripts\build-runtime.mjs
++```
++
++首次使用 Codex 时执行设备登录；登录终端会直接显示 Codex 的交互输出，代理不会把其中的验证码或链接写入日志。登录只写入配置中的独立 `codexHome`：
++
++```powershell
++node .\member-agent\src\main.ts login
++node .\member-agent\src\main.ts check
++node .\member-agent\src\main.ts run
++```
++
+ 用不回显的提示将 Key 放入当前进程环境，避免写入文件或命令参数：
+ 
+ ```powershell
+@@ -43,7 +73,7 @@ echo 会写一条测试评论，再将工单改为 done；请只派发专门的
+ 
+ 为验收运行中取消或异常关闭，可以在配置中增加 `"echoHoldSec": 60` 后重新运行代理。echo 输出收到任务后等待指定秒数，再写回评论和状态；等待中取消会立即退出并且不写回。该值默认为 0，只接受 0–600 的整数，仅用于 echo 测试，真实执行器不得使用。验收后恢复为 0。
+ 
+-工具令牌只在内存中接收，有效期约一小时且不续期。本阶段 echo 不调用连接工具。原生 MCP 发现、资源、提示词及 managed gateway 自动配置未接入。`projectDirs` 与 `defaultCwd` 只校验类型，尚不做目录映射。阶段 3 接入 Codex 库的交付方式、固定版本的安装位置以及后续自启方式仍由负责人决定。
++工具令牌只在内存中接收，有效期约一小时且不续期。Codex 执行器会把工具端点改写为代理连接的服务器来源，并在任务结束、取消、超时、断线或退出时清理已登记的进程树。
+ 
+ 开发验证（在 member-agent 目录中）：
+ 
+@@ -52,4 +82,4 @@ node ..\node_modules\vitest\vitest.mjs run --config vitest.config.ts --cache=fal
+ pnpm exec tsc --noEmit
+ ```
+ 
+-自动化测试只监听随机回环端口，不访问真实 Paperclip 或专用服务器。Windows 进程树测试只创建和终止自己的子孙进程。echo 没有子进程。当前运行代码尚未调用 process-tree.ts；阶段 3 必须让执行器向 job-runner 登记子进程号，由 job-runner 在取消、超时、连接断开时统一终止进程树。仅 terminate() 执行线程不会结束该线程启动的子进程，这是尚未接线的已知风险。
++自动化测试只监听随机回环端口，不访问 Paperclip 或专用服务器。Windows 进程树测试只创建和终止自己的测试子孙进程。阶段 3 的 Codex 集成测试使用本地回环假模型，不使用真实 Codex 账号或登录凭据。
+diff --git a/member-agent/scripts/build-runtime.mjs b/member-agent/scripts/build-runtime.mjs
+new file mode 100644
+index 0000000..025e756
+--- /dev/null
++++ b/member-agent/scripts/build-runtime.mjs
+@@ -0,0 +1,286 @@
++import { createHash } from "node:crypto";
++import { execFileSync } from "node:child_process";
++import { createRequire } from "node:module";
++import fs from "node:fs/promises";
++import fsSync from "node:fs";
++import path from "node:path";
++import { fileURLToPath, pathToFileURL } from "node:url";
++
++const scriptPath = fileURLToPath(import.meta.url);
++const memberAgentDir = path.resolve(path.dirname(scriptPath), "..");
++const repoRoot = path.resolve(memberAgentDir, "..");
++const runtimeRoot = path.resolve(memberAgentDir, "runtime");
++const adapterDir = path.resolve(repoRoot, "packages/adapters/codex-local");
++const adapterEntry = path.resolve(adapterDir, "src/server/execute.ts");
++const adapterPackagePath = path.resolve(adapterDir, "package.json");
++const skillsSource = path.resolve(repoRoot, "skills/paperclip");
++const nodeTarget = "node24";
++const nodeRequire = createRequire(import.meta.url);
++
++function assertAbsolute(target, label) {
++  if (!path.isAbsolute(target) || path.resolve(target) !== target) {
++    throw new Error(`${label} 必须是规范化的绝对路径：${target}`);
++  }
++  return target;
++}
++
++function assertInsideRuntime(target, label) {
++  const absolute = assertAbsolute(path.resolve(target), label);
++  const relative = path.relative(runtimeRoot, absolute);
++  if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
++    throw new Error(`${label} 必须位于 member-agent/runtime/ 内：${absolute}`);
++  }
++  return absolute;
++}
++
++function parseOutputDir(args) {
++  let rawOutput;
++  for (let index = 0; index < args.length; index += 1) {
++    if (args[index] !== "--out") {
++      throw new Error(`未知参数：${args[index]}`);
++    }
++    if (rawOutput !== undefined || !args[index + 1] || args[index + 1].startsWith("--")) {
++      throw new Error("--out 后必须提供一个目录路径，且只能指定一次");
++    }
++    rawOutput = args[index + 1];
++    index += 1;
++  }
++  const outputDir = rawOutput === undefined
++    ? runtimeRoot
++    : path.resolve(process.cwd(), rawOutput);
++  return assertInsideRuntime(outputDir, "运行时输出目录");
++}
++
++function findEsbuild() {
++  const pnpmStore = path.resolve(repoRoot, "node_modules/.pnpm");
++  const entries = [];
++  try {
++    for (const entry of fsSync.readdirSync(pnpmStore, { withFileTypes: true })) {
++      if (!entry.isDirectory() || !/^esbuild@/.test(entry.name)) continue;
++      const packageDir = path.resolve(pnpmStore, entry.name, "node_modules/esbuild");
++      const packageJson = path.resolve(packageDir, "package.json");
++      try {
++        const metadata = JSON.parse(fsSync.readFileSync(packageJson, "utf8"));
++        entries.push({ packageDir, version: metadata.version });
++      } catch {
++        // Some pnpm entries can be platform stubs without a usable package.
++      }
++    }
++  } catch {
++    // The error below explains the required setup in user-facing language.
++  }
++
++  entries.sort((left, right) => compareVersions(right.version, left.version));
++  for (const entry of entries) {
++    try {
++      const requireFromPackage = createRequire(path.resolve(entry.packageDir, "package.json"));
++      const esbuild = requireFromPackage("esbuild");
++      return { esbuild, version: entry.version };
++    } catch {
++      // Try the next installed pnpm version, if any.
++    }
++  }
++  throw new Error("找不到可用的 esbuild。请先在 Paperclip 仓库安装依赖，再运行 build-runtime。");
++}
++
++function compareVersions(left, right) {
++  const leftParts = String(left).split(".").map((part) => Number.parseInt(part, 10) || 0);
++  const rightParts = String(right).split(".").map((part) => Number.parseInt(part, 10) || 0);
++  for (let index = 0; index < Math.max(leftParts.length, rightParts.length); index += 1) {
++    const difference = (leftParts[index] ?? 0) - (rightParts[index] ?? 0);
++    if (difference !== 0) return difference;
++  }
++  return 0;
++}
++
++function sha256(bytes) {
++  return createHash("sha256").update(bytes).digest("hex");
++}
++
++async function hashDirectory(directory) {
++  const hash = createHash("sha256");
++  async function visit(current, relative = "") {
++    const entries = await fs.readdir(current, { withFileTypes: true });
++    entries.sort((left, right) => left.name.localeCompare(right.name, "en"));
++    for (const entry of entries) {
++      const rel = relative ? `${relative}/${entry.name}` : entry.name;
++      const absolute = path.resolve(current, entry.name);
++      if (entry.isSymbolicLink()) {
++        const link = await fs.readlink(absolute);
++        hash.update(`L\0${rel}\0${link}\0`);
++      } else if (entry.isDirectory()) {
++        hash.update(`D\0${rel}\0`);
++        await visit(absolute, rel);
++      } else if (entry.isFile()) {
++        hash.update(`F\0${rel}\0`);
++        hash.update(await fs.readFile(absolute));
++      }
++    }
++  }
++  await visit(directory);
++  return hash.digest("hex");
++}
++
++async function copyAsset(source, destination) {
++  const absoluteSource = assertAbsolute(path.resolve(source), "附属文件源路径");
++  const absoluteDestination = assertInsideRuntime(path.resolve(destination), "附属文件目标路径");
++  await fs.mkdir(path.dirname(absoluteDestination), { recursive: true });
++  await fs.copyFile(absoluteSource, absoluteDestination);
++  return sha256(await fs.readFile(absoluteDestination));
++}
++
++async function assertRealRuntimeTarget(target, label) {
++  const absolute = assertInsideRuntime(path.resolve(target), label);
++  const realRuntime = await fs.realpath(runtimeRoot);
++  let nearestExisting = absolute;
++  while (true) {
++    try {
++      await fs.lstat(nearestExisting);
++      break;
++    } catch (error) {
++      if (error?.code !== "ENOENT") throw error;
++      const parent = path.dirname(nearestExisting);
++      if (parent === nearestExisting) throw error;
++      nearestExisting = parent;
++    }
++  }
++  const realParent = await fs.realpath(nearestExisting);
++  const relative = path.relative(realRuntime, realParent);
++  if (relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
++    throw new Error(`${label} 解析后的实际路径逃出了 member-agent/runtime/：${realParent}`);
++  }
++  return absolute;
++}
++
++function getRepoCommit() {
++  try {
++    return execFileSync("git", ["rev-parse", "HEAD"], {
++      cwd: assertAbsolute(path.resolve(repoRoot), "Git 工作目录"),
++      encoding: "utf8",
++      stdio: ["ignore", "pipe", "ignore"],
++    }).trim();
++  } catch {
++    return "unknown";
++  }
++}
++
++function packageNameFromInput(inputPath) {
++  const marker = `${path.sep}node_modules${path.sep}.pnpm${path.sep}`;
++  const normalized = inputPath.replaceAll("/", path.sep);
++  const index = normalized.lastIndexOf(marker);
++  if (index < 0) return "(workspace)";
++  const remainder = normalized.slice(index + marker.length);
++  const packageSegment = remainder.split(path.sep, 1)[0];
++  return packageSegment.replace(/@[0-9].*$/, "");
++}
++
++function reportPackageSizes(metafile, outputFile) {
++  const output = Object.entries(metafile.outputs).find(([candidate]) => {
++    const absoluteCandidate = path.resolve(repoRoot, candidate);
++    return absoluteCandidate.toLowerCase() === outputFile.toLowerCase();
++  })?.[1] ?? Object.values(metafile.outputs)[0];
++  const packageSizes = new Map();
++  for (const [input, contribution] of Object.entries(output?.inputs ?? {})) {
++    const name = packageNameFromInput(input);
++    packageSizes.set(name, (packageSizes.get(name) ?? 0) + contribution.bytesInOutput);
++  }
++  const sorted = Object.fromEntries([...packageSizes.entries()].sort((left, right) => right[1] - left[1]));
++  console.log(`[runtime-build] 包体积（bytes）：${JSON.stringify(sorted)}`);
++}
++
++async function build() {
++  const outputDir = parseOutputDir(process.argv.slice(2));
++  const outputFile = assertInsideRuntime(path.resolve(outputDir, "server/dist/codex-local.mjs"), "esbuild outfile");
++  const distDir = assertInsideRuntime(path.resolve(outputDir, "server/dist"), "运行时 dist 目录");
++  const skillsDestination = assertInsideRuntime(path.resolve(outputDir, "skills/paperclip"), "技能复制目标");
++  const manifestPath = assertInsideRuntime(path.resolve(outputDir, "MANIFEST.json"), "MANIFEST 目标路径");
++  const absWorkingDir = assertAbsolute(path.resolve(repoRoot), "esbuild absWorkingDir");
++
++  const requiredInputs = [
++    adapterEntry,
++    path.resolve(adapterDir, "src/server/codex-auth-merge-decision.cjs"),
++    path.resolve(adapterDir, "src/server/codex-auth-merge-extract.sh"),
++    skillsSource,
++    adapterPackagePath,
++  ];
++  for (const input of requiredInputs) {
++    await fs.access(assertAbsolute(path.resolve(input), "构建输入路径"));
++  }
++
++  const { esbuild, version: esbuildVersion } = findEsbuild();
++  await fs.mkdir(runtimeRoot, { recursive: true });
++  const realMemberAgent = await fs.realpath(memberAgentDir);
++  const realRuntime = await fs.realpath(runtimeRoot);
++  if (path.resolve(realRuntime).toLowerCase() !== path.resolve(realMemberAgent, "runtime").toLowerCase()) {
++    throw new Error(`运行时目录不得是指向其他位置的符号链接或目录联接：${realRuntime}`);
++  }
++  await assertRealRuntimeTarget(outputDir, "运行时输出目录");
++  await assertRealRuntimeTarget(outputFile, "esbuild outfile");
++  await assertRealRuntimeTarget(skillsDestination, "技能复制目标");
++  await assertRealRuntimeTarget(manifestPath, "MANIFEST 目标路径");
++  await fs.mkdir(distDir, { recursive: true });
++  await fs.mkdir(path.dirname(skillsDestination), { recursive: true });
++  const result = await esbuild.build({
++    absWorkingDir,
++    entryPoints: [adapterEntry],
++    outfile: outputFile,
++    bundle: true,
++    platform: "node",
++    format: "esm",
++    target: nodeTarget,
++    banner: {
++      js: 'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);',
++    },
++    metafile: true,
++    logLevel: "silent",
++  });
++
++  if (result.warnings.length > 0) {
++    const formatted = await esbuild.formatMessages(result.warnings, { kind: "warning", color: true });
++    for (const warning of formatted) console.error(warning);
++    throw new Error(`构建产生 ${result.warnings.length} 条警告；请先处理警告再继续。`);
++  }
++  reportPackageSizes(result.metafile, outputFile);
++
++  const assets = {};
++  const assetSpecs = [
++    ["codex-auth-merge-decision.cjs", "server/dist/codex-auth-merge-decision.cjs"],
++    ["codex-auth-merge-extract.sh", "server/dist/codex-auth-merge-extract.sh"],
++  ];
++  for (const [fileName, relativeTarget] of assetSpecs) {
++    const source = path.resolve(adapterDir, "src/server", fileName);
++    const destination = assertInsideRuntime(path.resolve(outputDir, relativeTarget), `附属文件目标 ${fileName}`);
++    await assertRealRuntimeTarget(destination, `附属文件目标 ${fileName}`);
++    assets[relativeTarget.replaceAll("\\", "/")] = await copyAsset(source, destination);
++  }
++
++  await fs.rm(skillsDestination, { recursive: true, force: true });
++  await fs.cp(assertAbsolute(path.resolve(skillsSource), "技能源路径"), skillsDestination, {
++    recursive: true,
++    force: true,
++    dereference: false,
++  });
++
++  const adapterPackage = JSON.parse(await fs.readFile(adapterPackagePath, "utf8"));
++  const manifest = {
++    builtAt: new Date().toISOString(),
++    repoCommit: getRepoCommit(),
++    adapterPackageVersion: adapterPackage.version,
++    bundleSha256: sha256(await fs.readFile(outputFile)),
++    assets,
++    skills: { "paperclip": await hashDirectory(skillsDestination) },
++    esbuildVersion,
++    nodeTarget,
++  };
++  await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
++  console.log(`[runtime-build] 构建完成：${outputDir}`);
++  console.log(`[runtime-build] 清单：${manifestPath}`);
++  console.log(`[runtime-build] 适配器版本：${manifest.adapterPackageVersion}；esbuild ${esbuildVersion}；目标 ${nodeTarget}`);
++}
++
++try {
++  await build();
++} catch (error) {
++  console.error(error instanceof Error ? error.message : String(error));
++  process.exitCode = 1;
++}
+diff --git a/member-agent/src/codex-cli.ts b/member-agent/src/codex-cli.ts
+new file mode 100644
+index 0000000..6f55e16
+--- /dev/null
++++ b/member-agent/src/codex-cli.ts
+@@ -0,0 +1,107 @@
++import { execFile, spawn } from "node:child_process";
++import { access, stat } from "node:fs/promises";
++import path from "node:path";
++import { promisify } from "node:util";
++
++const execFileAsync = promisify(execFile);
++const BUNDLE_FILES = [
++  "server/dist/codex-local.mjs",
++  "server/dist/codex-auth-merge-decision.cjs",
++  "server/dist/codex-auth-merge-extract.sh",
++  "skills/paperclip",
++  "MANIFEST.json",
++] as const;
++
++export function parseCodexVersion(output: string): string | null {
++  const match = /\bcodex-cli\s+(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)\b/i.exec(output);
++  return match?.[1] ?? null;
++}
++
++export async function readCodexVersion(executable: string): Promise<string> {
++  try {
++    const { stdout } = await execFileAsync(executable, ["--version"], { windowsHide: true, timeout: 10_000, maxBuffer: 16 * 1024, encoding: "utf8" });
++    const version = parseCodexVersion(stdout);
++    if (!version) throw new Error();
++    return version;
++  } catch {
++    throw new Error("无法读取 Codex 版本；请确认 codexExecutable 指向可运行的固定版本 codex.exe。");
++  }
++}
++
++export async function isCodexExecutableReady(executable: string): Promise<boolean> {
++  try {
++    const info = await stat(executable);
++    if (!info.isFile() || path.extname(executable).toLowerCase() !== ".exe") return false;
++    await access(executable);
++    return true;
++  } catch { return false; }
++}
++
++/** Check only existence and file type. Never read or return auth.json contents. */
++export async function hasCodexLogin(codexHome: string): Promise<boolean> {
++  try { return (await stat(path.join(codexHome, "auth.json"))).isFile(); }
++  catch { return false; }
++}
++
++export async function missingRuntimeFiles(runtimeDir: string): Promise<string[]> {
++  const missing: string[] = [];
++  for (const relative of BUNDLE_FILES) {
++    try {
++      const target = path.join(runtimeDir, ...relative.split("/"));
++      const info = await stat(target);
++      if (relative === "skills/paperclip" ? !info.isDirectory() : !info.isFile()) missing.push(relative);
++    } catch { missing.push(relative); }
++  }
++  return missing;
++}
++
++export interface CodexCheckResult {
++  executable: boolean;
++  version: string | null;
++  loggedIn: boolean;
++  missingRuntime: string[];
++}
++
++export async function inspectCodexInstallation(input: { executable: string; codexHome: string; runtimeDir: string }, dependencies: {
++  executableReady?: (executable: string) => Promise<boolean>;
++  getVersion?: (executable: string) => Promise<string>;
++  hasLogin?: (codexHome: string) => Promise<boolean>;
++  missingRuntime?: (runtimeDir: string) => Promise<string[]>;
++} = {}): Promise<CodexCheckResult> {
++  const executableReady = dependencies.executableReady ?? isCodexExecutableReady;
++  const getVersion = dependencies.getVersion ?? readCodexVersion;
++  const loginCheck = dependencies.hasLogin ?? hasCodexLogin;
++  const runtimeCheck = dependencies.missingRuntime ?? missingRuntimeFiles;
++  const [executable, versionResult, loggedIn, missingRuntime] = await Promise.all([
++    executableReady(input.executable).catch(() => false),
++    getVersion(input.executable).then((value) => ({ value })).catch(() => ({ value: null })),
++    loginCheck(input.codexHome).catch(() => false),
++    runtimeCheck(input.runtimeDir).catch(() => ["无法检查运行时目录"]),
++  ]);
++  return { executable, version: versionResult.value, loggedIn, missingRuntime };
++}
++
++const LOGIN_ENV_KEYS = [
++  "PATH", "PATHEXT", "SystemRoot", "WINDIR", "TEMP", "TMP", "USERPROFILE", "HOMEDRIVE", "HOMEPATH",
++  "APPDATA", "LOCALAPPDATA", "ProgramData", "ProgramFiles", "ProgramFiles(x86)", "ComSpec", "HOME", "LANG", "TERM",
++] as const;
++
++export function buildLoginEnvironment(source: NodeJS.ProcessEnv, codexHome: string): NodeJS.ProcessEnv {
++  const env: NodeJS.ProcessEnv = {};
++  for (const key of LOGIN_ENV_KEYS) if (source[key] !== undefined) env[key] = source[key];
++  env.CODEX_HOME = codexHome;
++  return env;
++}
++
++/** Runs the Codex device login directly in the caller's terminal; output is never captured or logged. */
++export async function runCodexLogin(executable: string, codexHome: string, sourceEnv: NodeJS.ProcessEnv = process.env, spawnImpl: typeof spawn = spawn): Promise<number> {
++  const child = spawnImpl(executable, ["login", "--device-auth"], {
++    env: buildLoginEnvironment(sourceEnv, codexHome),
++    stdio: "inherit",
++    windowsHide: false,
++  });
++  return await new Promise<number>((resolve, reject) => {
++    child.once("error", () => reject(new Error("无法启动 Codex 登录；请确认 codexExecutable 可运行。")));
++    child.once("close", (code) => resolve(code ?? 1));
++  });
++}
+diff --git a/member-agent/src/config.ts b/member-agent/src/config.ts
+index b4a0fa0..5ae8ceb 100644
+--- a/member-agent/src/config.ts
++++ b/member-agent/src/config.ts
+@@ -8,11 +8,14 @@ import { Redactor } from "./logger.ts";
+ export interface Config {
+   serverUrl: string;
+   agentKey: string;
+-  executor: "echo";
++  executor: "echo" | "codex";
+   projectDirs: Record<string, unknown>;
+   defaultCwd: string;
+   /** Test-only echo delay; real executors must not consume this option. */
+   echoHoldSec: number;
++  codexExecutable?: string;
++  codexHome?: string;
++  runtimeDir?: string;
+ }
+ 
+ export class ConfigError extends Error {
+@@ -25,11 +28,11 @@ function isObject(value: unknown): value is Record<string, unknown> {
+   return typeof value === "object" && value !== null && !Array.isArray(value);
+ }
+ 
+-export function validateConfig(value: unknown, env: NodeJS.ProcessEnv = process.env): Config {
++export function validateConfig(value: unknown, env: NodeJS.ProcessEnv = process.env, options: { requireAgentKey?: boolean } = {}): Config {
+   if (!isObject(value)) throw new ConfigError(["配置错误：配置必须是 JSON 对象，请按示例填写配置文件。"]);
+   const errors: string[] = [];
+   const redactor = new Redactor(); redactor.register(value.agentKey, env.PAPERCLIP_AGENT_KEY);
+-  const allowed = new Set(["serverUrl", "agentKey", "executor", "projectDirs", "defaultCwd", "echoHoldSec"]);
++  const allowed = new Set(["serverUrl", "agentKey", "executor", "projectDirs", "defaultCwd", "echoHoldSec", "codexExecutable", "codexHome", "runtimeDir"]);
+   for (const field of Object.keys(value)) {
+     if (!allowed.has(field)) errors.push(`配置错误：未知字段 ${redactor.redact(JSON.stringify(field))}，请删除或改为正确字段名。`);
+   }
+@@ -44,14 +47,53 @@ export function validateConfig(value: unknown, env: NodeJS.ProcessEnv = process.
+     errors.push("配置错误：serverUrl 必须是 http:// 或 https:// 源地址，不得含路径、查询、片段或账号密码，请填写例如 http://192.168.0.213:3100。");
+   }
+   const agentKey = env.PAPERCLIP_AGENT_KEY ?? value.agentKey;
+-  if (typeof agentKey !== "string" || !agentKey.trim() || /[\r\n]/.test(agentKey)) errors.push("配置错误：agentKey 必须是非空字符串且不得含换行，请填写 Key 或设置 PAPERCLIP_AGENT_KEY 环境变量。");
+-  if (value.executor !== "echo") errors.push('配置错误：executor 本阶段只接受 "echo"，请修改执行器设置。');
++  if (options.requireAgentKey !== false && (typeof agentKey !== "string" || !agentKey.trim() || /[\r\n]/.test(agentKey))) errors.push("配置错误：agentKey 必须是非空字符串且不得含换行，请填写 Key 或设置 PAPERCLIP_AGENT_KEY 环境变量。");
++  if (value.executor !== "echo" && value.executor !== "codex") errors.push('配置错误：executor 必须是 "echo" 或 "codex"，请修改执行器设置。');
+   if (!isObject(value.projectDirs)) errors.push("配置错误：projectDirs 必须是对象，本阶段请填写 {}。");
+   if (typeof value.defaultCwd !== "string") errors.push('配置错误：defaultCwd 必须是字符串，本阶段可填写 ""。');
+   const echoHoldSec = value.echoHoldSec === undefined ? 0 : value.echoHoldSec;
+   if (typeof echoHoldSec !== "number" || !Number.isInteger(echoHoldSec) || echoHoldSec < 0 || echoHoldSec > 600) errors.push("配置错误：echoHoldSec 必须是整数，范围为 0 到 600；此项仅用于 echo 验收测试。");
++  const validateAbsolutePath = (field: "codexExecutable" | "codexHome" | "runtimeDir", options: { required?: boolean; executable?: boolean } = {}): string | undefined => {
++    const candidate = value[field];
++    if (candidate === undefined && options.required !== true) return undefined;
++    if (typeof candidate !== "string" || !candidate.trim() || !path.isAbsolute(candidate)) {
++      errors.push(`配置错误：${field} 必须是绝对路径${options.required === true ? "且为必填项" : ""}，请填写完整本机路径。`);
++      return undefined;
++    }
++    if (options.executable && path.extname(candidate).toLowerCase() !== ".exe") {
++      errors.push(`配置错误：${field} 必须指向 .exe 文件，不支持 .cmd 或 .bat，请填写 Codex 可执行文件的绝对路径。`);
++      return undefined;
++    }
++    return path.resolve(candidate);
++  };
++  let codexExecutable: string | undefined;
++  let codexHome: string | undefined;
++  let runtimeDir: string | undefined;
++  const hasBaseFieldErrors = errors.some((message) => /serverUrl|agentKey|executor 必须|projectDirs|defaultCwd|echoHoldSec/.test(message));
++  if (value.executor === "codex") {
++    if (hasBaseFieldErrors) {
++      // Avoid cascading path diagnostics while the base configuration is
++      // malformed; retain one executor-level hint, then report all Codex path
++      // fields together once the common fields are valid.
++      errors.push("配置错误：executor 的 Codex 配置需要先修复上述基础字段，然后才能校验 Codex 路径。");
++    } else {
++      codexExecutable = validateAbsolutePath("codexExecutable", { required: true, executable: true });
++      codexHome = validateAbsolutePath("codexHome", { required: true });
++      runtimeDir = validateAbsolutePath("runtimeDir", { required: true });
++    }
++    if (codexHome) {
++      const profile = env.USERPROFILE;
++      if (profile && path.resolve(codexHome).toLowerCase() === path.resolve(profile, ".codex").toLowerCase()) {
++        errors.push("配置错误：codexHome 不得使用 %USERPROFILE%\\.codex，请为成员代理设置独立目录。");
++      }
++    }
++  } else {
++    codexExecutable = validateAbsolutePath("codexExecutable", { executable: true });
++    codexHome = validateAbsolutePath("codexHome");
++    runtimeDir = validateAbsolutePath("runtimeDir");
++  }
+   if (errors.length) throw new ConfigError(errors.map((message) => redactor.redact(message)));
+-  return { serverUrl, agentKey: agentKey as string, executor: "echo", projectDirs: value.projectDirs as Record<string, unknown>, defaultCwd: value.defaultCwd as string, echoHoldSec: echoHoldSec as number };
++  return { serverUrl, agentKey: agentKey as string, executor: value.executor as "echo" | "codex", projectDirs: value.projectDirs as Record<string, unknown>, defaultCwd: value.defaultCwd as string, echoHoldSec: echoHoldSec as number, codexExecutable, codexHome, runtimeDir };
+ }
+ 
+ const execFileAsync = promisify(execFile);
+@@ -79,7 +121,7 @@ async function warnPermissions(configPath: string, warn: (message: string) => vo
+   }
+ }
+ 
+-export async function loadConfig(configPath?: string, env: NodeJS.ProcessEnv = process.env, warningSink: (message: string) => void = console.warn): Promise<Config> {
++export async function loadConfig(configPath?: string, env: NodeJS.ProcessEnv = process.env, warningSink: (message: string) => void = console.warn, options: { requireAgentKey?: boolean } = {}): Promise<Config> {
+   if (!configPath && !env.APPDATA) throw new ConfigError(["配置错误：APPDATA 未设置，请使用 --config 指定配置文件。"]);
+   const resolved = path.resolve(configPath ?? path.join(env.APPDATA!, "paperclip-member-agent", "config.json"));
+   let text: string;
+@@ -89,7 +131,7 @@ export async function loadConfig(configPath?: string, env: NodeJS.ProcessEnv = p
+   let value: unknown;
+   try { value = JSON.parse(text); }
+   catch { throw new ConfigError(["配置错误：config.json 不是合法 JSON，请检查逗号、引号和括号。"]); }
+-  const config = validateConfig(value, env);
++  const config = validateConfig(value, env, options);
+   const redactor = new Redactor(); redactor.register(config.agentKey, isObject(value) ? value.agentKey : undefined);
+   await warnPermissions(resolved, (message) => warningSink(redactor.redact(message)));
+   return config;
+diff --git a/member-agent/src/connection.ts b/member-agent/src/connection.ts
+index 9087bfd..cdae813 100644
+--- a/member-agent/src/connection.ts
++++ b/member-agent/src/connection.ts
+@@ -30,6 +30,7 @@ export interface ConnectionOptions {
+   serverUrl: string;
+   agentKey: string;
+   version: string;
++  codexVersion?: string;
+   check?: boolean;
+   signal?: AbortSignal;
+   logger: { write(level: 'info' | 'warn' | 'error' | 'debug', message: string, visible?: boolean): void };
+@@ -43,6 +44,25 @@ export interface ConnectionOptions {
+ interface Outcome { exit?: number; delay?: number; ready: boolean }
+ const nativeClock: Clock = { setTimeout, clearTimeout, random: Math.random };
+ 
++type CodexVersionStatus = "match" | "compatible" | "unsupported";
++function stableVersion(value: unknown): [number, number, number] | null {
++  if (typeof value !== "string" || !/^\d+\.\d+\.\d+$/.test(value)) return null;
++  const parts = value.split(".").map(Number);
++  if (parts.some((part) => !Number.isSafeInteger(part))) return null;
++  return parts as [number, number, number];
++}
++function inSupportedWindow(value: unknown): boolean {
++  const version = stableVersion(value);
++  if (!version) return false;
++  const [major, minor] = version;
++  return major === 0 && minor >= 149 && minor < 161;
++}
++export function codexVersionStatus(current: unknown, pinned: unknown): CodexVersionStatus {
++  if (current === pinned && inSupportedWindow(current)) return "match";
++  if (inSupportedWindow(current) && inSupportedWindow(pinned)) return "compatible";
++  return "unsupported";
++}
++
+ function wait(ms: number, signal: AbortSignal | undefined, clock: Clock): Promise<void> {
+   return new Promise(resolve => {
+     if (signal?.aborted) { resolve(); return; }
+@@ -75,6 +95,8 @@ function connectOnce(options: ConnectionOptions, clock: Clock): Promise<Outcome>
+   return new Promise(resolve => {
+     let closed = false;
+     let ready = false;
++    let versionUnsupported = false;
++    let pinnedCodexVersion: string | undefined;
+     let helloTimer: ReturnType<typeof setTimeout> | undefined;
+     let heartbeatTimer: ReturnType<typeof setTimeout> | undefined;
+     let pingTimer: ReturnType<typeof setTimeout> | undefined;
+@@ -155,7 +177,7 @@ function connectOnce(options: ConnectionOptions, clock: Clock): Promise<Outcome>
+     socket.on('open', () => {
+       if (closed) return;
+       const label = (value: string) => value.slice(0, 255) || 'unknown';
+-      queue.send({ v: 1, type: 'hello', agentVersion: label(options.version), codexVersion: 'none', hostname: label(hostname()), platform: label(platform()) });
++      queue.send({ v: 1, type: 'hello', agentVersion: label(options.version), codexVersion: label(options.codexVersion ?? 'none'), hostname: label(hostname()), platform: label(platform()) });
+       helloTimer = clock.setTimeout(() => { options.logger.write('warn', '服务器 10 秒内未响应 hello，正在重新连接', true); finish(); }, 10_000);
+     });
+     socket.on('close', (code, reason) => {
+@@ -182,11 +204,20 @@ function connectOnce(options: ConnectionOptions, clock: Clock): Promise<Outcome>
+       if (frame.type === 'hello.ack') {
+         if (ready) { options.logger.write('warn', '忽略重复的 hello.ack'); return; }
+         ready = true;
++        pinnedCodexVersion = typeof frame.pinnedCodexVersion === 'string' ? frame.pinnedCodexVersion : undefined;
+         if (helloTimer !== undefined) clock.clearTimeout(helloTimer);
+         options.logger.write('info', `已连接，服务器固定 Codex 版本：${typeof frame.pinnedCodexVersion === 'string' ? frame.pinnedCodexVersion : '未指定'}`, true);
++        if (options.codexVersion && options.codexVersion !== 'none') {
++          const status = codexVersionStatus(options.codexVersion, frame.pinnedCodexVersion);
++          if (status === 'compatible') options.logger.write('warn', `本机 Codex ${options.codexVersion} 与服务器固定版本 ${String(frame.pinnedCodexVersion)} 不同，但都在受支持范围内，继续运行。`, true);
++          if (status === 'unsupported') {
++            versionUnsupported = true;
++            options.logger.write('error', `本机 Codex ${options.codexVersion} 与服务器要求的固定版本 ${typeof frame.pinnedCodexVersion === 'string' ? frame.pinnedCodexVersion : '未知'} 不兼容；需要稳定版 0.149.0 至 0.160.x。`, true);
++          }
++        }
+         try { options.onReady?.(frame); options.onSession?.(send, () => queue.drain()); }
+         catch { options.logger.write('error', '连接初始化失败，请查看日志', true); finish({ exit: 1 }); return; }
+-        if (options.check) { finish({ exit: 0 }); return; }
++        if (options.check) { finish({ exit: versionUnsupported ? 2 : 0 }); return; }
+         const seconds = typeof frame.heartbeatSec === 'number' && Number.isFinite(frame.heartbeatSec) && frame.heartbeatSec > 0 ? frame.heartbeatSec : 15;
+         heartbeat(seconds * 1000);
+         watchPong();
+@@ -197,6 +228,13 @@ function connectOnce(options: ConnectionOptions, clock: Clock): Promise<Outcome>
+       if (frame.type === 'heartbeat') return;
+       if (!['job.start', 'job.cancel'].includes(frame.type)) { options.logger.write('warn', '忽略服务器发来的未知消息类型'); return; }
+       if (!ready) { options.logger.write('warn', '服务器在 hello 完成前发送任务，正在重新连接', true); finish(); return; }
++      if (frame.type === 'job.start' && versionUnsupported) {
++        const jobId = typeof frame.jobId === 'string' ? frame.jobId : '';
++        if (jobId) send({ v: 1, type: 'job.result', jobId, exitCode: 1, signal: null, timedOut: false,
++          errorCode: 'member_agent_codex_version_unsupported',
++          errorMessage: `本机 Codex ${options.codexVersion} 不受支持；服务器固定版本为 ${pinnedCodexVersion ?? '未知'}，需要稳定版 0.149.0 至 0.160.x。` });
++        return;
++      }
+       // Executor work runs in its own Worker. Never await it on the connection
+       // receive path: heartbeat scheduling and cancellation must stay responsive.
+       try {
+diff --git a/member-agent/src/executor-worker.ts b/member-agent/src/executor-worker.ts
+index fc6dea4..8fbd3e4 100644
+--- a/member-agent/src/executor-worker.ts
++++ b/member-agent/src/executor-worker.ts
+@@ -9,9 +9,17 @@ async function run(){
+  try{
+   const module=await import(workerData.executorUrl);
+   // This local delay is exclusively for echo acceptance tests, never a server protocol field.
+-  const executor:Executor=module.createEchoExecutor ? module.createEchoExecutor({echoHoldSec:workerData.echoHoldSec}) : module.default ?? module.echoExecutor;
++  const executor:Executor=module.createCodexExecutor
++   ? module.createCodexExecutor(workerData.executorData)
++   : module.createEchoExecutor
++    ? module.createEchoExecutor({echoHoldSec:workerData.echoHoldSec})
++    : module.default ?? module.echoExecutor;
+   const result=await executor.execute({job:workerData.job,serverUrl:workerData.serverUrl,signal:controller.signal,
+-   log:(stream,text)=>port.postMessage({type:'log',stream,text}),event:event=>port.postMessage({type:'event',event})});
++   log:(stream,text)=>port.postMessage({type:'log',stream,text}),
++   event:event=>port.postMessage({type:'event',event}),
++   meta:meta=>port.postMessage({type:'meta',meta}),
++   usage:usage=>port.postMessage({type:'usage',usage}),
++   childSpawned:pid=>port.postMessage({type:'childSpawned',pid})});
+   port.postMessage({type:'result',result:validateResult(result)});
+  }catch{
+   const result:ExecutorResult={exitCode:1,signal:null,timedOut:false,errorCode:'member_agent_executor_error',errorMessage:'执行器发生内部错误，请检查程序文件与任务参数'};
+diff --git a/member-agent/src/executors/codex-support.ts b/member-agent/src/executors/codex-support.ts
+new file mode 100644
+index 0000000..5f77e64
+--- /dev/null
++++ b/member-agent/src/executors/codex-support.ts
+@@ -0,0 +1,202 @@
++import { createHash } from "node:crypto";
++import { lstat, mkdir, readFile, readdir, rename, rm, symlink, cp, stat as fsStat, realpath as fsRealpath } from "node:fs/promises";
++import path from "node:path";
++
++export interface CodexPathsConfig {
++  projectDirs: Record<string, unknown>;
++  defaultCwd: string;
++  configDir: string;
++  codexHome: string;
++  runtimeDir: string;
++}
++
++function pathInside(parent: string, candidate: string): boolean {
++  const relative = path.relative(path.resolve(parent), path.resolve(candidate));
++  return relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative));
++}
++
++function hasParentSegment(input: string): boolean {
++  return input.split(/[\\/]+/).includes("..");
++}
++
++function looksUnc(input: string): boolean {
++  return /^(?:\\\\|\/\/)/.test(input);
++}
++
++export async function resolveLocalCwd(
++  context: Record<string, unknown>,
++  config: CodexPathsConfig,
++  fileSystem: { stat: typeof fsStat; realpath?: typeof fsRealpath } = { stat: fsStat, realpath: fsRealpath },
++): Promise<{ projectId: string; cwd: string }> {
++  const workspace = isRecord(context.paperclipWorkspace) ? context.paperclipWorkspace : {};
++  const projectId = typeof workspace.projectId === "string" && workspace.projectId.trim()
++    ? workspace.projectId
++    : typeof context.projectId === "string" && context.projectId.trim() ? context.projectId : "";
++  const mapped = projectId ? config.projectDirs[projectId] : undefined;
++  const rawPath = typeof mapped === "string" && mapped.trim() ? mapped : config.defaultCwd;
++  if (!rawPath || !rawPath.trim()) {
++    throw Object.assign(new Error(`项目 ${projectId || "（未提供编号）"} 没有配置本机目录，请在 projectDirs 中添加映射或填写 defaultCwd。`), { code: "member_agent_cwd_unresolved" });
++  }
++  if (hasParentSegment(rawPath)) {
++    throw Object.assign(new Error(`项目 ${projectId || "（未提供编号）"} 的本机目录含有 .. 路径段，请改为规范的绝对路径。`), { code: "member_agent_cwd_unresolved" });
++  }
++  if (looksUnc(rawPath)) {
++    throw Object.assign(new Error(`项目 ${projectId || "（未提供编号）"} 的本机目录不能使用 UNC 路径，请配置本机磁盘上的绝对目录。`), { code: "member_agent_cwd_unresolved" });
++  }
++  if (!path.isAbsolute(rawPath)) {
++    throw Object.assign(new Error(`项目 ${projectId || "（未提供编号）"} 的本机目录必须是绝对路径，请修改 projectDirs 或 defaultCwd。`), { code: "member_agent_cwd_unresolved" });
++  }
++  const cwd = path.resolve(rawPath);
++  const userProfile = process.env.USERPROFILE;
++  const defaultCodexHome = userProfile ? path.join(userProfile, ".codex") : "";
++  const forbidden = [config.configDir, config.codexHome, config.runtimeDir, defaultCodexHome].filter(Boolean);
++  if (forbidden.some((directory) => pathInside(directory, cwd))) {
++    throw Object.assign(new Error(`项目 ${projectId || "（未提供编号）"} 的本机目录位于代理配置、Codex Home 或运行时目录内，请选择独立项目目录。`), { code: "member_agent_cwd_unresolved" });
++  }
++  let stats;
++  try { stats = await fileSystem.stat(cwd); }
++  catch {
++    throw Object.assign(new Error(`项目 ${projectId || "（未提供编号）"} 的本机目录不存在，请先创建目录并更新 projectDirs 或 defaultCwd。`), { code: "member_agent_cwd_missing" });
++  }
++  if (!stats.isDirectory()) {
++    throw Object.assign(new Error(`项目 ${projectId || "（未提供编号）"} 的本机路径不是目录，请更新 projectDirs 或 defaultCwd。`), { code: "member_agent_cwd_missing" });
++  }
++  const actualCwd = await (fileSystem.realpath ?? fsRealpath)(cwd);
++  for (const directory of forbidden) {
++    let actualProtected = path.resolve(directory);
++    try { actualProtected = await (fileSystem.realpath ?? fsRealpath)(directory); } catch { /* A not-yet-created CODEX_HOME is still guarded lexically. */ }
++    if (pathInside(actualProtected, actualCwd)) {
++      throw Object.assign(new Error(`项目 ${projectId || "（未提供编号）"} 的本机目录位于代理配置、Codex Home 或运行时目录内，请选择独立项目目录。`), { code: "member_agent_cwd_unresolved" });
++    }
++  }
++  return { projectId, cwd: actualCwd };
++}
++
++export function isRecord(value: unknown): value is Record<string, unknown> {
++  return typeof value === "object" && value !== null && !Array.isArray(value);
++}
++
++export function localizeContext(
++  original: Record<string, unknown>,
++  cwd: string,
++  agentHome: string,
++): { context: Record<string, unknown>; suspectedServerPaths: number } {
++  const context: Record<string, unknown> = { ...original };
++  delete context.paperclipWorkspaces;
++  // Handoff is passed through the dedicated getFreshSessionHandoff callback.
++  // Do not retain legacy summary copies that may contain server-side paths.
++  delete context.paperclipSessionHandoffMarkdown;
++  delete context.paperclipContinuationSummary;
++  const workspace = isRecord(original.paperclipWorkspace) ? { ...original.paperclipWorkspace } : {};
++  workspace.cwd = cwd;
++  delete workspace.worktreePath;
++  workspace.agentHome = agentHome;
++  context.paperclipWorkspace = workspace;
++
++  const serverPathPattern = /(?:\b[A-Za-z]:[\\/]|(?:^|[\s"'])\/(?:workspace|workspaces|home|Users|tmp)\/)/g;
++  let suspectedServerPaths = 0;
++  for (const [key, value] of Object.entries(context)) {
++    if (/markdown|summary|description|prompt|guidance/i.test(key) && typeof value === "string") {
++      suspectedServerPaths += [...value.matchAll(serverPathPattern)].length;
++    }
++  }
++  return { context, suspectedServerPaths };
++}
++
++export function rebaseEndpoint(endpoint: string, serverUrl: string): string {
++  try {
++    const source = new URL(endpoint);
++    const base = new URL(serverUrl);
++    source.protocol = base.protocol;
++    source.host = base.host;
++    source.port = base.port;
++    return source.toString();
++  } catch {
++    return endpoint;
++  }
++}
++
++async function hashDirectory(root: string): Promise<string> {
++  const hash = createHash("sha256");
++  const walk = async (directory: string, prefix: string) => {
++    const entries = await readdir(directory, { withFileTypes: true });
++    entries.sort((a, b) => a.name.localeCompare(b.name));
++    for (const entry of entries) {
++      const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
++      const full = path.join(directory, entry.name);
++      if (entry.isSymbolicLink()) {
++        hash.update(`L\0${relative}\0`);
++        hash.update(await readFile(full));
++      } else if (entry.isDirectory()) {
++        hash.update(`D\0${relative}\0`);
++        await walk(full, relative);
++      } else if (entry.isFile()) {
++        const mode = (await lstat(full)).mode & 0o777;
++        hash.update(`F\0${relative}\0${mode}\0`);
++        hash.update(await readFile(full));
++      }
++    }
++  };
++  await walk(root, "");
++  return hash.digest("hex");
++}
++
++export interface SkillFs {
++  lstat: typeof lstat;
++  mkdir: typeof mkdir;
++  readdir: typeof readdir;
++  readFile: typeof readFile;
++  rename: typeof rename;
++  rm: typeof rm;
++  cp: typeof cp;
++  symlink: typeof symlink;
++}
++
++const nativeFs: SkillFs = { lstat, mkdir, readdir, readFile, rename, rm, cp, symlink };
++
++export async function materializeSkills(
++  runtimeDir: string,
++  codexHome: string,
++  fileSystem: SkillFs = nativeFs,
++): Promise<void> {
++  const sourceRoot = path.join(runtimeDir, "skills");
++  const skillsDir = path.join(codexHome, "skills");
++  await fileSystem.mkdir(skillsDir, { recursive: true });
++  const entries = (await fileSystem.readdir(sourceRoot, { withFileTypes: true }))
++    .filter((entry) => entry.isDirectory())
++    .sort((a, b) => a.name.localeCompare(b.name));
++  for (const entry of entries) {
++    if (entry.name === ".system") continue;
++    const source = path.join(sourceRoot, entry.name);
++    const target = path.join(skillsDir, entry.name);
++    let current;
++    try { current = await fileSystem.lstat(target); }
++    catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
++    if (!current) {
++      await fileSystem.cp(source, target, { recursive: true, errorOnExist: true, force: false });
++      continue;
++    }
++    if (current.isSymbolicLink()) {
++      await fileSystem.rm(target, { recursive: true, force: true });
++      await fileSystem.cp(source, target, { recursive: true, errorOnExist: true, force: false });
++      continue;
++    }
++    if (!current.isDirectory()) {
++      throw new Error(`技能目标 ${entry.name} 已存在但不是目录。`);
++    }
++    if (await hashDirectory(source) === await hashDirectory(target)) continue;
++
++    const token = `${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
++    const staged = path.join(skillsDir, `.${entry.name}.${token}.new`);
++    const backup = path.join(skillsDir, `.${entry.name}.${token}.old`);
++    await fileSystem.cp(source, staged, { recursive: true, errorOnExist: true, force: false });
++    try {
++      await fileSystem.rename(target, backup);
++      try { await fileSystem.rename(staged, target); }
++      catch (error) { await fileSystem.rename(backup, target).catch(() => undefined); throw error; }
++      await fileSystem.rm(backup, { recursive: true, force: true });
++    } finally {
++      await fileSystem.rm(staged, { recursive: true, force: true });
++    }
++  }
++}
+diff --git a/member-agent/src/executors/codex.ts b/member-agent/src/executors/codex.ts
+new file mode 100644
+index 0000000..3fd5e83
+--- /dev/null
++++ b/member-agent/src/executors/codex.ts
+@@ -0,0 +1,238 @@
++import { access, mkdir, stat } from "node:fs/promises";
++import path from "node:path";
++import { pathToFileURL } from "node:url";
++import type { Executor, ExecutorHooks, ExecutorResult, JobStart } from "./types.ts";
++import { isRecord, localizeContext, materializeSkills, rebaseEndpoint, resolveLocalCwd } from "./codex-support.ts";
++
++export interface CodexRuntimeConfig {
++  codexExecutable: string;
++  codexHome: string;
++  runtimeDir: string;
++  projectDirs: Record<string, unknown>;
++  defaultCwd: string;
++  configDir: string;
++}
++
++export interface CodexModule {
++  execute(context: Record<string, unknown>): Promise<unknown>;
++}
++
++export interface CodexExecutorDependencies {
++  loadRuntime?: (entry: string) => Promise<CodexModule>;
++  access?: typeof access;
++  mkdir?: typeof mkdir;
++  stat?: typeof stat;
++  materializeSkills?: typeof materializeSkills;
++  processEnv?: NodeJS.ProcessEnv;
++  warn?: (message: string) => void;
++}
++
++const REQUIRED_ASSETS = [
++  "server/dist/codex-auth-merge-decision.cjs",
++  "server/dist/codex-auth-merge-extract.sh",
++] as const;
++const RESULT_FIELDS = new Set([
++  "exitCode", "signal", "timedOut", "errorCode", "errorMessage", "errorFamily", "retryNotBefore", "errorMeta",
++  "summary", "resultJson", "sessionId", "sessionDisplayId", "sessionParams", "clearSession", "usageComplete",
++  "executionRecovery", "usage", "usageByModel", "usageBasis", "provider", "biller", "model", "billingType",
++  "costUsd", "costUsdExact", "costStatus", "pricingContext", "pricingProvenance", "cacheAdjustedCostUsd", "providerRequestId",
++]);
++const PROCESS_ENV_ALLOWLIST = new Set([
++  "PATH", "Path", "SystemRoot", "SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT", "TEMP", "TMP",
++  "APPDATA", "LOCALAPPDATA", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "HOME", "LANG", "LC_ALL", "TZ",
++  "PROCESSOR_ARCHITECTURE", "PROCESSOR_IDENTIFIER", "NUMBER_OF_PROCESSORS", "OS",
++]);
++
++let cachedRuntime: CodexModule | null = null;
++let cachedRuntimePath = "";
++
++function resultError(errorCode: string, errorMessage: string): ExecutorResult {
++  return { exitCode: 1, signal: null, timedOut: false, errorCode, errorMessage };
++}
++
++function safeAbsolute(input: string): string {
++  return path.resolve(input);
++}
++
++function inside(parent: string, candidate: string): boolean {
++  const relative = path.relative(path.resolve(parent), path.resolve(candidate));
++  return relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative));
++}
++
++function assertCodexHome(config: CodexRuntimeConfig, env: NodeJS.ProcessEnv): string {
++  if (!path.isAbsolute(config.codexHome)) throw new Error("codexHome 必须是绝对路径，请修改配置后重试。");
++  const home = safeAbsolute(config.codexHome);
++  const profile = env.USERPROFILE ?? env.HOME;
++  if (profile && path.resolve(profile, ".codex").toLowerCase() === home.toLowerCase()) {
++    throw new Error("codexHome 不能指向用户默认的 .codex 目录，请为成员代理配置独立目录。");
++  }
++  return home;
++}
++
++function prepareProcessEnvironment(env: NodeJS.ProcessEnv, serverUrl: string, codexHome: string): void {
++  for (const key of Object.keys(env)) {
++    if (PROCESS_ENV_ALLOWLIST.has(key)) continue;
++    delete env[key];
++  }
++  env.PAPERCLIP_API_URL = serverUrl;
++  env.CODEX_HOME = codexHome;
++  // The adapter's auth cache is global to the host by default. A member agent
++  // owns its separate CODEX_HOME and must not vend or copy credentials through
++  // that shared cache.
++}
++
++function runtimeEntry(runtimeDir: string): string {
++  return path.join(runtimeDir, "server", "dist", "codex-local.mjs");
++}
++
++async function checkRuntimeFiles(config: CodexRuntimeConfig, dependencies: CodexExecutorDependencies): Promise<void> {
++  if (!path.isAbsolute(config.runtimeDir)) throw new Error("runtimeDir 必须是绝对路径，请运行 build-runtime 并更新配置。");
++  const root = path.resolve(config.runtimeDir);
++  const paths = [runtimeEntry(root), ...REQUIRED_ASSETS.map((item) => path.join(root, item)), path.join(root, "skills", "paperclip")];
++  for (const candidate of paths) {
++    try { await (dependencies.access ?? access)(candidate); }
++    catch { throw new Error("Codex 运行时文件不完整，请重新运行 build-runtime 并将 runtimeDir 指向完整的 runtime 目录。"); }
++  }
++  const skillsStat = await (dependencies.stat ?? stat)(path.join(root, "skills", "paperclip")).catch(() => null);
++  if (!skillsStat?.isDirectory()) throw new Error("Codex 运行时缺少 skills/paperclip 目录，请重新运行 build-runtime。");
++}
++
++async function loadRuntime(config: CodexRuntimeConfig, dependencies: CodexExecutorDependencies): Promise<CodexModule> {
++  const entry = runtimeEntry(path.resolve(config.runtimeDir));
++  if (dependencies.loadRuntime) return dependencies.loadRuntime(entry);
++  if (cachedRuntime && cachedRuntimePath === entry) return cachedRuntime;
++  const imported = await import(pathToFileURL(entry).href) as CodexModule;
++  if (typeof imported.execute !== "function") throw new Error("Codex 运行时入口无效。");
++  cachedRuntime = imported;
++  cachedRuntimePath = entry;
++  return imported;
++}
++
++function rewriteRuntime(job: JobStart, cwd: string): Record<string, unknown> {
++  const runtime = { ...job.runtime };
++  if (isRecord(runtime.sessionParams)) runtime.sessionParams = { ...runtime.sessionParams, cwd };
++  else runtime.sessionParams = { cwd };
++  return runtime;
++}
++
++function buildRuntimeToolEnv(job: JobStart, serverUrl: string): Record<string, string> {
++  const access = job.runtimeTools;
++  if (!access) return {};
++  return {
++    PAPERCLIP_RUNTIME_TOOLS_MCP_URL: rebaseEndpoint(access.mcpEndpoint, serverUrl),
++    PAPERCLIP_RUNTIME_TOOLS_TOKEN: access.bearerToken,
++    PAPERCLIP_RUNTIME_TOOLS_EXPIRES_AT: access.expiresAt,
++    PAPERCLIP_RUNTIME_TOOLS_CONNECTIONS_SEARCH_URL: rebaseEndpoint(access.rest.connectionsSearch, serverUrl),
++    PAPERCLIP_RUNTIME_TOOLS_CONNECTION_REQUEST_URL: rebaseEndpoint(access.rest.connectionRequest, serverUrl),
++    PAPERCLIP_RUNTIME_TOOLS_AVAILABLE: access.tools.join(","),
++    PAPERCLIP_RUNTIME_TOOLS_GUIDANCE: access.guidance,
++  };
++}
++
++function safeResult(input: unknown, warn: (message: string) => void): ExecutorResult {
++  if (!isRecord(input)) return resultError("member_agent_executor_error", "Codex 适配器没有返回有效结果。");
++  const unknownCount = Object.keys(input).filter((key) => !RESULT_FIELDS.has(key)).length;
++  if (unknownCount) warn(`Codex 结果含 ${unknownCount} 个不支持字段，已丢弃。`);
++  const result = Object.fromEntries(Object.entries(input).filter(([key]) => RESULT_FIELDS.has(key))) as unknown as ExecutorResult;
++  if (typeof result.exitCode !== "number" && result.exitCode !== null) {
++    return resultError("member_agent_executor_error", "Codex 适配器返回的退出码无效。");
++  }
++  if (result.exitCode !== 0 && !result.errorCode) result.errorCode = "member_agent_codex_failed";
++  return result;
++}
++
++function coded(error: unknown): { code?: string; message: string } {
++  const value = error as { code?: unknown; message?: unknown };
++  return { code: typeof value?.code === "string" ? value.code : undefined, message: typeof value?.message === "string" ? value.message : "" };
++}
++
++async function executeCodex(hooks: ExecutorHooks, config: CodexRuntimeConfig, dependencies: CodexExecutorDependencies): Promise<ExecutorResult> {
++  const warn = dependencies.warn ?? ((message) => hooks.log("stderr", `警告：${message}\n`));
++  const env = dependencies.processEnv ?? process.env;
++  let cwd = "";
++  let home = "";
++  try {
++    if (!path.isAbsolute(config.codexExecutable) || path.extname(config.codexExecutable).toLowerCase() !== ".exe") {
++      throw Object.assign(new Error("codexExecutable 必须是绝对路径的 .exe 文件，请修改配置。"), { code: "member_agent_configuration_error" });
++    }
++    home = assertCodexHome(config, env);
++    const resolved = await resolveLocalCwd(hooks.job.context, { ...config, codexHome: home, runtimeDir: path.resolve(config.runtimeDir) },
++      { stat: dependencies.stat ?? stat });
++    cwd = resolved.cwd;
++  } catch (error) {
++    const issue = coded(error);
++    return resultError(issue.code ?? "member_agent_cwd_unresolved", issue.message || "无法解析项目本机目录，请检查项目目录映射。");
++  }
++  try {
++    await checkRuntimeFiles(config, dependencies);
++  } catch (error) {
++    return resultError("member_agent_runtime_missing", coded(error).message || "Codex 运行时缺失，请重新运行 build-runtime。");
++  }
++  if (hooks.signal.aborted) return resultError("cancelled", "任务已取消。");
++  try {
++    await (dependencies.mkdir ?? mkdir)(home, { recursive: true });
++    const agentHome = path.join(config.configDir, "agents", hooks.job.agent.id, "home");
++    await (dependencies.mkdir ?? mkdir)(agentHome, { recursive: true });
++  } catch {
++    return resultError("member_agent_configuration_error", "无法准备成员代理的本机目录，请检查路径与权限。");
++  }
++  try {
++    await (dependencies.materializeSkills ?? materializeSkills)(path.resolve(config.runtimeDir), home);
++  } catch {
++    return resultError("member_agent_skill_install_failed", "无法安装 Paperclip 技能到成员 Codex Home，请检查目录权限并重新运行 build-runtime。");
++  }
++
++  const localized = localizeContext(hooks.job.context, cwd, path.join(config.configDir, "agents", hooks.job.agent.id, "home"));
++  if (localized.suspectedServerPaths > 0) warn(`任务文本中检测到 ${localized.suspectedServerPaths} 处疑似服务器路径；未改写任务文本。`);
++  prepareProcessEnvironment(env, hooks.serverUrl, home);
++
++  let module: CodexModule;
++  try { module = await loadRuntime(config, dependencies); }
++  catch {
++    return resultError("member_agent_runtime_missing", "无法加载 Codex 运行时，请重新运行 build-runtime 并检查 Node 版本。");
++  }
++  const extendedHooks = hooks as ExecutorHooks & {
++    meta?: (meta: Record<string, unknown>) => void;
++    usage?: (usage: Record<string, unknown>) => void;
++    childSpawned?: (pid: number) => void;
++  };
++  const ctx: Record<string, unknown> = {
++    runId: hooks.job.jobId,
++    agent: { id: hooks.job.agent.id, companyId: hooks.job.companyId, name: hooks.job.agent.name, adapterType: "codex_local", adapterConfig: {} },
++    runtime: rewriteRuntime(hooks.job, cwd),
++    config: {
++      engine: "cli",
++      command: config.codexExecutable,
++      cwd,
++      timeoutSec: hooks.job.config.maxRunSec ?? 3600,
++      graceSec: 20,
++      env: { CODEX_HOME: home, ...buildRuntimeToolEnv(hooks.job, hooks.serverUrl) },
++      extraArgs: [],
++      managedAiConnection: true,
++    },
++    context: localized.context,
++    executionTarget: { kind: "local" },
++    authToken: hooks.job.authToken,
++    getFreshSessionHandoff: async () => hooks.job.handoffMarkdown.trim() ? hooks.job.handoffMarkdown : null,
++    onLog: hooks.log,
++    onMeta: (value: Record<string, unknown>) => extendedHooks.meta?.(value),
++    onEvent: hooks.event,
++    onUsage: (value: Record<string, unknown>) => extendedHooks.usage?.(value),
++    onSpawn: (metadata: unknown) => {
++      if (isRecord(metadata) && Number.isSafeInteger(metadata.pid) && (metadata.pid as number) > 0) extendedHooks.childSpawned?.(metadata.pid as number);
++    },
++    onRuntimeProgress: () => undefined,
++    signal: hooks.signal,
++  };
++
++  try {
++    const result = safeResult(await module.execute(ctx), warn);
++    return result;
++  } catch {
++    return resultError("member_agent_executor_error", "Codex 执行器发生错误，请检查本机日志。");
++  }
++}
++
++export function createCodexExecutor(config: CodexRuntimeConfig, dependencies: CodexExecutorDependencies = {}): Executor {
++  return { name: "codex", execute: (hooks) => executeCodex(hooks, config, dependencies) };
++}
+diff --git a/member-agent/src/executors/types.ts b/member-agent/src/executors/types.ts
+index 112d783..6370f25 100644
+--- a/member-agent/src/executors/types.ts
++++ b/member-agent/src/executors/types.ts
+@@ -25,6 +25,9 @@ export interface JobStart {
+ export interface ExecutorHooks {
+   log(stream: "stdout" | "stderr", text: string): void;
+   event(event: Record<string, unknown>): void;
++  meta(meta: Record<string, unknown>): void;
++  usage(checkpoint: Record<string, unknown>): void;
++  childSpawned(pid: number): void;
+   signal: AbortSignal;
+   readonly job: JobStart;
+   readonly serverUrl: string;
+diff --git a/member-agent/src/job-runner.ts b/member-agent/src/job-runner.ts
+index ac7c74f..e596f69 100644
+--- a/member-agent/src/job-runner.ts
++++ b/member-agent/src/job-runner.ts
+@@ -1,101 +1,275 @@
+ import { Worker } from 'node:worker_threads';
+ import { StringDecoder } from 'node:string_decoder';
+ import type { Logger } from './logger.ts';
+-import { chunkUtf8, validateEvent, validateResult } from './protocol.ts';
++import { chunkUtf8, validateEvent, validateMeta, validateResult, validateUsage } from './protocol.ts';
+ import type { Frame, JobStart } from './protocol.ts';
+ import type { ExecutorResult } from './executors/types.ts';
++import { terminateProcessTree } from './process-tree.ts';
+ 
+-interface ActiveJob{
+- job:JobStart;worker:Worker|null;logSeq:number;eventSeq:number;suppressed:boolean;stopping:boolean;timedOut:boolean;
+- result:ExecutorResult|null;timer:ReturnType<typeof setTimeout>|null;stopTimer:ReturnType<typeof setTimeout>|null;
+- done:Promise<void>;resolve:()=>void;finishing:boolean;
++interface ActiveJob {
++ job: JobStart;
++ worker: Worker | null;
++ logSeq: number;
++ eventSeq: number;
++ suppressed: boolean;
++ stopping: boolean;
++ timedOut: boolean;
++ result: ExecutorResult | null;
++ timer: ReturnType<typeof setTimeout> | null;
++ stopTimer: ReturnType<typeof setTimeout> | null;
++ done: Promise<void>;
++ resolve: () => void;
++ finishing: boolean;
++ finishPromise: Promise<void> | null;
++ childPids: Set<number>;
++ childPidOverflowLogged: boolean;
++ discardedMetaUsage: number;
++ cleanupFailureMessage: string | null;
++ cleanupPromise: Promise<void> | null;
+ }
+-export class JobRunner{
+- private active:ActiveJob|null=null;
+- private accepting=true;
+- private send:(frame:Frame)=>void;
+- private options:{serverUrl:string;logger:Logger;executorUrl?:URL;executorData?:unknown;echoHoldSec?:number};
+- constructor(options:{serverUrl:string;logger:Logger;send:(frame:Frame)=>void;executorUrl?:URL;executorData?:unknown;echoHoldSec?:number}){this.options=options;this.send=options.send;}
+- get busy(){return this.active!==null;}
+- setSender(send:(frame:Frame)=>void){this.send=send;}
+- private safe(value:unknown):any{
+-  if(typeof value==='string')return this.options.logger.redactor.redact(value);
+-  if(Array.isArray(value))return value.map(item=>this.safe(item));
+-  if(value!==null&&typeof value==='object')return Object.fromEntries(Object.entries(value).map(([key,item])=>[this.options.logger.redactor.redact(key),this.safe(item)]));
++
++type TreeTerminator = (pid: number) => Promise<void>;
++
++interface RunnerOptions {
++ serverUrl: string;
++ logger: Logger;
++ send: (frame: Frame) => void;
++ executorUrl?: URL;
++ executorData?: unknown;
++ echoHoldSec?: number;
++ terminateTree?: TreeTerminator;
++}
++
++export class JobRunner {
++ private active: ActiveJob | null = null;
++ private accepting = true;
++ private send: (frame: Frame) => void;
++ private readonly options: RunnerOptions;
++
++ constructor(options: RunnerOptions) { this.options = options; this.send = options.send; }
++ get busy() { return this.active !== null; }
++ setSender(send: (frame: Frame) => void) { this.send = send; }
++
++ private safe(value: unknown): any {
++  if (typeof value === 'string') return this.options.logger.redactor.redact(value);
++  if (Array.isArray(value)) return value.map(item => this.safe(item));
++  if (value !== null && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key, item]) => [this.options.logger.redactor.redact(key), this.safe(item)]));
+   return value;
+  }
+- start(job:JobStart){
+-  if(!this.accepting)return;
+-  this.options.logger.redactor.register(job.authToken,job.runtimeTools?.bearerToken);
+-  if(this.active){this.send(this.safe({v:1,type:'job.result',jobId:job.jobId,exitCode:1,signal:null,timedOut:false,errorCode:'member_agent_busy',errorMessage:'成员代理正在执行其他任务'}));return;}
+-  let resolve!:()=>void;const done=new Promise<void>(r=>{resolve=r;});
+-  const active:ActiveJob={job,worker:null,logSeq:0,eventSeq:0,suppressed:false,stopping:false,timedOut:false,result:null,timer:null,stopTimer:null,done,resolve,finishing:false};
+-  this.active=active;
++
++ start(job: JobStart) {
++  if (!this.accepting) return;
++  this.options.logger.redactor.register(job.authToken, job.runtimeTools?.bearerToken);
++  if (this.active) {
++   this.send(this.safe({ v: 1, type: 'job.result', jobId: job.jobId, exitCode: 1, signal: null, timedOut: false, errorCode: 'member_agent_busy', errorMessage: '成员代理正在执行其他任务' }));
++   return;
++  }
++  let resolve!: () => void;
++  const done = new Promise<void>(r => { resolve = r; });
++  const active: ActiveJob = {
++   job, worker: null, logSeq: 0, eventSeq: 0, suppressed: false, stopping: false, timedOut: false,
++   result: null, timer: null, stopTimer: null, done, resolve, finishing: false, finishPromise: null,
++   childPids: new Set(), childPidOverflowLogged: false, discardedMetaUsage: 0,
++   cleanupFailureMessage: null, cleanupPromise: null,
++  };
++  this.active = active;
+   // Confirm receipt before module loading, worker creation, or any executor preparation.
+-  try{
+-   this.send({v:1,type:'job.accepted',jobId:job.jobId});
+-   this.options.logger.write('info',`收到任务 ${job.jobId}`,true);
+-   const worker=new Worker(new URL('./executor-worker.ts',import.meta.url),{workerData:{job,serverUrl:this.options.serverUrl,executorUrl:(this.options.executorUrl??new URL('./executors/echo.ts',import.meta.url)).href,executorData:this.options.executorData,echoHoldSec:this.options.echoHoldSec??0},stdout:true,stderr:true,execArgv:[]});
+-   active.worker=worker;
+-   for(const [stream,pipe] of [['stdout',worker.stdout],['stderr',worker.stderr]] as const){
+-    const decoder=new StringDecoder('utf8');
+-    pipe?.on('data',data=>this.log(active,stream,decoder.write(data)));
+-    pipe?.on('end',()=>this.log(active,stream,decoder.end()));
++  try {
++   this.send({ v: 1, type: 'job.accepted', jobId: job.jobId });
++   this.options.logger.write('info', `收到任务 ${job.jobId}`, true);
++   const worker = new Worker(new URL('./executor-worker.ts', import.meta.url), {
++    workerData: { job, serverUrl: this.options.serverUrl, executorUrl: (this.options.executorUrl ?? new URL('./executors/echo.ts', import.meta.url)).href, executorData: this.options.executorData, echoHoldSec: this.options.echoHoldSec ?? 0 },
++    stdout: true, stderr: true, execArgv: [],
++   });
++   active.worker = worker;
++   for (const [stream, pipe] of [['stdout', worker.stdout], ['stderr', worker.stderr]] as const) {
++    const decoder = new StringDecoder('utf8');
++    pipe?.on('data', data => this.log(active, stream, decoder.write(data)));
++    pipe?.on('end', () => this.log(active, stream, decoder.end()));
+    }
+-   worker.on('message',message=>{
+-    if(this.active!==active||active.finishing||active.suppressed)return;
+-    try{
+-     if(message.type==='log'&&['stdout','stderr'].includes(message.stream)&&typeof message.text==='string')this.log(active,message.stream,message.text);
+-     else if(message.type==='event'){const event=validateEvent(message.event);this.send(this.safe({v:1,type:'job.event',jobId:job.jobId,seq:++active.eventSeq,event}));}
+-     else if(message.type==='result'){active.result=validateResult(message.result);void worker.terminate();}
+-    }catch{active.result={exitCode:1,signal:null,timedOut:false,errorCode:'member_agent_executor_error',errorMessage:'执行器返回了无效协议字段'};void worker.terminate();}
++   worker.on('message', message => {
++    if (this.active !== active || active.finishing || active.suppressed) return;
++    if (!message || typeof message !== 'object') return;
++    try {
++     if (message.type === 'log' && ['stdout', 'stderr'].includes(message.stream) && typeof message.text === 'string') {
++      this.log(active, message.stream, message.text);
++     } else if (message.type === 'event') {
++      const event = validateEvent(message.event);
++      this.send(this.safe({ v: 1, type: 'job.event', jobId: job.jobId, seq: ++active.eventSeq, event }));
++     } else if (message.type === 'meta') {
++      let meta: ReturnType<typeof validateMeta> | undefined;
++      try {
++       meta = validateMeta(message.meta);
++      } catch { this.discardMetaUsage(active); }
++      if (meta) this.send(this.safe({ v: 1, type: 'job.meta', jobId: job.jobId, meta }));
++     } else if (message.type === 'usage') {
++      let usage: ReturnType<typeof validateUsage> | undefined;
++      try {
++       usage = validateUsage(message.usage);
++      } catch { this.discardMetaUsage(active); }
++      if (usage) this.send(this.safe({ v: 1, type: 'job.usage', jobId: job.jobId, usage }));
++     } else if (message.type === 'childSpawned') {
++      this.registerChild(active, message.pid);
++     } else if (message.type === 'result') {
++      active.result = validateResult(message.result);
++      void worker.terminate();
++     }
++    } catch {
++     active.result = { exitCode: 1, signal: null, timedOut: false, errorCode: 'member_agent_executor_error', errorMessage: '执行器返回了无效协议字段' };
++     void worker.terminate();
++    }
++   });
++   worker.on('error', () => {
++    active.result = { exitCode: 1, signal: null, timedOut: false, errorCode: 'member_agent_executor_error', errorMessage: '执行器线程发生内部错误，请检查程序文件' };
+    });
+-   worker.on('error',()=>{active.result={exitCode:1,signal:null,timedOut:false,errorCode:'member_agent_executor_error',errorMessage:'执行器线程发生内部错误，请检查程序文件'};});
+-   worker.on('exit',()=>{void this.finish(active);});
+-   const maxRunSec=job.config?.maxRunSec??3600;
+-   active.timer=setTimeout(()=>{void this.stop(active,20,true);},maxRunSec*1000);
+-  }catch{active.result={exitCode:1,signal:null,timedOut:false,errorCode:'member_agent_executor_error',errorMessage:'无法启动执行器，请检查 Node 版本与程序文件'};void this.finish(active);}
++   worker.on('exit', () => { void this.finish(active); });
++   const maxRunSec = job.config?.maxRunSec ?? 3600;
++   active.timer = setTimeout(() => { void this.stop(active, 20, true); }, maxRunSec * 1000);
++  } catch {
++   active.result = { exitCode: 1, signal: null, timedOut: false, errorCode: 'member_agent_executor_error', errorMessage: '无法启动执行器，请检查 Node 版本与程序文件' };
++   void this.finish(active);
++  }
+  }
+- private log(active:ActiveJob,stream:'stdout'|'stderr',text:string){
+-  if(active.suppressed||active.finishing)return;
+-  const safe=this.options.logger.redactor.chunk(`${active.job.jobId}:${stream}`,text);
+-  if(!safe)return;
+-  this.options.logger.write(stream==='stderr'?'warn':'info',safe);
+-  for(const chunk of chunkUtf8(safe))this.send({v:1,type:'job.log',jobId:active.job.jobId,seq:++active.logSeq,stream,chunk});
++
++ private discardMetaUsage(active: ActiveJob) {
++  active.discardedMetaUsage++;
+  }
+- private async finish(active:ActiveJob){
+-  if(active.finishing)return;active.finishing=true;
+-  let resultSent=false;
+-  if(active.timer)clearTimeout(active.timer);if(active.stopTimer)clearTimeout(active.stopTimer);
+-  try{
+-  for(const stream of ['stdout','stderr']){
+-   const safe=this.options.logger.redactor.finish(`${active.job.jobId}:${stream}`);
+-   if(safe&&!active.suppressed){this.options.logger.write('info',safe);for(const chunk of chunkUtf8(safe))this.send({v:1,type:'job.log',jobId:active.job.jobId,seq:++active.logSeq,stream,chunk});}
++
++ private registerChild(active: ActiveJob, pid: unknown) {
++  if (!Number.isSafeInteger(pid) || (pid as number) <= 0) {
++   this.options.logger.write('warn', '忽略无效的执行器子进程号');
++   return;
++  }
++  const value = pid as number;
++  if (active.childPids.has(value)) return;
++  if (active.childPids.size >= 64) {
++   if (!active.childPidOverflowLogged) {
++    active.childPidOverflowLogged = true;
++    this.options.logger.write('warn', '执行器登记的子进程超过 64 个，后续进程号将被忽略');
++   }
++   return;
+   }
+-  let result=active.result??{exitCode:1,signal:null,timedOut:false,errorCode:'member_agent_executor_error',errorMessage:'执行器未返回结果'};
+-  if(active.stopping)result={exitCode:1,signal:null,timedOut:active.timedOut,errorCode:active.timedOut?'member_agent_timeout':'cancelled',errorMessage:active.timedOut?'任务超过本机时长上限':'任务已取消'};
+-  this.options.logger.write('info',`任务结束 ${active.job.jobId}：${result.exitCode===0?'成功':result.errorCode??'失败'}`,true);
+-  if(!active.suppressed){const frame=this.safe({v:1,type:'job.result',jobId:active.job.jobId,...validateResult(result)});resultSent=true;this.send(frame);}
+-  }catch{
+-   if(!active.suppressed&&!resultSent){try{this.send({v:1,type:'job.result',jobId:active.job.jobId,exitCode:1,signal:null,timedOut:false,errorCode:'member_agent_executor_error',errorMessage:'任务收尾失败，请检查本机日志目录与连接'});}catch{/* The connection owns transport error handling. */}}
+-  }finally{if(this.active===active)this.active=null;active.resolve();}
++  active.childPids.add(value);
+  }
+- private stop(active:ActiveJob,graceSec:number,timedOut=false){
+-  if(active.finishing||active.stopping)return active.done;
+-  active.stopping=true;active.timedOut=timedOut;
+-  if(!active.worker){void this.finish(active);return active.done;}
+-  active.worker?.postMessage({type:'cancel'});
+-  active.stopTimer=setTimeout(()=>{void active.worker?.terminate().then(()=>this.finish(active));},Math.max(0,graceSec)*1000);
++
++ private log(active: ActiveJob, stream: 'stdout' | 'stderr', text: string) {
++  if (active.suppressed || active.finishing) return;
++  const safe = this.options.logger.redactor.chunk(`${active.job.jobId}:${stream}`, text);
++  if (!safe) return;
++  this.options.logger.write(stream === 'stderr' ? 'warn' : 'info', safe);
++  for (const chunk of chunkUtf8(safe)) this.send({ v: 1, type: 'job.log', jobId: active.job.jobId, seq: ++active.logSeq, stream, chunk });
++ }
++
++ private terminateChildren(active: ActiveJob): Promise<void> {
++  if (active.cleanupPromise) return active.cleanupPromise;
++  active.cleanupPromise = (async () => {
++   const terminate = this.options.terminateTree ?? terminateProcessTree;
++   // Clean every registered tree concurrently: up to 64 PIDs are allowed,
++   // and serial taskkill timeouts could exceed the server's cancellation window.
++   const outcomes = await Promise.all([...active.childPids].map(async pid => {
++    try { await terminate(pid); return null; }
++    catch {
++     this.options.logger.write('error', `无法终止进程树 ${pid}，请手动检查该进程及其子进程`, true);
++     return pid;
++    }
++   }));
++   const failures = outcomes.filter((pid): pid is number => pid !== null);
++   if (failures.length) {
++    active.cleanupFailureMessage = `本机进程可能未完全结束，请手动检查进程 ${failures.join(', ')}`;
++   }
++  })();
++  return active.cleanupPromise;
++ }
++
++ private finish(active: ActiveJob): Promise<void> {
++  if (active.finishPromise) return active.finishPromise;
++  active.finishing = true;
++  active.finishPromise = this.finishOnce(active);
++  return active.finishPromise;
++ }
++
++ private async finishOnce(active: ActiveJob): Promise<void> {
++  let resultSent = false;
++  if (active.timer) clearTimeout(active.timer);
++  if (active.stopTimer) clearTimeout(active.stopTimer);
++  try {
++   // A returned result is not sufficient proof that Codex's process tree exited.
++   await this.terminateChildren(active);
++   for (const stream of ['stdout', 'stderr']) {
++    const safe = this.options.logger.redactor.finish(`${active.job.jobId}:${stream}`);
++    if (safe && !active.suppressed) {
++     this.options.logger.write('info', safe);
++     for (const chunk of chunkUtf8(safe)) this.send({ v: 1, type: 'job.log', jobId: active.job.jobId, seq: ++active.logSeq, stream, chunk });
++    }
++   }
++   if (active.discardedMetaUsage > 0) this.options.logger.write('warn', `任务结束前已丢弃 ${active.discardedMetaUsage} 条无效 meta/usage`);
++   let result = active.result ?? { exitCode: 1, signal: null, timedOut: false, errorCode: 'member_agent_executor_error', errorMessage: '执行器未返回结果' };
++   if (active.stopping) result = { exitCode: 1, signal: null, timedOut: active.timedOut, errorCode: active.timedOut ? 'member_agent_timeout' : 'cancelled', errorMessage: active.timedOut ? '任务超过本机时长上限' : '任务已取消' };
++   if (active.cleanupFailureMessage) {
++    result = {
++     ...result,
++     exitCode: 1,
++     errorCode: 'member_agent_process_tree_termination_failed',
++     errorMessage: [result.errorMessage, active.cleanupFailureMessage].filter(Boolean).join('；'),
++    };
++   }
++   this.options.logger.write('info', `任务结束 ${active.job.jobId}：${result.exitCode === 0 ? '成功' : result.errorCode ?? '失败'}`, true);
++   if (!active.suppressed) {
++    const frame = this.safe({ v: 1, type: 'job.result', jobId: active.job.jobId, ...validateResult(result) });
++    resultSent = true;
++    this.send(frame);
++   }
++  } catch {
++   if (!active.suppressed && !resultSent) {
++    try { this.send({ v: 1, type: 'job.result', jobId: active.job.jobId, exitCode: 1, signal: null, timedOut: false, errorCode: 'member_agent_executor_error', errorMessage: '任务收尾失败，请检查本机日志目录与连接' }); }
++    catch { /* The connection owns transport error handling. */ }
++   }
++  } finally {
++   if (this.active === active) this.active = null;
++   active.resolve();
++  }
++ }
++
++ private stop(active: ActiveJob, graceSec: number, timedOut = false): Promise<void> {
++  if (active.finishing || active.stopping) return active.done;
++  active.stopping = true;
++  active.timedOut = timedOut;
++  if (!active.worker) { void this.finish(active); return active.done; }
++  active.worker.postMessage({ type: 'cancel' });
++  active.stopTimer = setTimeout(() => {
++   void active.worker?.terminate().catch(() => {}).then(() => this.finish(active));
++  }, Math.max(0, graceSec) * 1000);
+   return active.done;
+  }
+- async cancel(jobId:string,graceSec=20){
+-  if(!this.active||this.active.job.jobId!==jobId){this.options.logger.write('warn','忽略不属于当前任务的取消请求');return;}
+-  await this.stop(this.active,graceSec);
++
++ async cancel(jobId: string, graceSec = 20) {
++  if (!this.active || this.active.job.jobId !== jobId) {
++   this.options.logger.write('warn', '忽略不属于当前任务的取消请求');
++   return;
++  }
++  await this.stop(this.active, graceSec);
+  }
+- async disconnect(){
+-  if(!this.active)return;const active=this.active;active.suppressed=true;
+-  try{this.options.logger.write('warn',`连接断开，已中止任务 ${active.job.jobId}`,true);}finally{await this.stop(active,20);}
++
++ async disconnect(graceSec = 20) {
++  if (!this.active) return;
++  const active = this.active;
++  active.suppressed = true;
++  try { this.options.logger.write('warn', `连接断开，已中止任务 ${active.job.jobId}`, true); }
++  finally { await this.stop(active, graceSec); }
++ }
++
++ async shutdown() {
++  this.accepting = false;
++  if (this.active) await this.stop(this.active, 20);
++ }
++
++ async force(): Promise<void> {
++  this.accepting = false;
++  const active = this.active;
++  if (!active) return;
++  active.suppressed = true;
++  active.stopping = true;
++  if (active.worker) await active.worker.terminate().catch(() => {});
++  await this.finish(active);
+  }
+- async shutdown(){this.accepting=false;if(this.active)await this.stop(this.active,20);}
+- force(){this.accepting=false;if(this.active){this.active.suppressed=true;void this.active.worker?.terminate();}}
+ }
+diff --git a/member-agent/src/main.ts b/member-agent/src/main.ts
+index ab7a227..c6ddeb6 100644
+--- a/member-agent/src/main.ts
++++ b/member-agent/src/main.ts
+@@ -1,8 +1,9 @@
+ import { join, resolve } from 'node:path';
+ import { homedir } from 'node:os';
++import { mkdir } from 'node:fs/promises';
+ import { pathToFileURL } from 'node:url';
+ import type { EventEmitter } from 'node:events';
+-import { loadConfig } from './config.ts';
++import { ConfigError, loadConfig } from './config.ts';
+ import { assertTransportAllowed } from './transport-check.ts';
+ import { acquireLock } from './lock.ts';
+ import { Logger } from './logger.ts';
+@@ -10,17 +11,26 @@ import { connectLoop } from './connection.ts';
+ import { JobRunner } from './job-runner.ts';
+ import { AGENT_VERSION } from './executors/echo.ts';
+ import type { JobStart } from './protocol.ts';
++import { hasCodexLogin, inspectCodexInstallation, isCodexExecutableReady, missingRuntimeFiles, readCodexVersion, runCodexLogin } from './codex-cli.ts';
+ 
+-export function installInterrupts(signals:Pick<EventEmitter,'on'|'off'>,runner:{shutdown:()=>Promise<void>;force:()=>void},close:()=>void|Promise<void>,exit:(code:number)=>void){
++export function installInterrupts(signals:Pick<EventEmitter,'on'|'off'>,runner:{shutdown:()=>Promise<void>;force:()=>void|Promise<void>},close:()=>void|Promise<void>,exit:(code:number)=>void){
+  let count=0;
+- const handle=()=>{if(++count>1){runner.force();exit(0);return;}void runner.shutdown().catch(()=>{}).then(close).catch(()=>{});};
++ const handle=()=>{if(++count>1){try{const forced=runner.force();if(forced&&typeof (forced as Promise<void>).then==='function')void Promise.resolve(forced).then(()=>exit(0),()=>exit(0));else exit(0);}catch{exit(0);}return;}void runner.shutdown().catch(()=>{}).then(close).catch(()=>{});};
+  signals.on('SIGINT',handle);
+  return ()=>{signals.off('SIGINT',handle);};
+ }
+-const usage='用法：node member-agent/src/main.ts run|check [--config <文件>]，或 version';
++const usage='用法：node member-agent/src/main.ts run|check|login [--config <文件>]，或 version';
++async function checkCodex(config:Awaited<ReturnType<typeof loadConfig>>,print:(line:string)=>void):Promise<{ok:boolean;version:string|null}>{
++ const result=await inspectCodexInstallation({executable:config.codexExecutable??'',codexHome:config.codexHome??'',runtimeDir:config.runtimeDir??''});
++ print(`${result.executable?'通过':'失败'}：Codex 可执行文件${result.executable?'存在':'不存在或不是 .exe'}`);
++ print(`${result.version?'通过':'失败'}：${result.version?`Codex 版本 ${result.version}`:'无法读取 Codex 版本'}`);
++ print(`${result.loggedIn?'通过':'失败'}：Codex 登录凭据${result.loggedIn?'已存在':'不存在，请先运行 login'}`);
++ print(`${result.missingRuntime.length===0?'通过':'失败'}：运行时包${result.missingRuntime.length===0?'完整':`缺少 ${result.missingRuntime.join(', ')}`}；如需重建，请运行 build-runtime`);
++ return {ok:result.executable&&!!result.version&&result.loggedIn&&result.missingRuntime.length===0,version:result.version};
++}
+ export async function main(args=process.argv.slice(2)):Promise<number>{
+  const command=args[0];let configPath:string|undefined;
+- if(!['run','check','version'].includes(command)|| (command==='version'&&args.length!==1)){console.error(usage);return 2;}
++ if(!['run','check','login','version'].includes(command)|| (command==='version'&&args.length!==1)){console.error(usage);return 2;}
+  for(let i=1;i<args.length;i++){if(args[i]!=='--config'||!args[i+1]||configPath!==undefined){console.error(usage);return 2;}configPath=args[++i];}
+  if(command==='version'){console.log(AGENT_VERSION);return 0;}
+  const stateDir=join(process.env.APPDATA??join(homedir(),'AppData','Roaming'),'paperclip-member-agent');
+@@ -28,19 +38,44 @@ export async function main(args=process.argv.slice(2)):Promise<number>{
+  let release:(()=>Promise<void>)|undefined;
+  let logger:Logger|undefined;
+  try{
+-  const config=await loadConfig(configPath,process.env,message=>warnings.push(message));
++  const config=await loadConfig(configPath,process.env,message=>warnings.push(message),{requireAgentKey:command!=='login'});
++  if(command==='login'){
++   if(config.executor!=='codex')throw new ConfigError(['配置错误：login 只适用于 executor="codex"，请先配置 Codex 执行器。']);
++   if(!config.codexExecutable||!config.codexHome)throw new ConfigError(['配置错误：login 需要设置 codexExecutable 与 codexHome，请使用独立的成员代理 Codex 目录。']);
++   if(!await isCodexExecutableReady(config.codexExecutable))throw new ConfigError(['配置错误：codexExecutable 不存在或不可执行，请填写固定版本的绝对 .exe 路径。']);
++   await mkdir(config.codexHome,{recursive:true});
++   const exitCode=await runCodexLogin(config.codexExecutable,config.codexHome);
++   if(exitCode!==0){console.error(`Codex 登录未成功，退出码 ${exitCode}`);return exitCode||1;}
++   if(!await hasCodexLogin(config.codexHome)){console.error('Codex 登录结束，但独立 codexHome 中未发现 auth.json；未读取其内容。');return 1;}
++   console.log('Codex 登录完成，独立 CODEX_HOME 中已发现 auth.json（仅检查存在性）。');return 0;
++  }
+   logger=new Logger(join(stateDir,'logs'),[config.agentKey]);
+   for(const warning of warnings)logger.write('warn',warning,true);
++  let codexVersion='none';
++  if(config.executor==='codex'){
++   if(command==='check'){
++    const result=await checkCodex(config,line=>logger!.write(line.startsWith('失败')?'error':'info',line,true));
++    if(!result.ok)throw new ConfigError(['配置错误：Codex 本机检查未全部通过，请按上方提示修复。']);
++    codexVersion=result.version!;
++   }else{
++    if(!config.codexExecutable||!config.runtimeDir)throw new ConfigError(['配置错误：Codex 运行需要 codexExecutable 和 runtimeDir。']);
++    try{codexVersion=await readCodexVersion(config.codexExecutable);}
++    catch{throw new ConfigError(['配置错误：无法读取 Codex 版本，请检查 codexExecutable。']);}
++    const missing=await missingRuntimeFiles(config.runtimeDir);
++    if(missing.length)throw new ConfigError([`配置错误：运行时包缺少 ${missing.join(', ')}，请重新运行 build-runtime。`]);
++   }
++  }
+   release=await acquireLock(stateDir);
+   assertTransportAllowed(config.serverUrl);
+   const stop=new AbortController();
+   let drain:()=>Promise<boolean>=async()=>true;
+-  const runner=new JobRunner({serverUrl:config.serverUrl,logger,send:()=>{},echoHoldSec:config.echoHoldSec});
++  const runner=new JobRunner({serverUrl:config.serverUrl,logger,send:()=>{},echoHoldSec:config.echoHoldSec,
++   ...(config.executor==='codex'?{executorUrl:new URL('./executors/codex.ts',import.meta.url),executorData:{codexExecutable:config.codexExecutable,codexHome:config.codexHome,runtimeDir:config.runtimeDir,projectDirs:config.projectDirs,defaultCwd:config.defaultCwd,configDir:stateDir}}:{})});
+   const dispose=installInterrupts(process,runner,async()=>{
+    try{if(!await drain())logger!.write('warn','退出前结果未能送达服务器，请在看板核对本次运行',true);}finally{stop.abort();}
+   },code=>process.exit(code));
+   try{
+-   return await connectLoop({serverUrl:config.serverUrl,agentKey:config.agentKey,version:AGENT_VERSION,check:command==='check',signal:stop.signal,logger,
++   return await connectLoop({serverUrl:config.serverUrl,agentKey:config.agentKey,version:AGENT_VERSION,codexVersion,check:command==='check',signal:stop.signal,logger,
+     onSession:(send,flush)=>{runner.setSender(send);drain=flush;},onDisconnect:()=>runner.disconnect(),onFrame:frame=>{
+      if(stop.signal.aborted)return;
+      if(frame.type==='job.start')runner.start(frame as unknown as JobStart);
+diff --git a/member-agent/test/build-runtime.test.ts b/member-agent/test/build-runtime.test.ts
+new file mode 100644
+index 0000000..cc57e43
+--- /dev/null
++++ b/member-agent/test/build-runtime.test.ts
+@@ -0,0 +1,131 @@
++import { spawnSync } from "node:child_process";
++import { randomUUID } from "node:crypto";
++import fs from "node:fs/promises";
++import path from "node:path";
++import { tmpdir } from "node:os";
++import { pathToFileURL } from "node:url";
++import { afterAll, beforeAll, describe, expect, it } from "vitest";
++
++const memberAgentDir = path.resolve(import.meta.dirname, "..");
++const repoRoot = path.resolve(memberAgentDir, "..");
++const runtimeDir = path.resolve(memberAgentDir, "runtime");
++const buildScript = path.resolve(memberAgentDir, "scripts/build-runtime.mjs");
++const bundleRelative = path.join("server", "dist", "codex-local.mjs");
++const assets = [
++  path.join("server", "dist", "codex-auth-merge-decision.cjs"),
++  path.join("server", "dist", "codex-auth-merge-extract.sh"),
++];
++
++let repoOutExistedBefore = false;
++let buildOutput = "";
++
++function runBuilder(args: string[] = []) {
++  return spawnSync(process.execPath, [buildScript, ...args], {
++    cwd: repoRoot,
++    encoding: "utf8",
++    windowsHide: true,
++  });
++}
++
++async function copyRuntimeToTemp() {
++  const tempRoot = await fs.mkdtemp(path.join(tmpdir(), "member-agent-runtime-import-"));
++  const copiedRuntime = path.resolve(tempRoot, "runtime");
++  await fs.cp(runtimeDir, copiedRuntime, { recursive: true, dereference: false });
++  return { tempRoot, copiedRuntime };
++}
++
++async function importBundle(copiedRuntime: string) {
++  const bundlePath = path.resolve(copiedRuntime, bundleRelative);
++  return import(`${pathToFileURL(bundlePath).href}?test=${randomUUID()}`);
++}
++
++describe("Codex runtime build", () => {
++  beforeAll(async () => {
++    repoOutExistedBefore = await fs.stat(path.resolve(repoRoot, "out")).then(() => true, () => false);
++    const trackedBefore = spawnSync("git", ["status", "--porcelain", "--untracked-files=no"], { cwd: repoRoot, encoding: "utf8" });
++    const outputStatusBefore = spawnSync("git", ["status", "--porcelain", "--untracked-files=all", "--", "member-agent/runtime", "out"], { cwd: repoRoot, encoding: "utf8" });
++    const build = runBuilder();
++    buildOutput = `${build.stdout ?? ""}${build.stderr ?? ""}`;
++    expect(build.status, buildOutput).toBe(0);
++    const trackedAfter = spawnSync("git", ["status", "--porcelain", "--untracked-files=no"], { cwd: repoRoot, encoding: "utf8" });
++    const outputStatusAfter = spawnSync("git", ["status", "--porcelain", "--untracked-files=all", "--", "member-agent/runtime", "out"], { cwd: repoRoot, encoding: "utf8" });
++    expect(trackedAfter.stdout).toBe(trackedBefore.stdout);
++    expect(outputStatusAfter.stdout).toBe(outputStatusBefore.stdout);
++  }, 120_000);
++
++  afterAll(async () => {
++    const repoOutExistsAfter = await fs.stat(path.resolve(repoRoot, "out")).then(() => true, () => false);
++    expect(repoOutExistsAfter).toBe(repoOutExistedBefore);
++  });
++
++  it("writes the required layout and complete manifest under runtime/", async () => {
++    const expectedPaths = [
++      bundleRelative,
++      ...assets,
++      path.join("skills", "paperclip", "SKILL.md"),
++      "MANIFEST.json",
++    ];
++    for (const relative of expectedPaths) {
++      await expect(fs.access(path.resolve(runtimeDir, relative))).resolves.toBeUndefined();
++    }
++
++    const manifest = JSON.parse(await fs.readFile(path.resolve(runtimeDir, "MANIFEST.json"), "utf8"));
++    expect(manifest).toEqual(expect.objectContaining({
++      builtAt: expect.any(String),
++      repoCommit: expect.any(String),
++      adapterPackageVersion: expect.any(String),
++      bundleSha256: expect.stringMatching(/^[a-f0-9]{64}$/),
++      assets: expect.objectContaining({
++        [assets[0].replaceAll("\\", "/")]: expect.stringMatching(/^[a-f0-9]{64}$/),
++        [assets[1].replaceAll("\\", "/")]: expect.stringMatching(/^[a-f0-9]{64}$/),
++      }),
++      skills: expect.objectContaining({ paperclip: expect.stringMatching(/^[a-f0-9]{64}$/) }),
++      esbuildVersion: expect.any(String),
++      nodeTarget: "node24",
++    }));
++    expect(Number.isNaN(Date.parse(manifest.builtAt))).toBe(false);
++    const packageSizesLine = buildOutput.split(/\r?\n/).find((line) => line.includes("包体积"));
++    expect(packageSizesLine).toBeDefined();
++    const packageSizes = JSON.parse(packageSizesLine!.slice(packageSizesLine!.indexOf("：") + 1));
++    expect(Object.keys(packageSizes).length).toBeGreaterThan(0);
++  });
++
++  it("imports execute from a temporary copy without node_modules ancestors", async () => {
++    const { tempRoot, copiedRuntime } = await copyRuntimeToTemp();
++    try {
++      let ancestor = tempRoot;
++      while (true) {
++        await expect(fs.stat(path.resolve(ancestor, "node_modules"))).rejects.toMatchObject({ code: "ENOENT" });
++        const parent = path.dirname(ancestor);
++        if (parent === ancestor) break;
++        ancestor = parent;
++      }
++      const module = await importBundle(copiedRuntime);
++      expect(typeof module.execute).toBe("function");
++    } finally {
++      await fs.rm(tempRoot, { recursive: true, force: true });
++    }
++  });
++
++  it.each(assets)("fails to import when required sidecar %s is missing", async (relativeAsset) => {
++    const { tempRoot, copiedRuntime } = await copyRuntimeToTemp();
++    try {
++      await fs.rm(path.resolve(copiedRuntime, relativeAsset));
++      await expect(importBundle(copiedRuntime)).rejects.toThrow();
++    } finally {
++      await fs.rm(tempRoot, { recursive: true, force: true });
++    }
++  });
++
++  it.each([
++    ["relative path outside runtime", "member-agent-build-relative-test"],
++    ["parent traversal", path.join("..", "member-agent-build-parent-test")],
++    ["repository root", repoRoot],
++  ])("rejects malicious --out: %s before writing", (_label, outputPath) => {
++    const result = runBuilder(["--out", outputPath]);
++    const output = `${result.stdout ?? ""}${result.stderr ?? ""}`;
++    expect(result.status).toBe(1);
++    expect(output).toMatch(/必须位于 member-agent\/runtime/);
++    expect(output).not.toContain("构建完成");
++  });
++});
+diff --git a/member-agent/test/codex-cli.test.ts b/member-agent/test/codex-cli.test.ts
+new file mode 100644
+index 0000000..31c25e2
+--- /dev/null
++++ b/member-agent/test/codex-cli.test.ts
+@@ -0,0 +1,86 @@
++import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
++import os from "node:os";
++import path from "node:path";
++import { afterEach, describe, expect, it } from "vitest";
++import { validateConfig, ConfigError } from "../src/config.ts";
++import { buildLoginEnvironment, hasCodexLogin, inspectCodexInstallation, missingRuntimeFiles, parseCodexVersion, runCodexLogin } from "../src/codex-cli.ts";
++import { EventEmitter } from "node:events";
++
++const roots: string[] = [];
++async function tempDir() { const dir = await mkdtemp(path.join(os.tmpdir(), "member-codex-cli-")); roots.push(dir); return dir; }
++afterEach(async () => { await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true }))); });
++
++describe("Codex config and local checks", () => {
++  it("parses stable and prerelease codex-cli versions and rejects other output", () => {
++    expect(parseCodexVersion("codex-cli 0.160.0\n")).toBe("0.160.0");
++    expect(parseCodexVersion("codex-cli 0.160.0-beta.2\n")).toBe("0.160.0-beta.2");
++    expect(parseCodexVersion("version unavailable")).toBeNull();
++  });
++
++  it("codex executor requires all three absolute local paths and gives actionable field errors", () => {
++    const input = { serverUrl: "http://127.0.0.1:3100", executor: "codex", projectDirs: {}, defaultCwd: "" };
++    try { validateConfig(input, { PAPERCLIP_AGENT_KEY: "FAKE-agent-key" }); }
++    catch (error) {
++      expect(error).toBeInstanceOf(ConfigError);
++      for (const field of ["codexExecutable", "codexHome", "runtimeDir"]) expect((error as Error).message).toContain(field);
++      expect((error as Error).message).toContain("绝对路径");
++      return;
++    }
++    throw new Error("missing codex paths must fail");
++  });
++
++  it("rejects a non-exe executable, the shared user .codex home, and unknown fields", () => {
++    const root = path.resolve(os.tmpdir(), "codex-config-fixture");
++    const input = { serverUrl: "http://127.0.0.1:3100", executor: "codex", projectDirs: {}, defaultCwd: "", codexExecutable: path.join(root, "codex.cmd"), codexHome: path.join(root, "home"), runtimeDir: path.join(root, "runtime"), typo: true };
++    expect(() => validateConfig(input, { PAPERCLIP_AGENT_KEY: "FAKE-agent-key", USERPROFILE: root })).toThrow(/codexExecutable/);
++    const sharedHome = { ...input, codexExecutable: path.join(root, "codex.exe"), codexHome: path.join(root, ".codex"), typo: undefined };
++    expect(() => validateConfig(sharedHome, { PAPERCLIP_AGENT_KEY: "FAKE-agent-key", USERPROFILE: root })).toThrow(/codexHome/);
++    const normalized = { ...sharedHome, codexHome: path.join(root, "member-codex"), typo: true };
++    expect(() => validateConfig(normalized, { PAPERCLIP_AGENT_KEY: "FAKE-agent-key", USERPROFILE: root })).toThrow(/typo/);
++  });
++
++  it("login environment uses a dedicated CODEX_HOME and omits Paperclip/OpenAI secrets", () => {
++    const env = buildLoginEnvironment({ PATH: "C:\\Windows\\System32", SystemRoot: "C:\\Windows", PAPERCLIP_AGENT_KEY: "FAKE-long-lived-agent-key", OPENAI_API_KEY: "FAKE-provider-key", CODEX_HOME: "C:\\Users\\x\\.codex" }, "C:\\member\\codex-home");
++    expect(env).toEqual({ PATH: "C:\\Windows\\System32", SystemRoot: "C:\\Windows", CODEX_HOME: "C:\\member\\codex-home" });
++  });
++
++  it("check runs all independent probes even when the executable/version checks fail", async () => {
++    const calls: string[] = [];
++    const result = await inspectCodexInstallation({ executable: "fake-codex.exe", codexHome: "fake-home", runtimeDir: "fake-runtime" }, {
++      executableReady: async () => { calls.push("executable"); return false; },
++      getVersion: async () => { calls.push("version"); throw new Error("not a version"); },
++      hasLogin: async () => { calls.push("login"); return false; },
++      missingRuntime: async () => { calls.push("runtime"); return ["bundle"]; },
++    });
++    expect(calls.sort()).toEqual(["executable", "login", "runtime", "version"]);
++    expect(result).toEqual({ executable: false, version: null, loggedIn: false, missingRuntime: ["bundle"] });
++  });
++
++  it("login launches fake codex.exe with device auth, inherited stdio, and sanitized environment", async () => {
++    let actual: any;
++    const fakeSpawn = ((file: string, args: readonly string[], options: any) => {
++      actual = { file, args, options };
++      const child = new EventEmitter();
++      queueMicrotask(() => child.emit("close", 0));
++      return child;
++    }) as any;
++    const code = await runCodexLogin("C:\\fake\\codex.exe", "C:\\member\\home", { PATH: "C:\\Windows", PAPERCLIP_AGENT_KEY: "FAKE-long-lived-key", OPENAI_API_KEY: "FAKE-provider-key" }, fakeSpawn);
++    expect(code).toBe(0);
++    expect(actual.file).toBe("C:\\fake\\codex.exe");
++    expect(actual.args).toEqual(["login", "--device-auth"]);
++    expect(actual.options.stdio).toBe("inherit");
++    expect(actual.options.env).toEqual({ PATH: "C:\\Windows", CODEX_HOME: "C:\\member\\home" });
++  });
++
++  it("checks auth.json existence without reading content and checks every runtime asset", async () => {
++    const root = await tempDir(); const runtime = path.join(root, "runtime");
++    expect(await hasCodexLogin(path.join(root, "home"))).toBe(false);
++    await mkdir(path.join(root, "home"), { recursive: true });
++    await writeFile(path.join(root, "home", "auth.json"), "FAKE-auth-content-must-not-be-read");
++    expect(await hasCodexLogin(path.join(root, "home"))).toBe(true);
++    expect(await missingRuntimeFiles(runtime)).toHaveLength(5);
++    for (const relative of ["server/dist", "skills/paperclip"]) await mkdir(path.join(runtime, relative), { recursive: true });
++    for (const relative of ["server/dist/codex-local.mjs", "server/dist/codex-auth-merge-decision.cjs", "server/dist/codex-auth-merge-extract.sh", "MANIFEST.json"]) await writeFile(path.join(runtime, relative), "test");
++    expect(await missingRuntimeFiles(runtime)).toEqual([]);
++  });
++});
+diff --git a/member-agent/test/codex-executor.test.ts b/member-agent/test/codex-executor.test.ts
+new file mode 100644
+index 0000000..695978a
+--- /dev/null
++++ b/member-agent/test/codex-executor.test.ts
+@@ -0,0 +1,236 @@
++import { afterEach, describe, expect, it, vi } from "vitest";
++import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
++import os from "node:os";
++import path from "node:path";
++import { createCodexExecutor, type CodexExecutorDependencies, type CodexRuntimeConfig } from "../src/executors/codex.ts";
++import type { ExecutorHooks, JobStart } from "../src/executors/types.ts";
++
++const temporary: string[] = [];
++async function tempDir(prefix: string) {
++  const directory = await mkdtemp(path.join(os.tmpdir(), prefix));
++  temporary.push(directory);
++  return directory;
++}
++afterEach(async () => { await Promise.all(temporary.splice(0).map((directory) => rm(directory, { recursive: true, force: true }))); });
++
++function job(overrides: Partial<JobStart> = {}): JobStart {
++  return {
++    v: 1, type: "job.start", jobId: "run-1", companyId: "company-1", agent: { id: "agent-1", name: "Member Codex" },
++    authToken: "FAKE-RUN-TOKEN-ONLY-FOR-TEST", context: { projectId: "project-1", paperclipWorkspace: { projectId: "project-1", cwd: "D:\\server\\work", worktreePath: "D:\\server\\tree", source: "project" } },
++    config: { maxRunSec: 17 }, runtime: { sessionId: "session-1", sessionParams: { cwd: "D:\\server\\work", sessionId: "session-1" } },
++    runtimeTools: null, handoffMarkdown: "  prior handoff  ", codeSyncDir: "D:\\server\\sync", ...overrides,
++  };
++}
++
++async function setup() {
++  const root = await tempDir("paperclip-codex-test-");
++  const configDir = path.join(root, "agent-config");
++  const project = path.join(root, "project");
++  const codexHome = path.join(root, "agent-codex-home");
++  const runtimeDir = path.join(root, "runtime");
++  await Promise.all([mkdir(configDir), mkdir(project), mkdir(path.join(runtimeDir, "server", "dist"), { recursive: true }), mkdir(path.join(runtimeDir, "skills", "paperclip"), { recursive: true })]);
++  await writeFile(path.join(runtimeDir, "server", "dist", "codex-local.mjs"), "// fake bundle\n");
++  await writeFile(path.join(runtimeDir, "server", "dist", "codex-auth-merge-decision.cjs"), "// fake asset\n");
++  await writeFile(path.join(runtimeDir, "server", "dist", "codex-auth-merge-extract.sh"), "# fake asset\n");
++  await writeFile(path.join(runtimeDir, "skills", "paperclip", "SKILL.md"), "fake skill\n");
++  const config: CodexRuntimeConfig = { codexExecutable: path.join(root, "codex.exe"), codexHome, runtimeDir, projectDirs: { "project-1": project }, defaultCwd: "", configDir };
++  const env: NodeJS.ProcessEnv = {
++    PATH: process.env.PATH ?? "", SystemRoot: process.env.SystemRoot ?? "", TEMP: os.tmpdir(), USERPROFILE: root,
++    PAPERCLIP_AGENT_KEY: "FAKE-AGENT-KEY-ONLY-FOR-TEST", OPENAI_API_KEY: "FAKE-OPENAI-KEY-ONLY-FOR-TEST",
++    ANTHROPIC_API_KEY: "FAKE-ANTHROPIC-KEY-ONLY-FOR-TEST", CODEX_HOME: path.join(root, ".codex"), RANDOM_SECRET: "FAKE-OTHER-SECRET",
++  };
++  return { root, configDir, project, codexHome, runtimeDir, config, env };
++}
++
++function hooks(task: JobStart, serverUrl = "http://10.0.0.5:3100"): ExecutorHooks {
++  return { job: task, serverUrl, signal: new AbortController().signal, log: vi.fn(), event: vi.fn() };
++}
++
++function dependencies(capture: (context: Record<string, unknown>) => void, env: NodeJS.ProcessEnv, overrides: Partial<CodexExecutorDependencies> = {}): CodexExecutorDependencies {
++  return {
++    processEnv: env,
++    materializeSkills: async () => undefined,
++    loadRuntime: async () => ({ execute: async (context) => { capture(context); return { exitCode: 0, signal: null, timedOut: false, unexpected: "drop me" }; } }),
++    warn: vi.fn(),
++    ...overrides,
++  };
++}
++
++describe("Codex executor context and privacy boundary", () => {
++  it("constructs the cli context, localizes both cwd fields, and strips secrets from process.env", async () => {
++    const fixture = await setup();
++    let context: Record<string, unknown> | undefined;
++    const warnings: string[] = [];
++    const deps = dependencies((value) => { context = value; }, fixture.env, { warn: (message) => warnings.push(message) });
++    const result = await createCodexExecutor(fixture.config, deps).execute(hooks(job()));
++
++    expect(result.exitCode).toBe(0);
++    expect(context).toBeDefined();
++    expect(context?.runId).toBe("run-1");
++    expect(context?.agent).toEqual({ id: "agent-1", companyId: "company-1", name: "Member Codex", adapterType: "codex_local", adapterConfig: {} });
++    expect(context?.executionTarget).toEqual({ kind: "local" });
++    expect(context?.authToken).toBe("FAKE-RUN-TOKEN-ONLY-FOR-TEST");
++    const contextConfig = context?.config as Record<string, unknown>;
++    expect(contextConfig.engine).toBe("cli");
++    expect(contextConfig.command).toBe(fixture.config.codexExecutable);
++    expect(contextConfig.cwd).toBe(fixture.project);
++    expect(contextConfig.timeoutSec).toBe(17);
++    expect(contextConfig.graceSec).toBe(20);
++    expect(contextConfig.model).toBeUndefined();
++    expect(contextConfig.extraArgs).toEqual([]);
++    expect(contextConfig.managedAiConnection).toBe(true);
++    expect(contextConfig.env).toEqual({ CODEX_HOME: fixture.codexHome });
++    const runtime = context?.runtime as Record<string, unknown>;
++    expect((runtime.sessionParams as Record<string, unknown>).cwd).toBe(fixture.project);
++    expect((runtime.sessionParams as Record<string, unknown>).sessionId).toBe("session-1");
++    const localized = context?.context as Record<string, unknown>;
++    expect((localized.paperclipWorkspace as Record<string, unknown>).cwd).toBe(fixture.project);
++    expect((localized.paperclipWorkspace as Record<string, unknown>).agentHome).toBe(path.join(fixture.configDir, "agents", "agent-1", "home"));
++    expect((localized.paperclipWorkspace as Record<string, unknown>).worktreePath).toBeUndefined();
++    expect(localized.paperclipWorkspaces).toBeUndefined();
++    expect(context).not.toHaveProperty("agentIdentity");
++    expect(context).not.toHaveProperty("runtimeMcp");
++    expect(context).not.toHaveProperty("startupTraceContext");
++    expect(context).not.toHaveProperty("executionTransport");
++    expect(fixture.env.PAPERCLIP_AGENT_KEY).toBeUndefined();
++    expect(fixture.env.OPENAI_API_KEY).toBeUndefined();
++    expect(fixture.env.ANTHROPIC_API_KEY).toBeUndefined();
++    expect(fixture.env.RANDOM_SECRET).toBeUndefined();
++    expect(fixture.env.PAPERCLIP_API_URL).toBe("http://10.0.0.5:3100");
++    expect(fixture.env.CODEX_HOME).toBe(fixture.codexHome);
++    expect(warnings).toContain("Codex 结果含 1 个不支持字段，已丢弃。");
++  });
++
++  it("passes runtime tool access with endpoints rebased to the agent server origin", async () => {
++    const fixture = await setup();
++    let context: Record<string, unknown> | undefined;
++    const task = job({ runtimeTools: {
++      version: 1, guidance: "fake guidance", mcpEndpoint: "http://localhost:3100/api/mcp/run", rest: {
++        connectionsSearch: "http://127.0.0.1:3100/api/connections/search", connectionRequest: "http://paperclip.internal:3100/api/connections/request",
++      }, bearerToken: "FAKE-RUNTIME-TOOL-TOKEN-ONLY-FOR-TEST", expiresAt: "2030-01-01T00:00:00.000Z", tools: ["connections.search"],
++    } });
++    await createCodexExecutor(fixture.config, dependencies((value) => { context = value; }, fixture.env)).execute(hooks(task, "https://board.example"));
++    expect((context?.config as Record<string, any>).env).toEqual({
++      CODEX_HOME: fixture.codexHome,
++      PAPERCLIP_RUNTIME_TOOLS_MCP_URL: "https://board.example/api/mcp/run",
++      PAPERCLIP_RUNTIME_TOOLS_TOKEN: "FAKE-RUNTIME-TOOL-TOKEN-ONLY-FOR-TEST",
++      PAPERCLIP_RUNTIME_TOOLS_EXPIRES_AT: "2030-01-01T00:00:00.000Z",
++      PAPERCLIP_RUNTIME_TOOLS_CONNECTIONS_SEARCH_URL: "https://board.example/api/connections/search",
++      PAPERCLIP_RUNTIME_TOOLS_CONNECTION_REQUEST_URL: "https://board.example/api/connections/request",
++      PAPERCLIP_RUNTIME_TOOLS_AVAILABLE: "connections.search",
++      PAPERCLIP_RUNTIME_TOOLS_GUIDANCE: "fake guidance",
++    });
++  });
++
++  it("returns prior handoff text and removes legacy server handoff copies", async () => {
++    const fixture = await setup();
++    let context: Record<string, unknown> | undefined;
++    let getFresh: (() => Promise<unknown>) | undefined;
++    await createCodexExecutor(fixture.config, dependencies((value) => { context = value; }, fixture.env, {
++      loadRuntime: async () => ({ execute: async (value) => { context = value; getFresh = value.getFreshSessionHandoff as () => Promise<unknown>; return { exitCode: 0, signal: null, timedOut: false }; } }),
++    })).execute(hooks(job({ context: { projectId: "project-1", paperclipSessionHandoffMarkdown: "old D:\\server\\path", paperclipContinuationSummary: "old summary" } })));
++    expect(await getFresh?.()).toBe("  prior handoff  ");
++    expect(context?.context).not.toHaveProperty("paperclipSessionHandoffMarkdown");
++    expect(context?.context).not.toHaveProperty("paperclipContinuationSummary");
++  });
++
++  it("returns null for an empty handoff", async () => {
++    const fixture = await setup();
++    let getFresh: (() => Promise<unknown>) | undefined;
++    await createCodexExecutor(fixture.config, dependencies(() => undefined, fixture.env, {
++      loadRuntime: async () => ({ execute: async (value) => { getFresh = value.getFreshSessionHandoff as () => Promise<unknown>; return { exitCode: 0, signal: null, timedOut: false }; } }),
++    })).execute(hooks(job({ handoffMarkdown: "  \n" })));
++    expect(await getFresh?.()).toBeNull();
++  });
++
++  it("uses the default directory when the project id is absent", async () => {
++    const fixture = await setup();
++    let context: Record<string, unknown> | undefined;
++    const config = { ...fixture.config, projectDirs: {}, defaultCwd: fixture.project };
++    const result = await createCodexExecutor(config, dependencies((value) => { context = value; }, fixture.env)).execute(hooks(job({ context: {} })));
++    expect(result.exitCode).toBe(0);
++    expect((context?.config as Record<string, unknown>).cwd).toBe(fixture.project);
++  });
++
++  it.each([
++    ["missing project mapping", (base: CodexRuntimeConfig) => ({ ...base, projectDirs: {} }), job(), "member_agent_cwd_unresolved"],
++    ["missing mapped directory", (base: CodexRuntimeConfig) => ({ ...base, projectDirs: { "project-1": path.join(os.tmpdir(), "no-such-member-agent-dir") } }), job(), "member_agent_cwd_missing"],
++    ["path under agent config", (base: CodexRuntimeConfig) => ({ ...base, projectDirs: { "project-1": path.join(base.configDir, "inside") } }), job(), "member_agent_cwd_unresolved"],
++    ["parent segment", (base: CodexRuntimeConfig) => ({ ...base, projectDirs: { "project-1": `${base.configDir}\\..\\project` } }), job(), "member_agent_cwd_unresolved"],
++    ["UNC path", (base: CodexRuntimeConfig) => ({ ...base, projectDirs: { "project-1": "\\\\server\\share\\repo" } }), job(), "member_agent_cwd_unresolved"],
++    ["no project id and no default", (base: CodexRuntimeConfig) => ({ ...base, projectDirs: {} }), job({ context: {} }), "member_agent_cwd_unresolved"],
++  ])("fails closed for %s", async (_name, makeConfig, task, code) => {
++    const fixture = await setup();
++    const result = await createCodexExecutor(makeConfig(fixture.config), dependencies(() => undefined, fixture.env)).execute(hooks(task));
++    expect(result.errorCode).toBe(code);
++  });
++
++  it("rejects non-exe command paths", async () => {
++    const fixture = await setup();
++    const result = await createCodexExecutor({ ...fixture.config, codexExecutable: "codex.cmd" }, dependencies(() => undefined, fixture.env)).execute(hooks(job()));
++    expect(result.errorCode).toBe("member_agent_configuration_error");
++    expect(result.errorMessage).toContain("codexExecutable");
++  });
++
++  it("reports a missing bundled runtime with the prescribed recovery guidance", async () => {
++    const fixture = await setup();
++    await rm(path.join(fixture.runtimeDir, "server", "dist", "codex-auth-merge-decision.cjs"));
++    const result = await createCodexExecutor(fixture.config, dependencies(() => undefined, fixture.env)).execute(hooks(job()));
++    expect(result.errorCode).toBe("member_agent_runtime_missing");
++    expect(result.errorMessage).toContain("重新运行 build-runtime");
++    expect(result.errorMessage).not.toContain("ENOENT");
++  });
++
++  it("fails the task when bundled skills cannot be installed", async () => {
++    const fixture = await setup();
++    const result = await createCodexExecutor(fixture.config, dependencies(() => undefined, fixture.env, {
++      materializeSkills: async () => { throw new Error("disk denied"); },
++    })).execute(hooks(job()));
++    expect(result.errorCode).toBe("member_agent_skill_install_failed");
++    expect(result.errorMessage).toContain("技能");
++    expect(result.errorMessage).not.toContain("disk denied");
++  });
++
++  it("maps a failing adapter exit without an error code to the Codex failure code", async () => {
++    const fixture = await setup();
++    const result = await createCodexExecutor(fixture.config, dependencies(() => undefined, fixture.env, {
++      loadRuntime: async () => ({ execute: async () => ({ exitCode: 2, signal: null, timedOut: false }) }),
++    })).execute(hooks(job()));
++    expect(result.errorCode).toBe("member_agent_codex_failed");
++  });
++
++  it("converts adapter exceptions to a short safe result without stack text", async () => {
++    const fixture = await setup();
++    const result = await createCodexExecutor(fixture.config, dependencies(() => undefined, fixture.env, {
++      loadRuntime: async () => ({ execute: async () => { throw new Error(`private stack ${"FAKE-RUN-TOKEN-ONLY-FOR-TEST"}`); } }),
++    })).execute(hooks(job()));
++    expect(result.errorCode).toBe("member_agent_executor_error");
++    expect(result.errorMessage).toBe("Codex 执行器发生错误，请检查本机日志。");
++    expect(JSON.stringify(result)).not.toContain("FAKE-RUN-TOKEN");
++  });
++
++  it("maps spawn, meta, event, and usage callbacks", async () => {
++    const fixture = await setup();
++    const meta = vi.fn(), event = vi.fn(), usage = vi.fn(), childSpawned = vi.fn();
++    let ctx: Record<string, unknown> | undefined;
++    const task = job({ runtimeTools: null });
++    const executor = createCodexExecutor(fixture.config, dependencies((value) => { ctx = value; }, fixture.env, {
++      loadRuntime: async () => ({ execute: async (value) => {
++        (value.onMeta as (x: unknown) => void)({ adapterType: "codex_local", command: "codex.exe" });
++        (value.onEvent as (x: unknown) => void)({ eventType: "progress" });
++        (value.onUsage as (x: unknown) => void)({ complete: false });
++        (value.onSpawn as (x: unknown) => void)({ pid: 321 });
++        (value.onSpawn as (x: unknown) => void)({ pid: -1 });
++        ctx = value;
++        return { exitCode: 0, signal: null, timedOut: false };
++      } }),
++    }));
++    await executor.execute({ ...hooks(task), meta, event, usage, childSpawned } as ExecutorHooks);
++    expect(meta).toHaveBeenCalledWith({ adapterType: "codex_local", command: "codex.exe" });
++    expect(event).toHaveBeenCalledWith({ eventType: "progress" });
++    expect(usage).toHaveBeenCalledWith({ complete: false });
++    expect(childSpawned).toHaveBeenCalledTimes(1);
++    expect(childSpawned).toHaveBeenCalledWith(321);
++    expect(ctx).toBeDefined();
++  });
++});
+diff --git a/member-agent/test/codex-integration.test.ts b/member-agent/test/codex-integration.test.ts
+new file mode 100644
+index 0000000..9c4c315
+--- /dev/null
++++ b/member-agent/test/codex-integration.test.ts
+@@ -0,0 +1,97 @@
++import { createServer } from "node:http";
++import { once } from "node:events";
++import { cp, mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
++import os from "node:os";
++import path from "node:path";
++import { execFile } from "node:child_process";
++import { promisify } from "node:util";
++import { afterEach, describe, expect, it } from "vitest";
++import { Logger } from "../src/logger.ts";
++import { JobRunner } from "../src/job-runner.ts";
++import { readCodexVersion } from "../src/codex-cli.ts";
++
++const execFileAsync = promisify(execFile);
++const CODEx_SOURCE = "D:\\paperclip\\node_modules\\.pnpm\\@openai+codex@0.160.0-win32-x64\\node_modules\\@openai\\codex\\vendor\\x86_64-pc-windows-msvc\\bin\\codex.exe";
++const temporaryRoots: string[] = [];
++async function tempDir() { const root = await mkdtemp(path.join(os.tmpdir(), "member-codex-integration-")); temporaryRoots.push(root); return root; }
++afterEach(async () => { await Promise.all(temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true }))); });
++
++describe("Codex end-to-end adapter integration", () => {
++  it.skipIf(process.platform !== "win32")("uses the packaged adapter, real Codex 0.160.0 and a loopback fake model without credentials", async () => {
++    const source = CODEx_SOURCE;
++    const root = await tempDir();
++    const executable = path.join(root, "codex-0.160.0.exe");
++    await cp(source, executable);
++    await expect(readCodexVersion(executable)).resolves.toBe("0.160.0");
++
++    const cwd = path.join(root, "workspace");
++    const codexHome = path.join(root, "member-codex-home");
++    const configDir = path.join(root, "agent-state");
++    await Promise.all([mkdir(cwd), mkdir(codexHome), mkdir(configDir)]);
++    await execFileAsync("git", ["init", "--quiet"], { cwd, windowsHide: true });
++
++    let requestCount = 0;
++    const prompts: string[] = [];
++    const fakeModel = createServer(async (req, res) => {
++      let bodyText = "";
++      for await (const chunk of req) bodyText += chunk.toString();
++      requestCount++;
++      if (req.method !== "POST" || !req.url?.endsWith("/responses")) { res.writeHead(404); res.end(); return; }
++      prompts.push(bodyText);
++      const request = JSON.parse(bodyText);
++      const message = { id: "msg_phase3", type: "message", role: "assistant", status: "completed", content: [{ type: "output_text", text: "MEMBER_AGENT_PHASE3_INTEGRATION_OK", annotations: [] }] };
++      const result = { id: `resp_phase3_${requestCount}`, object: "response", created_at: 1700000000, status: "completed", model: request.model, output: [message], usage: { input_tokens: 17, output_tokens: 4, total_tokens: 21, input_tokens_details: { cached_tokens: 0 } } };
++      res.writeHead(200, { "content-type": "text/event-stream" });
++      const event = (type: string, data: Record<string, unknown>) => res.write(`event: ${type}\ndata: ${JSON.stringify({ type, ...data })}\n\n`);
++      event("response.created", { response: { ...result, status: "in_progress", output: [] } });
++      event("response.output_item.added", { output_index: 0, item: { ...message, status: "in_progress", content: [] } });
++      event("response.content_part.added", { item_id: message.id, output_index: 0, content_index: 0, part: { type: "output_text", text: "", annotations: [] } });
++      event("response.output_text.delta", { item_id: message.id, output_index: 0, content_index: 0, delta: "MEMBER_AGENT_PHASE3_INTEGRATION_OK" });
++      event("response.output_text.done", { item_id: message.id, output_index: 0, content_index: 0, text: "MEMBER_AGENT_PHASE3_INTEGRATION_OK" });
++      event("response.output_item.done", { output_index: 0, item: message });
++      event("response.completed", { response: result });
++      res.end();
++    });
++    fakeModel.listen(0, "127.0.0.1"); await once(fakeModel, "listening");
++    const address = fakeModel.address(); if (!address || typeof address === "string") throw new Error("fake model failed to bind loopback");
++    const baseUrl = `http://127.0.0.1:${address.port}`;
++    await writeFile(path.join(codexHome, "config.toml"), [
++      'model = "gpt-5.4"', 'model_provider = "phase3_fake"', "[model_providers.phase3_fake]", 'name = "phase3 loopback fake"',
++      `base_url = "${baseUrl}/v1"`, 'wire_api = "responses"', "requires_openai_auth = false", "request_max_retries = 0", "stream_max_retries = 0",
++    ].join("\n"));
++
++    const logDir = path.join(root, "logs"); const logger = new Logger(logDir, ["FAKE-long-lived-key", "FAKE-run-token", "FAKE-tool-token"], () => undefined);
++    const frames: Array<Record<string, any>> = [];
++    const runner = new JobRunner({
++      serverUrl: baseUrl, logger, send: (frame) => frames.push(frame as Record<string, any>),
++      executorUrl: new URL("../src/executors/codex.ts", import.meta.url),
++      executorData: { codexExecutable: executable, codexHome, runtimeDir: path.resolve("runtime"), projectDirs: { "FAKE-project-id": cwd }, defaultCwd: "", configDir },
++    });
++    const job = {
++      v: 1, type: "job.start", jobId: "FAKE-phase3-run-id", companyId: "FAKE-company-id",
++      agent: { id: "FAKE-agent-id", name: "Phase 3 Integration" }, authToken: "FAKE-run-token",
++      context: { projectId: "FAKE-project-id", paperclipWorkspace: { projectId: "FAKE-project-id", cwd: "Z:\\server\\workspace", source: "project_primary" }, paperclipTaskMarkdown: "Reply exactly MEMBER_AGENT_PHASE3_INTEGRATION_OK. Do not use tools." },
++      config: { maxRunSec: 60 }, runtime: { sessionId: null, sessionParams: null, sessionDisplayId: null }, runtimeTools: null,
++      handoffMarkdown: "", codeSyncDir: "",
++    };
++    try {
++      runner.start(job as any);
++      for (let attempt = 0; attempt < 900 && !frames.some((frame) => frame.type === "job.result"); attempt++) await new Promise((resolve) => setTimeout(resolve, 100));
++      const result = frames.find((frame) => frame.type === "job.result");
++      expect(result, "Codex job should reach one terminal protocol result").toBeDefined();
++      expect(result).toMatchObject({ exitCode: 0, timedOut: false });
++      expect(frames.filter((frame) => frame.type === "job.result")).toHaveLength(1);
++      expect(frames.some((frame) => frame.type === "job.accepted")).toBe(true);
++      expect(frames.some((frame) => frame.type === "job.log" && /MEMBER_AGENT_PHASE3_INTEGRATION_OK/.test(String(frame.chunk)))).toBe(true);
++      expect(frames.some((frame) => frame.type === "job.meta")).toBe(true);
++      expect(frames.some((frame) => frame.type === "job.usage")).toBe(true);
++      expect(requestCount).toBeGreaterThan(0);
++      expect(prompts.some((prompt) => /paperclip/i.test(prompt))).toBe(true);
++      const authPath = path.join(codexHome, "auth.json");
++      expect(frames.some((frame) => JSON.stringify(frame).includes(authPath))).toBe(false);
++    } finally {
++      await runner.shutdown();
++      await new Promise<void>((resolve) => fakeModel.close(() => resolve()));
++    }
++  }, 120_000);
++});
+diff --git a/member-agent/test/codex-lifecycle.test.ts b/member-agent/test/codex-lifecycle.test.ts
+new file mode 100644
+index 0000000..fcafd62
+--- /dev/null
++++ b/member-agent/test/codex-lifecycle.test.ts
+@@ -0,0 +1,139 @@
++import { afterEach, describe, expect, it } from "vitest";
++import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
++import { tmpdir } from "node:os";
++import { join } from "node:path";
++import { JobRunner } from "../src/job-runner.ts";
++import { Logger } from "../src/logger.ts";
++import { terminateProcessTree } from "../src/process-tree.ts";
++import type { JobStart } from "../src/protocol.ts";
++
++const dirs: string[] = [];
++const runners: JobRunner[] = [];
++afterEach(async () => {
++  for (const runner of runners.splice(0)) await runner.shutdown();
++  for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true });
++});
++const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
++async function until(predicate: () => boolean, timeoutMs = 5000): Promise<void> {
++  const deadline = Date.now() + timeoutMs;
++  while (!predicate()) {
++    if (Date.now() >= deadline) throw new Error("等待任务生命周期测试超时");
++    await pause(10);
++  }
++}
++function job(id: string, mode: "normal" | "wait" | "block", pids: number[] = [], invalidMetadata = false, maxRunSec = 5, spawnTree = false): JobStart {
++  return {
++    v: 1, type: "job.start", jobId: id, companyId: "fixture-company",
++    agent: { id: "fixture-agent", name: "Fixture" }, authToken: "FAKE-RUN-TOKEN-ONLY-FOR-TESTS",
++    context: { lifecycleFixture: { mode, pids, invalidMetadata, spawnTree } }, config: { maxRunSec }, runtime: {},
++    runtimeTools: null, handoffMarkdown: "", codeSyncDir: "",
++  };
++}
++function setup(options: { terminateTree?: (pid: number) => Promise<void>; mode?: "normal" | "wait" | "block"; pids?: number[]; invalidMetadata?: boolean; maxRunSec?: number; spawnTree?: boolean } = {}) {
++  const dir = mkdtempSync(join(tmpdir(), "member-codex-lifecycle-")); dirs.push(dir);
++  const frames: Record<string, unknown>[] = [];
++  const visible: string[] = [];
++  const logger = new Logger(dir, ["FAKE-AGENT-KEY-ONLY-FOR-TESTS"], (message) => visible.push(message));
++  const runner = new JobRunner({
++    serverUrl: "http://127.0.0.1:1", logger, send: (frame) => frames.push(frame),
++    executorUrl: new URL("./fixtures/lifecycle-executor.ts", import.meta.url),
++    ...(options.terminateTree ? { terminateTree: options.terminateTree } : {}),
++  });
++  runners.push(runner);
++  runner.start(job("lifecycle-job", options.mode ?? "normal", options.pids ?? [], options.invalidMetadata ?? false, options.maxRunSec ?? 5, options.spawnTree ?? false));
++  return { runner, frames, visible, dir };
++}
++const framesOf = (frames: Record<string, unknown>[], type: string) => frames.filter((frame) => frame.type === type);
++function localLog(dir: string): string { return readdirSync(dir).filter(name => name.endsWith(".log")).map(name => readFileSync(join(dir, name), "utf8")).join(""); }
++function treePids(frames: Record<string, unknown>[]): [number, number] | null {
++  const text = framesOf(frames, "job.log").map(frame => typeof frame.chunk === "string" ? frame.chunk : "").join("");
++  const match = /TREE:(\d+):(\d+)/.exec(text);
++  return match ? [Number(match[1]), Number(match[2])] : null;
++}
++function processExists(pid: number): boolean {
++  try { process.kill(pid, 0); return true; }
++  catch (error) { return (error as NodeJS.ErrnoException).code !== "ESRCH"; }
++}
++
++describe("阶段3 job-runner 钩子与进程树收尾", () => {
++  it("把有效 meta 和 usage 分别转成严格协议帧", async () => {
++    const { frames } = setup();
++    await until(() => framesOf(frames, "job.result").length === 1);
++    expect(framesOf(frames, "job.meta")).toHaveLength(1);
++    expect(framesOf(frames, "job.meta")[0]).toMatchObject({ meta: { adapterType: "codex_local", command: "fake.exe" } });
++    expect(framesOf(frames, "job.usage")).toHaveLength(1);
++    expect(framesOf(frames, "job.usage")[0]).toMatchObject({ usage: { complete: true, usage: { inputTokens: 1, outputTokens: 2 } } });
++  });
++
++  it("丢弃无效 meta/usage、计数并继续成功完成任务", async () => {
++    const { frames, dir } = setup({ invalidMetadata: true });
++    await until(() => framesOf(frames, "job.result").length === 1);
++    expect(framesOf(frames, "job.meta")).toHaveLength(0);
++    expect(framesOf(frames, "job.usage")).toHaveLength(0);
++    expect(framesOf(frames, "job.result")[0]).toMatchObject({ exitCode: 0 });
++    expect(localLog(dir)).toContain("已丢弃 2 条无效 meta/usage");
++  });
++
++  it("正整数 PID 去重登记，最多保留 64 个，超额告警", async () => {
++    const killed: number[] = [];
++    const { dir } = setup({ pids: Array.from({ length: 65 }, (_, index) => index + 1000), terminateTree: async (pid) => { killed.push(pid); } });
++    await until(() => killed.length === 64);
++    expect(killed).toHaveLength(64);
++    expect(localLog(dir)).toContain("登记的子进程超过 64 个");
++  });
++
++  it.each([
++    ["normal", "normal"], ["cancel", "wait"], ["timeout", "wait"], ["disconnect", "wait"], ["Ctrl+C shutdown", "wait"], ["force", "block"],
++  ] as const)("%s 路径清理所有已登记进程", async (path, mode) => {
++    const killed: number[] = [];
++    const { runner, frames } = setup({ mode, pids: [43121], maxRunSec: path === "timeout" ? 0.05 : 5, terminateTree: async (pid) => { killed.push(pid); } });
++    if (path !== "normal" && path !== "timeout") await until(() => (runner as any).active?.childPids.has(43121));
++    if (path === "cancel") await runner.cancel("lifecycle-job", 0.05);
++    else if (path === "timeout") await until(() => framesOf(frames, "job.result").length === 1);
++    else if (path === "disconnect") await runner.disconnect(0.1);
++    else if (path === "Ctrl+C shutdown") await runner.shutdown();
++    else if (path === "force") await runner.force();
++    else await until(() => framesOf(frames, "job.result").length === 1);
++    await until(() => !runner.busy);
++    expect(killed).toContain(43121);
++    if (path !== "disconnect" && path !== "force") expect(framesOf(frames, "job.result")).toHaveLength(1);
++    if (path === "disconnect" || path === "force") expect(framesOf(frames, "job.result")).toHaveLength(0);
++  });
++
++  it("并发清理登记的进程树；其中 taskkill 失败时汇总错误且不伪报成功", async () => {
++    let release!: () => void;
++    const barrier = new Promise<void>((resolve) => { release = resolve; });
++    const started: number[] = [];
++    const { frames, dir } = setup({ pids: [77881, 77882], terminateTree: async (pid) => { started.push(pid); await barrier; if (pid === 77882) throw new Error("fixture failure"); } });
++    await until(() => started.length === 2);
++    expect(started.sort()).toEqual([77881, 77882]);
++    release();
++    await until(() => framesOf(frames, "job.result").length === 1);
++    expect(framesOf(frames, "job.result")[0]).toMatchObject({ exitCode: 1, errorCode: "member_agent_process_tree_termination_failed" });
++    expect(framesOf(frames, "job.result")[0]?.errorMessage).toContain("77882");
++    expect(localLog(dir)).toContain("无法终止进程树 77882");
++  });
++
++  it.skipIf(process.platform !== "win32").each([
++    ["normal", "normal"], ["cancel", "wait"], ["timeout", "wait"], ["disconnect", "wait"], ["Ctrl+C shutdown", "wait"], ["force", "block"],
++  ] as const)("Windows 实际进程树：%s 后孙进程也已退出", async (path, mode) => {
++    const { runner, frames } = setup({ mode, maxRunSec: path === "timeout" ? 0.2 : 5, spawnTree: true });
++    let pids: [number, number] | null = null;
++    try {
++      await until(() => (pids = treePids(frames)) !== null);
++      if (path === "cancel") await runner.cancel("lifecycle-job", 0.1);
++      else if (path === "timeout") await until(() => framesOf(frames, "job.result").length === 1);
++      else if (path === "disconnect") await runner.disconnect(0.1);
++      else if (path === "Ctrl+C shutdown") await runner.shutdown();
++      else if (path === "force") await runner.force();
++      else await until(() => framesOf(frames, "job.result").length === 1);
++      await until(() => !runner.busy);
++      const [childPid, grandchildPid] = pids!;
++      await until(() => !processExists(childPid) && !processExists(grandchildPid));
++      expect(processExists(childPid)).toBe(false);
++      expect(processExists(grandchildPid)).toBe(false);
++    } finally {
++      if (pids?.[0] && processExists(pids[0])) await terminateProcessTree(pids[0]).catch(() => {});
++    }
++  }, 20_000);
++});
+diff --git a/member-agent/test/codex-support.test.ts b/member-agent/test/codex-support.test.ts
+new file mode 100644
+index 0000000..2fafcd2
+--- /dev/null
++++ b/member-agent/test/codex-support.test.ts
+@@ -0,0 +1,131 @@
++import { afterEach, describe, expect, it, vi } from "vitest";
++import { cp, lstat, mkdir, readFile, readdir, rename, rm, stat, symlink, writeFile } from "node:fs/promises";
++import os from "node:os";
++import path from "node:path";
++import { localizeContext, materializeSkills, rebaseEndpoint, resolveLocalCwd } from "../src/executors/codex-support.ts";
++
++const roots: string[] = [];
++async function tempDir() { const root = await import("node:fs/promises").then(({ mkdtemp }) => mkdtemp(path.join(os.tmpdir(), "paperclip-codex-support-"))); roots.push(root); return root; }
++afterEach(async () => { await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true }))); });
++
++describe("Codex workspace localization", () => {
++  it("prefers workspace project id then context project id and uses the configured default only if unmapped", async () => {
++    const root = await tempDir();
++    const project = path.join(root, "project");
++    await mkdir(project);
++    const base = { projectDirs: { "context-project": project }, defaultCwd: "", configDir: path.join(root, "agent"), codexHome: path.join(root, "codex"), runtimeDir: path.join(root, "runtime") };
++    expect(await resolveLocalCwd({ projectId: "context-project" }, base)).toEqual({ projectId: "context-project", cwd: project });
++    expect(await resolveLocalCwd({ projectId: "context-project", paperclipWorkspace: { projectId: "missing-project" } }, { ...base, defaultCwd: project })).toEqual({ projectId: "missing-project", cwd: project });
++    expect(await resolveLocalCwd({}, { ...base, defaultCwd: project })).toEqual({ projectId: "", cwd: project });
++  });
++
++  it("rejects directories under Codex home or runtime and rejects a file as cwd", async () => {
++    const root = await tempDir();
++    const project = path.join(root, "project");
++    const codexHome = path.join(root, "codex");
++    const runtimeDir = path.join(root, "runtime");
++    await Promise.all([mkdir(project), mkdir(codexHome), mkdir(runtimeDir)]);
++    const config = { projectDirs: { p: project }, defaultCwd: "", configDir: path.join(root, "agent"), codexHome, runtimeDir };
++    await expect(resolveLocalCwd({ projectId: "p" }, { ...config, projectDirs: { p: codexHome } })).rejects.toMatchObject({ code: "member_agent_cwd_unresolved" });
++    await expect(resolveLocalCwd({ projectId: "p" }, { ...config, projectDirs: { p: runtimeDir } })).rejects.toMatchObject({ code: "member_agent_cwd_unresolved" });
++    const file = path.join(root, "not-a-dir"); await writeFile(file, "x");
++    await expect(resolveLocalCwd({ projectId: "p" }, { ...config, projectDirs: { p: file } })).rejects.toMatchObject({ code: "member_agent_cwd_missing" });
++  });
++
++  it("rejects a project directory whose symlink resolves inside CODEX_HOME", async () => {
++    const root = await tempDir();
++    const alias = path.join(root, "project-alias");
++    const codexHome = path.join(root, "private-codex-home");
++    await mkdir(alias); await mkdir(codexHome);
++    await expect(resolveLocalCwd({ projectId: "p" }, {
++      projectDirs: { p: alias }, defaultCwd: "", configDir: path.join(root, "agent"), codexHome, runtimeDir: path.join(root, "runtime"),
++    }, {
++      stat: async () => ({ isDirectory: () => true } as Awaited<ReturnType<typeof stat>>),
++      realpath: async (candidate: string) => path.resolve(candidate) === path.resolve(alias) ? codexHome : path.resolve(candidate),
++    })).rejects.toMatchObject({ code: "member_agent_cwd_unresolved" });
++  });
++
++  it("rewrites only local workspace fields and counts suspicious server paths without changing task text", () => {
++    const input = { paperclipWorkspaces: [{ cwd: "D:\\paperclip\\server" }], paperclipWorkspace: { cwd: "D:\\paperclip\\server", worktreePath: "D:\\paperclip\\tree", source: "agent_home", projectId: "p" }, paperclipTaskMarkdown: "Read D:\\paperclip\\README.md", paperclipSessionHandoffMarkdown: "old" };
++    const result = localizeContext(input, "E:\\project", "C:\\Users\\test\\AppData\\paperclip\\agents\\a\\home");
++    expect(result.context.paperclipWorkspaces).toBeUndefined();
++    expect(result.context.paperclipTaskMarkdown).toBe(input.paperclipTaskMarkdown);
++    expect(result.context.paperclipSessionHandoffMarkdown).toBeUndefined();
++    expect(result.context.paperclipWorkspace).toEqual({ cwd: "E:\\project", source: "agent_home", projectId: "p", agentHome: "C:\\Users\\test\\AppData\\paperclip\\agents\\a\\home" });
++    expect(result.suspectedServerPaths).toBe(1);
++  });
++
++  it("rebases host, protocol, and port to the configured Paperclip origin", () => {
++    expect(rebaseEndpoint("http://localhost:3100/api/tools?x=1", "https://board.example")).toBe("https://board.example/api/tools?x=1");
++    expect(rebaseEndpoint("http://internal:3100/api/tools", "http://192.168.1.5:4100")).toBe("http://192.168.1.5:4100/api/tools");
++  });
++});
++
++describe("materialized bundled skills", () => {
++  it("copies a missing skill, skips matching content, and atomically replaces changed content", async () => {
++    const root = await tempDir();
++    const runtime = path.join(root, "runtime");
++    const home = path.join(root, "codex-home");
++    const source = path.join(runtime, "skills", "paperclip");
++    const target = path.join(home, "skills", "paperclip");
++    await mkdir(source, { recursive: true });
++    await writeFile(path.join(source, "SKILL.md"), "v1");
++    await materializeSkills(runtime, home);
++    expect(await readFile(path.join(target, "SKILL.md"), "utf8")).toBe("v1");
++    let renameCalls = 0;
++    const instrumentedFs = { lstat, mkdir, readFile, readdir, rm, cp, symlink, rename: async (from: string, to: string) => { renameCalls++; return rename(from, to); } };
++    await materializeSkills(runtime, home, instrumentedFs);
++    expect(renameCalls).toBe(0);
++    await writeFile(path.join(source, "SKILL.md"), "v2");
++    await materializeSkills(runtime, home, instrumentedFs);
++    expect(await readFile(path.join(target, "SKILL.md"), "utf8")).toBe("v2");
++    expect(renameCalls).toBeGreaterThan(0);
++  });
++
++  it("replaces a symlink with a real directory and never creates links (EPERM stub)", async () => {
++    const root = await tempDir();
++    const runtime = path.join(root, "runtime");
++    const home = path.join(root, "codex-home");
++    const source = path.join(runtime, "skills", "paperclip");
++    const target = path.join(home, "skills", "paperclip");
++    const linked = path.join(root, "linked");
++    await mkdir(source, { recursive: true }); await writeFile(path.join(source, "SKILL.md"), "bundled");
++    await mkdir(linked); await writeFile(path.join(linked, "SKILL.md"), "stale");
++    await mkdir(path.dirname(target), { recursive: true });
++    let linkCreated = true;
++    try { await symlink(linked, target, "junction"); }
++    catch (error) {
++      linkCreated = false;
++      if ((error as NodeJS.ErrnoException).code !== "EPERM" && (error as NodeJS.ErrnoException).code !== "EACCES") throw error;
++      // Simulate the already-present link with an ordinary directory and a
++      // lstat substitute, so this replacement branch is tested even when the
++      // host has no privilege to create links.
++      await mkdir(target, { recursive: true });
++      await writeFile(path.join(target, "SKILL.md"), "stale link target");
++    }
++
++    let linkAttempted = false;
++    const inspect = async (candidate: string) => {
++      const value = await lstat(candidate);
++      if (!linkCreated && path.resolve(candidate) === path.resolve(target)) {
++        return Object.assign(Object.create(Object.getPrototypeOf(value)) as typeof value, { isSymbolicLink: () => true, isDirectory: () => false });
++      }
++      return value;
++    };
++    const fakeFs = { lstat: inspect, mkdir, readFile, readdir, rename, rm, cp, symlink: async () => { linkAttempted = true; throw Object.assign(new Error("no symlink permission"), { code: "EPERM" }); } };
++    await materializeSkills(runtime, home, fakeFs);
++    expect(linkAttempted).toBe(false);
++    expect(await readFile(path.join(target, "SKILL.md"), "utf8")).toBe("bundled");
++    expect((await lstat(target)).isSymbolicLink()).toBe(false);
++  });
++
++  it("fails closed when a skill cannot be copied", async () => {
++    const root = await tempDir();
++    const runtime = path.join(root, "runtime");
++    const home = path.join(root, "codex-home");
++    const source = path.join(runtime, "skills", "paperclip");
++    await mkdir(source, { recursive: true }); await writeFile(path.join(source, "SKILL.md"), "bundled");
++    const failureFs = { lstat, mkdir, readFile, readdir, rename, rm, symlink, cp: async () => { throw new Error("disk failure"); } };
++    await expect(materializeSkills(runtime, home, failureFs)).rejects.toThrow();
++  });
++});
+diff --git a/member-agent/test/codex-version.test.ts b/member-agent/test/codex-version.test.ts
+new file mode 100644
+index 0000000..634f89d
+--- /dev/null
++++ b/member-agent/test/codex-version.test.ts
+@@ -0,0 +1,52 @@
++import { createServer } from "node:http";
++import { once } from "node:events";
++import { WebSocketServer } from "ws";
++import { afterEach, describe, expect, it } from "vitest";
++import { codexVersionStatus, connectLoop } from "../src/connection.ts";
++
++const closers: Array<() => Promise<void>> = [];
++afterEach(async () => { for (const close of closers.splice(0)) await close(); });
++
++async function startFakeServer(pinned: string, sendJob = false): Promise<{ url: string; results: any[] }> {
++  const http = createServer();
++  const wss = new WebSocketServer({ server: http });
++  const results: any[] = [];
++  wss.on("connection", (socket) => socket.on("message", (raw) => {
++    const frame = JSON.parse(raw.toString());
++    if (frame.type === "hello") {
++      socket.send(JSON.stringify({ v: 1, type: "hello.ack", heartbeatSec: 60, pinnedCodexVersion: pinned }));
++      if (sendJob) setTimeout(() => socket.send(JSON.stringify({ v: 1, type: "job.start", jobId: "FAKE-version-job" })), 0);
++    } else if (frame.type === "job.result") results.push(frame);
++  }));
++  http.listen(0, "127.0.0.1"); await once(http, "listening");
++  const address = http.address(); if (!address || typeof address === "string") throw new Error("fake server failed to listen");
++  closers.push(() => new Promise<void>((resolve) => wss.close(() => http.close(() => resolve()))));
++  return { url: `http://127.0.0.1:${address.port}`, results };
++}
++
++function logger() { const lines: string[] = []; return { lines, write: (_level: string, line: string) => lines.push(line) }; }
++
++describe("Codex version gate", () => {
++  it("same supported stable version is accepted", () => expect(codexVersionStatus("0.160.0", "0.160.0")).toBe("match"));
++  it("different stable versions inside the supported window are accepted with warning", () => expect(codexVersionStatus("0.159.9", "0.160.0")).toBe("compatible"));
++  it.each([["0.161.0", "0.161.0"], ["0.160.0-beta.1", "0.160.0"], ["unparsed", "0.160.0"], ["0.160.0", "unknown"]])("unsupported or unparsable version %s / %s is rejected", (current, pinned) => expect(codexVersionStatus(current, pinned)).toBe("unsupported"));
++
++  it("unsupported mismatch stays connected and returns the protocol error for each task", async () => {
++    const fake = await startFakeServer("0.161.0", true); const abort = new AbortController(); const log = logger(); let dispatched = false;
++    const running = connectLoop({ serverUrl: fake.url, agentKey: "FAKE-agent-key", version: "0.1", codexVersion: "0.161.0", signal: abort.signal, logger: log,
++      onFrame: () => { dispatched = true; } });
++    for (let i = 0; i < 100 && fake.results.length === 0; i++) await new Promise((resolve) => setTimeout(resolve, 10));
++    expect(fake.results[0]).toMatchObject({ type: "job.result", errorCode: "member_agent_codex_version_unsupported" });
++    expect(dispatched).toBe(false); expect(log.lines.join("\n")).toContain("不兼容");
++    abort.abort(); await expect(running).resolves.toBe(0);
++  });
++
++  it("in-window mismatch warns and still dispatches", async () => {
++    const fake = await startFakeServer("0.160.0", true); const abort = new AbortController(); const log = logger(); let dispatched = false;
++    const running = connectLoop({ serverUrl: fake.url, agentKey: "FAKE-agent-key", version: "0.1", codexVersion: "0.159.9", signal: abort.signal, logger: log,
++      onFrame: () => { dispatched = true; abort.abort(); } });
++    for (let i = 0; i < 100 && !dispatched; i++) await new Promise((resolve) => setTimeout(resolve, 10));
++    expect(dispatched).toBe(true); expect(log.lines.join("\n")).toContain("继续运行");
++    await expect(running).resolves.toBe(0);
++  });
++});
+diff --git a/member-agent/test/fake-model-server.test.ts b/member-agent/test/fake-model-server.test.ts
+new file mode 100644
+index 0000000..26dabeb
+--- /dev/null
++++ b/member-agent/test/fake-model-server.test.ts
+@@ -0,0 +1,27 @@
++import { afterEach, describe, expect, it } from "vitest";
++import { startFakeModelServer } from "./fixtures/fake-model-server.mjs";
++
++const servers: Awaited<ReturnType<typeof startFakeModelServer>>[] = [];
++afterEach(async () => { await Promise.all(servers.splice(0).map((server) => server.close())); });
++
++describe("loopback fake model acceptance server", () => {
++  it("binds only loopback and delays the response for cancellation and timeout checks", async () => {
++    const fake = await startFakeModelServer({ delayMs: 250 });
++    servers.push(fake);
++    const address = fake.server.address();
++    expect(address && typeof address !== "string" ? address.address : "").toBe("127.0.0.1");
++
++    const controller = new AbortController();
++    const startedAt = Date.now();
++    const response = fetch(`${fake.url}/responses`, { method: "POST", body: "{}", signal: controller.signal });
++    setTimeout(() => controller.abort(), 30);
++    await expect(response).rejects.toMatchObject({ name: "AbortError" });
++    expect(Date.now() - startedAt).toBeLessThan(200);
++    await new Promise((resolve) => setTimeout(resolve, 270));
++  });
++
++  it("rejects invalid delays", async () => {
++    await expect(startFakeModelServer({ delayMs: -1 })).rejects.toThrow("delayMs");
++    await expect(startFakeModelServer({ delayMs: 1.5 })).rejects.toThrow("delayMs");
++  });
++});
+diff --git a/member-agent/test/fixtures/fake-model-server.mjs b/member-agent/test/fixtures/fake-model-server.mjs
+new file mode 100644
+index 0000000..ba28dd7
+--- /dev/null
++++ b/member-agent/test/fixtures/fake-model-server.mjs
+@@ -0,0 +1,55 @@
++import { createServer } from "node:http";
++import { pathToFileURL } from "node:url";
++
++/** A deterministic fake Responses endpoint. It binds loopback only and logs no request body or headers. */
++export async function startFakeModelServer({ port = 0, text = "B2_FAKE_MODEL_OK", delayMs = 0 } = {}) {
++  if (!Number.isInteger(delayMs) || delayMs < 0 || delayMs > 600_000) {
++    throw new TypeError("delayMs 必须是 0 到 600000 之间的整数");
++  }
++  const server = createServer(async (request, response) => {
++    for await (const _chunk of request) { /* Consume without retaining prompt or credentials. */ }
++    if (request.method !== "POST" || !request.url?.endsWith("/responses")) {
++      response.writeHead(404, { "content-type": "text/plain" }); response.end("not found"); return;
++    }
++    // A deliberate delay keeps Codex alive for cancellation and timeout acceptance checks.
++    if (delayMs > 0) {
++      await new Promise((resolve) => {
++        const timer = setTimeout(resolve, delayMs);
++        response.once("close", () => { clearTimeout(timer); resolve(); });
++      });
++      if (response.destroyed) return;
++    }
++    const message = { id: "msg_fake", type: "message", role: "assistant", status: "completed", content: [{ type: "output_text", text, annotations: [] }] };
++    const result = { id: "resp_fake", object: "response", created_at: 1700000000, status: "completed", model: "gpt-5.4", output: [message], usage: { input_tokens: 10, output_tokens: 4, total_tokens: 14, input_tokens_details: { cached_tokens: 0 } } };
++    response.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" });
++    const emit = (type, data) => response.write(`event: ${type}\ndata: ${JSON.stringify({ type, ...data })}\n\n`);
++    emit("response.created", { response: { ...result, status: "in_progress", output: [] } });
++    emit("response.output_item.added", { output_index: 0, item: { ...message, status: "in_progress", content: [] } });
++    emit("response.content_part.added", { item_id: message.id, output_index: 0, content_index: 0, part: { type: "output_text", text: "", annotations: [] } });
++    emit("response.output_text.delta", { item_id: message.id, output_index: 0, content_index: 0, delta: text });
++    emit("response.output_text.done", { item_id: message.id, output_index: 0, content_index: 0, text });
++    emit("response.output_item.done", { output_index: 0, item: message });
++    emit("response.completed", { response: result });
++    response.end();
++  });
++  await new Promise((resolve, reject) => {
++    server.once("error", reject);
++    server.listen(port, "127.0.0.1", resolve);
++  });
++  const address = server.address();
++  if (!address || typeof address === "string") throw new Error("fake model server did not bind a TCP port");
++  return { server, port: address.port, url: `http://127.0.0.1:${address.port}`, close: () => new Promise((resolve) => { server.close(resolve); server.closeAllConnections(); }) };
++}
++
++if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
++  const requestedPort = Number(process.argv[2] ?? 43123);
++  const requestedDelayMs = Number(process.argv[3] ?? 0);
++  if (!Number.isInteger(requestedPort) || requestedPort < 0 || requestedPort > 65535 || !Number.isInteger(requestedDelayMs) || requestedDelayMs < 0 || requestedDelayMs > 600_000) {
++    console.error("用法：node fake-model-server.mjs [回环端口] [响应延迟毫秒]"); process.exitCode = 2;
++  } else {
++    const fake = await startFakeModelServer({ port: requestedPort, delayMs: requestedDelayMs });
++    console.log(`FAKE_MODEL_LISTENING ${fake.url} DELAY_MS=${requestedDelayMs}`);
++    const stop = () => { void fake.close().then(() => process.exit(0)); };
++    process.once("SIGINT", stop); process.once("SIGTERM", stop);
++  }
++}
+diff --git a/member-agent/test/fixtures/lifecycle-executor.ts b/member-agent/test/fixtures/lifecycle-executor.ts
+new file mode 100644
+index 0000000..fc225df
+--- /dev/null
++++ b/member-agent/test/fixtures/lifecycle-executor.ts
+@@ -0,0 +1,49 @@
++import type { Executor, ExecutorHooks, ExecutorResult } from "../../src/executors/types.ts";
++import { fork } from "node:child_process";
++import { fileURLToPath } from "node:url";
++
++const success: ExecutorResult = { exitCode: 0, signal: null, timedOut: false };
++
++const executor: Executor = {
++  name: "lifecycle-fixture",
++  async execute(hooks: ExecutorHooks): Promise<ExecutorResult> {
++    const fixture = hooks.job.context.lifecycleFixture as {
++      mode?: string;
++      pids?: number[];
++      invalidMetadata?: boolean;
++      spawnTree?: boolean;
++    } | undefined;
++    for (const pid of fixture?.pids ?? []) hooks.childSpawned(pid);
++    hooks.meta(fixture?.invalidMetadata
++      ? { adapterType: "codex_local", command: "fake.exe", unexpected: true }
++      : { adapterType: "codex_local", command: "fake.exe", commandArgs: [], promptMetrics: {} });
++    hooks.usage(fixture?.invalidMetadata
++      ? { complete: true, unexpected: true }
++      : { complete: true, usage: { inputTokens: 1, outputTokens: 2 }, provider: "openai", billingType: "subscription" });
++    if (fixture?.spawnTree) {
++      const child = fork(fileURLToPath(new URL("./process-tree.mjs", import.meta.url)), [], { stdio: ["ignore", "ignore", "ignore", "ipc"] });
++      if (!child.pid) throw new Error("测试子进程未启动");
++      hooks.childSpawned(child.pid);
++      const grandchildPid = await new Promise<number>((resolve, reject) => {
++        const timeout = setTimeout(() => reject(new Error("测试孙进程未就绪")), 10_000);
++        child.once("message", (message) => {
++          clearTimeout(timeout);
++          resolve((message as { grandchildPid: number }).grandchildPid);
++        });
++        child.once("error", (error) => { clearTimeout(timeout); reject(error); });
++      });
++      hooks.log("stdout", `TREE:${child.pid}:${grandchildPid}\n`);
++    }
++    if (fixture?.mode === "wait") {
++      await new Promise<void>((resolve) => {
++        if (hooks.signal.aborted) return resolve();
++        hooks.signal.addEventListener("abort", () => resolve(), { once: true });
++      });
++      return { ...success, exitCode: 1, errorCode: "cancelled" };
++    }
++    if (fixture?.mode === "block") await new Promise<void>(() => {});
++    return success;
++  },
++};
++
++export default executor;

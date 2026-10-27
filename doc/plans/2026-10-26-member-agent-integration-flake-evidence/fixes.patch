@@ -1,0 +1,145 @@
+diff --git a/src/process-tree.ts b/src/process-tree.ts
+index 0c02cd6..410f4f6 100644
+--- a/src/process-tree.ts
++++ b/src/process-tree.ts
+@@ -15,7 +15,12 @@ export async function terminateProcessTree(pid: number): Promise<void> {
+   if (!processExists(pid)) return;
+   try {
+     await execFileAsync("taskkill.exe", ["/PID", String(pid), "/T", "/F"], { windowsHide: true, timeout: 5_000, encoding: "utf8" });
+-  } catch { throw new Error(`无法终止进程树 ${pid}：taskkill 失败，请检查进程权限。`); }
++  } catch {
++    // The process may exit naturally after the initial existence check but
++    // before taskkill opens it. Treat that race as successful cleanup.
++    if (!processExists(pid)) return;
++    throw new Error(`无法终止进程树 ${pid}：taskkill 失败，请检查进程权限。`);
++  }
+   // taskkill can report before handles disappear; keep verification bounded.
+   for (let attempt = 0; attempt < 20; attempt++) {
+     if (!processExists(pid)) return;
+diff --git a/test/codex-integration.test.ts b/test/codex-integration.test.ts
+index 9c4c315..2922f04 100644
+--- a/test/codex-integration.test.ts
++++ b/test/codex-integration.test.ts
+@@ -1,6 +1,6 @@
+ import { createServer } from "node:http";
+ import { once } from "node:events";
+-import { cp, mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
++import { access, cp, mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+ import os from "node:os";
+ import path from "node:path";
+ import { execFile } from "node:child_process";
+@@ -13,15 +13,38 @@ import { readCodexVersion } from "../src/codex-cli.ts";
+ const execFileAsync = promisify(execFile);
+ const CODEx_SOURCE = "D:\\paperclip\\node_modules\\.pnpm\\@openai+codex@0.160.0-win32-x64\\node_modules\\@openai\\codex\\vendor\\x86_64-pc-windows-msvc\\bin\\codex.exe";
+ const temporaryRoots: string[] = [];
++let lastJobResultDiagnostics: Record<string, unknown> | null = null;
+ async function tempDir() { const root = await mkdtemp(path.join(os.tmpdir(), "member-codex-integration-")); temporaryRoots.push(root); return root; }
+-afterEach(async () => { await Promise.all(temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true }))); });
++async function cachedCodexExecutable(source: string): Promise<string> {
++  // Keep this copied test executable outside per-run cleanup: Windows may keep
++  // its image file locked briefly after exit, making immediate unlink flaky.
++  const cacheRoot = path.join(os.tmpdir(), "paperclip-member-agent-codex-integration");
++  await mkdir(cacheRoot, { recursive: true });
++  const executable = path.join(cacheRoot, "codex-0.160.0.exe");
++  try { await access(executable); }
++  catch { await cp(source, executable); }
++  return executable;
++}
++afterEach(async () => {
++  try {
++    await Promise.all(temporaryRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
++  } catch (error) {
++    const issue = error as NodeJS.ErrnoException;
++    console.error(`CODEX_INTEGRATION_CLEANUP_DIAGNOSTIC_BEGIN\n${JSON.stringify({
++      cleanupError: { code: issue.code ?? null, message: issue.message },
++      jobResult: lastJobResultDiagnostics,
++    }, null, 2)}\nCODEX_INTEGRATION_CLEANUP_DIAGNOSTIC_END`);
++    throw error;
++  } finally {
++    lastJobResultDiagnostics = null;
++  }
++});
+ 
+ describe("Codex end-to-end adapter integration", () => {
+   it.skipIf(process.platform !== "win32")("uses the packaged adapter, real Codex 0.160.0 and a loopback fake model without credentials", async () => {
+     const source = CODEx_SOURCE;
+     const root = await tempDir();
+-    const executable = path.join(root, "codex-0.160.0.exe");
+-    await cp(source, executable);
++    const executable = await cachedCodexExecutable(source);
+     await expect(readCodexVersion(executable)).resolves.toBe("0.160.0");
+ 
+     const cwd = path.join(root, "workspace");
+@@ -79,7 +102,26 @@ describe("Codex end-to-end adapter integration", () => {
+       for (let attempt = 0; attempt < 900 && !frames.some((frame) => frame.type === "job.result"); attempt++) await new Promise((resolve) => setTimeout(resolve, 100));
+       const result = frames.find((frame) => frame.type === "job.result");
+       expect(result, "Codex job should reach one terminal protocol result").toBeDefined();
+-      expect(result).toMatchObject({ exitCode: 0, timedOut: false });
++      const recentLogs = frames
++        .filter((frame) => frame.type === "job.log")
++        .slice(-8)
++        .map((frame) => ({ stream: frame.stream, chunk: frame.chunk }));
++      const failureDiagnostics = {
++        errorCode: result?.errorCode ?? null,
++        errorMessage: result?.errorMessage ?? null,
++        summary: result?.summary ?? null,
++        recentJobLogs: recentLogs,
++      };
++      lastJobResultDiagnostics = {
++        exitCode: result?.exitCode ?? null,
++        timedOut: result?.timedOut ?? null,
++        ...failureDiagnostics,
++      };
++      if (result && (result.exitCode !== 0 || result.timedOut !== false)) {
++        console.error(`CODEX_INTEGRATION_DIAGNOSTIC_BEGIN\n${JSON.stringify(failureDiagnostics, null, 2)}\nCODEX_INTEGRATION_DIAGNOSTIC_END`);
++      }
++      expect(result, `Codex integration failure diagnostics (job.result and redacted job.log frames):\n${JSON.stringify(failureDiagnostics, null, 2)}`)
++        .toMatchObject({ exitCode: 0, timedOut: false });
+       expect(frames.filter((frame) => frame.type === "job.result")).toHaveLength(1);
+       expect(frames.some((frame) => frame.type === "job.accepted")).toBe(true);
+       expect(frames.some((frame) => frame.type === "job.log" && /MEMBER_AGENT_PHASE3_INTEGRATION_OK/.test(String(frame.chunk)))).toBe(true);
+diff --git a/test/process-tree.test.ts b/test/process-tree.test.ts
+new file mode 100644
+index 0000000..ff05019
+--- /dev/null
++++ b/test/process-tree.test.ts
+@@ -0,0 +1,39 @@
++import { afterEach, describe, expect, it, vi } from "vitest";
++
++const { execFileMock } = vi.hoisted(() => ({ execFileMock: vi.fn() }));
++vi.mock("node:child_process", async (importOriginal) => {
++  const actual = await importOriginal<typeof import("node:child_process")>();
++  return { ...actual, execFile: execFileMock };
++});
++
++import { terminateProcessTree } from "../src/process-tree.ts";
++
++afterEach(() => vi.restoreAllMocks());
++
++describe("terminateProcessTree", () => {
++  it.skipIf(process.platform !== "win32")("treats a target that exits during taskkill as already terminated", async () => {
++    let checks = 0;
++    vi.spyOn(process, "kill").mockImplementation(() => {
++      checks++;
++      if (checks === 1) return true;
++      throw Object.assign(new Error("process exited"), { code: "ESRCH" });
++    });
++    execFileMock.mockImplementation((_file, _args, _options, callback) => {
++      callback(Object.assign(new Error("taskkill found no process"), { code: 128 }));
++    });
++
++    await expect(terminateProcessTree(42_424_242)).resolves.toBeUndefined();
++    expect(checks).toBe(2);
++    expect(execFileMock).toHaveBeenCalledTimes(1);
++  });
++
++  it.skipIf(process.platform !== "win32")("still fails when taskkill fails and the process remains", async () => {
++    vi.spyOn(process, "kill").mockReturnValue(true);
++    execFileMock.mockImplementation((_file, _args, _options, callback) => {
++      callback(Object.assign(new Error("access denied"), { code: 5 }));
++    });
++
++    await expect(terminateProcessTree(42_424_243)).rejects.toThrow("taskkill 失败");
++    expect(process.kill).toHaveBeenCalledTimes(2);
++  });
++});

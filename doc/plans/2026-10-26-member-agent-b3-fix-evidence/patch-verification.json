@@ -1,0 +1,15 @@
+{
+  "patch": "E:\\workspace\\paperclip-member-agent-dev\\doc\\plans\\2026-10-26-member-agent-b3-fix-evidence\\b3-stop-confirmation.patch",
+  "bytes": 14341,
+  "sha256": "725C01C3F773FA57BD5E84598EC05846C5D3401976E599E5841244CCC0BB680F",
+  "paths": [
+    "server/src/adapters/member-agent/cancellation.test.ts",
+    "server/src/adapters/member-agent/execute.ts"
+  ],
+  "applyCheckExit": 0,
+  "diffCheckExit": 0,
+  "temporaryApplyMatchesSource": true,
+  "DSourceMatchesPreFix": true,
+  "temporaryDirectory": "C:\\Users\\11580\\AppData\\Local\\Temp\\paperclip-b3-patch-d135f19a5fa742b29fcbbecca571a8da",
+  "appliedToD": false
+}

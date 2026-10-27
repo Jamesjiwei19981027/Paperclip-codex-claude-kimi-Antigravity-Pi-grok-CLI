@@ -1,0 +1,411 @@
+diff --git a/doc/plans/2026-10-25-member-agent-phase3-evidence/acceptance.md b/doc/plans/2026-10-25-member-agent-phase3-evidence/acceptance.md
+index 45f7e57..d473a25 100644
+--- a/doc/plans/2026-10-25-member-agent-phase3-evidence/acceptance.md
++++ b/doc/plans/2026-10-25-member-agent-phase3-evidence/acceptance.md
+@@ -12,6 +12,22 @@ $memberServerUrl = Read-Host 'Paperclip 服务器地址（例如 http://100.64.0
+ $memberProjectId = Read-Host '看板项目 UUID'
+ $memberProjectDir = Read-Host '该项目在本机已存在的工作目录绝对路径'
+ $memberCodexExe = Read-Host '固定版本 codex.exe 绝对路径'
++$memberCodexSourceBin = Read-Host '同一固定版本安装包的 bin 目录（含 codex.exe 和 codex-code-mode-host.exe）'
++$memberCodexTargetBin = Split-Path -Parent $memberCodexExe
++foreach ($name in @('codex.exe', 'codex-code-mode-host.exe')) {
++  $sourceFile = Join-Path $memberCodexSourceBin $name
++  if (-not (Test-Path -LiteralPath $sourceFile -PathType Leaf)) {
++    throw "同一版本安装包的同一目录必须同时包含 codex.exe 和 codex-code-mode-host.exe；缺少 $name"
++  }
++}
++[IO.Directory]::CreateDirectory($memberCodexTargetBin) | Out-Null
++foreach ($name in @('codex.exe', 'codex-code-mode-host.exe')) {
++  $sourceFile = Join-Path $memberCodexSourceBin $name
++  $targetFile = if ($name -eq 'codex.exe') { $memberCodexExe } else { Join-Path $memberCodexTargetBin $name }
++  if ([IO.Path]::GetFullPath($sourceFile) -ne [IO.Path]::GetFullPath($targetFile)) {
++    Copy-Item -LiteralPath $sourceFile -Destination $targetFile -Force
++  }
++}
+ $memberConfigDir = Join-Path $env:APPDATA 'paperclip-member-agent'
+ $memberCodexHome = Join-Path $memberConfigDir 'codex-home'
+ $memberConfigPath = Join-Path $memberConfigDir 'config.json'
+@@ -71,7 +87,7 @@ node .\member-agent\src\main.ts check --config $memberConfigPath
+ "退出码: $LASTEXITCODE"
+ ```
+ 
+-预期：可执行文件、版本、独立 `codexHome` 登录状态和 runtime 完整性四项分别打印；全部通过时退出码 0。若有失败，修复对应项后重跑。
++预期：可执行文件、同目录的 `codex-code-mode-host.exe` 工具宿主、版本、独立 `codexHome` 登录状态和 runtime 完整性五项分别打印；全部通过时退出码 0。缺少工具宿主时，必须从同一版本安装包的同一目录同时复制这两个 exe，不能只复制 `codex.exe`。若有失败，修复对应项后重跑。
+ 
+ ## B2：假模型成功任务
+ 
+diff --git a/member-agent/src/codex-cli.ts b/member-agent/src/codex-cli.ts
+index 6f55e16..282a448 100644
+--- a/member-agent/src/codex-cli.ts
++++ b/member-agent/src/codex-cli.ts
+@@ -4,6 +4,8 @@ import path from "node:path";
+ import { promisify } from "node:util";
+ 
+ const execFileAsync = promisify(execFile);
++export const CODE_MODE_HOST_FILENAME = "codex-code-mode-host.exe";
++export const CODE_MODE_HOST_RECOVERY = "codexExecutable 同目录缺少或无法读取 codex-code-mode-host.exe。请从同一版本 Codex 安装包的同一目录，将 codex.exe 和 codex-code-mode-host.exe 一起复制到成员电脑并放在同一目录。";
+ const BUNDLE_FILES = [
+   "server/dist/codex-local.mjs",
+   "server/dist/codex-auth-merge-decision.cjs",
+@@ -37,6 +39,15 @@ export async function isCodexExecutableReady(executable: string): Promise<boolea
+   } catch { return false; }
+ }
+ 
++export async function isCodexCodeModeHostReady(executable: string): Promise<boolean> {
++  const host = path.join(path.dirname(executable), CODE_MODE_HOST_FILENAME);
++  try {
++    if (!(await stat(host)).isFile()) return false;
++    await access(host);
++    return true;
++  } catch { return false; }
++}
++
+ /** Check only existence and file type. Never read or return auth.json contents. */
+ export async function hasCodexLogin(codexHome: string): Promise<boolean> {
+   try { return (await stat(path.join(codexHome, "auth.json"))).isFile(); }
+@@ -57,6 +68,7 @@ export async function missingRuntimeFiles(runtimeDir: string): Promise<string[]>
+ 
+ export interface CodexCheckResult {
+   executable: boolean;
++  codeModeHost: boolean;
+   version: string | null;
+   loggedIn: boolean;
+   missingRuntime: string[];
+@@ -64,21 +76,24 @@ export interface CodexCheckResult {
+ 
+ export async function inspectCodexInstallation(input: { executable: string; codexHome: string; runtimeDir: string }, dependencies: {
+   executableReady?: (executable: string) => Promise<boolean>;
++  codeModeHostReady?: (executable: string) => Promise<boolean>;
+   getVersion?: (executable: string) => Promise<string>;
+   hasLogin?: (codexHome: string) => Promise<boolean>;
+   missingRuntime?: (runtimeDir: string) => Promise<string[]>;
+ } = {}): Promise<CodexCheckResult> {
+   const executableReady = dependencies.executableReady ?? isCodexExecutableReady;
++  const codeModeHostReady = dependencies.codeModeHostReady ?? isCodexCodeModeHostReady;
+   const getVersion = dependencies.getVersion ?? readCodexVersion;
+   const loginCheck = dependencies.hasLogin ?? hasCodexLogin;
+   const runtimeCheck = dependencies.missingRuntime ?? missingRuntimeFiles;
+-  const [executable, versionResult, loggedIn, missingRuntime] = await Promise.all([
++  const [executable, codeModeHost, versionResult, loggedIn, missingRuntime] = await Promise.all([
+     executableReady(input.executable).catch(() => false),
++    codeModeHostReady(input.executable).catch(() => false),
+     getVersion(input.executable).then((value) => ({ value })).catch(() => ({ value: null })),
+     loginCheck(input.codexHome).catch(() => false),
+     runtimeCheck(input.runtimeDir).catch(() => ["无法检查运行时目录"]),
+   ]);
+-  return { executable, version: versionResult.value, loggedIn, missingRuntime };
++  return { executable, codeModeHost, version: versionResult.value, loggedIn, missingRuntime };
+ }
+ 
+ const LOGIN_ENV_KEYS = [
+diff --git a/member-agent/src/executors/codex.ts b/member-agent/src/executors/codex.ts
+index 3fd5e83..0f5a9a2 100644
+--- a/member-agent/src/executors/codex.ts
++++ b/member-agent/src/executors/codex.ts
+@@ -3,6 +3,7 @@ import path from "node:path";
+ import { pathToFileURL } from "node:url";
+ import type { Executor, ExecutorHooks, ExecutorResult, JobStart } from "./types.ts";
+ import { isRecord, localizeContext, materializeSkills, rebaseEndpoint, resolveLocalCwd } from "./codex-support.ts";
++import { CODE_MODE_HOST_RECOVERY, isCodexCodeModeHostReady } from "../codex-cli.ts";
+ 
+ export interface CodexRuntimeConfig {
+   codexExecutable: string;
+@@ -164,6 +165,9 @@ async function executeCodex(hooks: ExecutorHooks, config: CodexRuntimeConfig, de
+     return resultError(issue.code ?? "member_agent_cwd_unresolved", issue.message || "无法解析项目本机目录，请检查项目目录映射。");
+   }
+   try {
++    if (!await isCodexCodeModeHostReady(config.codexExecutable)) {
++      return resultError("member_agent_runtime_missing", CODE_MODE_HOST_RECOVERY);
++    }
+     await checkRuntimeFiles(config, dependencies);
+   } catch (error) {
+     return resultError("member_agent_runtime_missing", coded(error).message || "Codex 运行时缺失，请重新运行 build-runtime。");
+diff --git a/member-agent/src/main.ts b/member-agent/src/main.ts
+index c6ddeb6..70cde68 100644
+--- a/member-agent/src/main.ts
++++ b/member-agent/src/main.ts
+@@ -11,7 +11,7 @@ import { connectLoop } from './connection.ts';
+ import { JobRunner } from './job-runner.ts';
+ import { AGENT_VERSION } from './executors/echo.ts';
+ import type { JobStart } from './protocol.ts';
+-import { hasCodexLogin, inspectCodexInstallation, isCodexExecutableReady, missingRuntimeFiles, readCodexVersion, runCodexLogin } from './codex-cli.ts';
++import { CODE_MODE_HOST_RECOVERY, hasCodexLogin, inspectCodexInstallation, isCodexExecutableReady, missingRuntimeFiles, readCodexVersion, runCodexLogin } from './codex-cli.ts';
+ 
+ export function installInterrupts(signals:Pick<EventEmitter,'on'|'off'>,runner:{shutdown:()=>Promise<void>;force:()=>void|Promise<void>},close:()=>void|Promise<void>,exit:(code:number)=>void){
+  let count=0;
+@@ -23,10 +23,11 @@ const usage='用法：node member-agent/src/main.ts run|check|login [--config <
+ async function checkCodex(config:Awaited<ReturnType<typeof loadConfig>>,print:(line:string)=>void):Promise<{ok:boolean;version:string|null}>{
+  const result=await inspectCodexInstallation({executable:config.codexExecutable??'',codexHome:config.codexHome??'',runtimeDir:config.runtimeDir??''});
+  print(`${result.executable?'通过':'失败'}：Codex 可执行文件${result.executable?'存在':'不存在或不是 .exe'}`);
++ print(`${result.codeModeHost?'通过':'失败'}：Codex 工具宿主 ${result.codeModeHost?'codex-code-mode-host.exe 存在':CODE_MODE_HOST_RECOVERY}`);
+  print(`${result.version?'通过':'失败'}：${result.version?`Codex 版本 ${result.version}`:'无法读取 Codex 版本'}`);
+  print(`${result.loggedIn?'通过':'失败'}：Codex 登录凭据${result.loggedIn?'已存在':'不存在，请先运行 login'}`);
+  print(`${result.missingRuntime.length===0?'通过':'失败'}：运行时包${result.missingRuntime.length===0?'完整':`缺少 ${result.missingRuntime.join(', ')}`}；如需重建，请运行 build-runtime`);
+- return {ok:result.executable&&!!result.version&&result.loggedIn&&result.missingRuntime.length===0,version:result.version};
++ return {ok:result.executable&&result.codeModeHost&&!!result.version&&result.loggedIn&&result.missingRuntime.length===0,version:result.version};
+ }
+ export async function main(args=process.argv.slice(2)):Promise<number>{
+  const command=args[0];let configPath:string|undefined;
+diff --git a/member-agent/test/codex-check.test.ts b/member-agent/test/codex-check.test.ts
+new file mode 100644
+index 0000000..b069415
+--- /dev/null
++++ b/member-agent/test/codex-check.test.ts
+@@ -0,0 +1,63 @@
++import { afterEach, describe, expect, it, vi } from "vitest";
++import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
++import os from "node:os";
++import path from "node:path";
++
++vi.mock("../src/codex-cli.ts", async (importOriginal) => {
++  const actual = await importOriginal<typeof import("../src/codex-cli.ts")>();
++  return {
++    ...actual,
++    // Only the executable's version subprocess is replaced; all file checks are real.
++    inspectCodexInstallation: (input: Parameters<typeof actual.inspectCodexInstallation>[0]) =>
++      actual.inspectCodexInstallation(input, { getVersion: async () => "0.160.0" }),
++  };
++});
++vi.mock("../src/connection.ts", async (importOriginal) => ({
++  ...await importOriginal<typeof import("../src/connection.ts")>(),
++  connectLoop: vi.fn(async () => 0),
++}));
++import { main } from "../src/main.ts";
++import { connectLoop } from "../src/connection.ts";
++
++const roots: string[] = [];
++afterEach(async () => {
++  vi.restoreAllMocks(); vi.clearAllMocks(); vi.unstubAllEnvs();
++  await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })));
++});
++
++describe("check code-mode host preflight", () => {
++  it.each([false, true])("check returns the correct exit code and independent diagnostic with host present=%s", async (present) => {
++    const root = await mkdtemp(path.join(os.tmpdir(), "member-host-check-")); roots.push(root);
++    const codexHome = path.join(root, "fake-codex-home");
++    const runtimeDir = path.join(root, "runtime");
++    await mkdir(codexHome);
++    await mkdir(path.join(runtimeDir, "server", "dist"), { recursive: true });
++    await mkdir(path.join(runtimeDir, "skills", "paperclip"), { recursive: true });
++    for (const name of ["codex-local.mjs", "codex-auth-merge-decision.cjs", "codex-auth-merge-extract.sh"])
++      await writeFile(path.join(runtimeDir, "server", "dist", name), "FAKE-asset");
++    await writeFile(path.join(runtimeDir, "MANIFEST.json"), "{}");
++    await writeFile(path.join(root, "codex.exe"), "FAKE-executable");
++    await writeFile(path.join(codexHome, "auth.json"), "FAKE-login-existence-only");
++    if (present) await writeFile(path.join(root, "codex-code-mode-host.exe"), "FAKE-host");
++    const configPath = path.join(root, "config.json");
++    await writeFile(configPath, JSON.stringify({
++      serverUrl: "http://127.0.0.1:1", executor: "codex", projectDirs: {}, defaultCwd: "",
++      codexExecutable: path.join(root, "codex.exe"), codexHome, runtimeDir,
++    }));
++    vi.stubEnv("APPDATA", root);
++    vi.stubEnv("PAPERCLIP_AGENT_KEY", "FAKE-agent-key-host-check");
++    const lines: string[] = [];
++    vi.spyOn(console, "log").mockImplementation(line => { lines.push(String(line)); });
++    vi.spyOn(console, "error").mockImplementation(line => { lines.push(String(line)); });
++    const code = await main(["check", "--config", configPath]);
++    const output = lines.join("\n");
++    expect(code, output).toBe(present ? 0 : 2);
++    expect(output).toContain(present ? "通过：Codex 工具宿主" : "失败：Codex 工具宿主");
++    expect(output).toContain("codex-code-mode-host.exe");
++    if (!present) {
++      expect(output).toContain("同一版本");
++      expect(output).toContain("同一目录");
++    }
++    expect(vi.mocked(connectLoop)).toHaveBeenCalledTimes(present ? 1 : 0);
++  });
++});
+diff --git a/member-agent/test/codex-cli.test.ts b/member-agent/test/codex-cli.test.ts
+index 31c25e2..14a2171 100644
+--- a/member-agent/test/codex-cli.test.ts
++++ b/member-agent/test/codex-cli.test.ts
+@@ -48,12 +48,27 @@ describe("Codex config and local checks", () => {
+     const calls: string[] = [];
+     const result = await inspectCodexInstallation({ executable: "fake-codex.exe", codexHome: "fake-home", runtimeDir: "fake-runtime" }, {
+       executableReady: async () => { calls.push("executable"); return false; },
++      codeModeHostReady: async () => { calls.push("code-mode-host"); return false; },
+       getVersion: async () => { calls.push("version"); throw new Error("not a version"); },
+       hasLogin: async () => { calls.push("login"); return false; },
+       missingRuntime: async () => { calls.push("runtime"); return ["bundle"]; },
+     });
+-    expect(calls.sort()).toEqual(["executable", "login", "runtime", "version"]);
+-    expect(result).toEqual({ executable: false, version: null, loggedIn: false, missingRuntime: ["bundle"] });
++    expect(calls.sort()).toEqual(["code-mode-host", "executable", "login", "runtime", "version"]);
++    expect(result).toEqual({ executable: false, codeModeHost: false, version: null, loggedIn: false, missingRuntime: ["bundle"] });
++  });
++
++  it.each(["missing", "file", "directory"])("independently checks the sibling code-mode host when it is %s", async (kind) => {
++    const root = await tempDir();
++    const executable = path.join(root, "codex.exe");
++    await writeFile(executable, "FAKE-executable");
++    const host = path.join(root, "codex-code-mode-host.exe");
++    if (kind === "file") await writeFile(host, "FAKE-host");
++    if (kind === "directory") await mkdir(host);
++    const result = await inspectCodexInstallation({ executable, codexHome: root, runtimeDir: root }, {
++      getVersion: async () => "0.160.0", hasLogin: async () => true, missingRuntime: async () => [],
++    });
++    expect(result.executable).toBe(true);
++    expect(result.codeModeHost).toBe(kind === "file");
+   });
+ 
+   it("login launches fake codex.exe with device auth, inherited stdio, and sanitized environment", async () => {
+diff --git a/member-agent/test/codex-executor.test.ts b/member-agent/test/codex-executor.test.ts
+index 96d6bef..9cb6b89 100644
+--- a/member-agent/test/codex-executor.test.ts
++++ b/member-agent/test/codex-executor.test.ts
+@@ -33,6 +33,7 @@ async function setup() {
+   await writeFile(path.join(runtimeDir, "server", "dist", "codex-auth-merge-decision.cjs"), "// fake asset\n");
+   await writeFile(path.join(runtimeDir, "server", "dist", "codex-auth-merge-extract.sh"), "# fake asset\n");
+   await writeFile(path.join(runtimeDir, "skills", "paperclip", "SKILL.md"), "fake skill\n");
++  await writeFile(path.join(root, "codex-code-mode-host.exe"), "FAKE-code-mode-host");
+   const config: CodexRuntimeConfig = { codexExecutable: path.join(root, "codex.exe"), codexHome, runtimeDir, projectDirs: { "project-1": project }, defaultCwd: "", configDir };
+   const env: NodeJS.ProcessEnv = {
+     PATH: process.env.PATH ?? "", SystemRoot: process.env.SystemRoot ?? "", TEMP: os.tmpdir(), USERPROFILE: root,
+@@ -57,6 +58,26 @@ function dependencies(capture: (context: Record<string, unknown>) => void, env:
+ }
+ 
+ describe("Codex executor context and privacy boundary", () => {
++  it("fails before loading or running Codex when the sibling code-mode host is missing", async () => {
++    const fixture = await setup();
++    await rm(path.join(fixture.root, "codex-code-mode-host.exe"));
++    let launched = false;
++    const result = await createCodexExecutor(fixture.config, dependencies(() => { launched = true; }, fixture.env, {
++      loadRuntime: async () => { launched = true; throw new Error("must not launch"); },
++    })).execute(hooks(job()));
++    expect(result).toMatchObject({ exitCode: 1, errorCode: "member_agent_runtime_missing" });
++    expect(result.errorMessage).toContain("codex-code-mode-host.exe");
++    expect(result.errorMessage).toContain("同一版本");
++    expect(launched).toBe(false);
++  });
++
++  it("runs the adapter when the sibling code-mode host exists", async () => {
++    const fixture = await setup();
++    let launched = false;
++    const result = await createCodexExecutor(fixture.config, dependencies(() => { launched = true; }, fixture.env)).execute(hooks(job()));
++    expect(result.exitCode).toBe(0);
++    expect(launched).toBe(true);
++  });
+   it("constructs the cli context, localizes both cwd fields, and strips secrets from process.env", async () => {
+     const fixture = await setup();
+     let context: Record<string, unknown> | undefined;
+diff --git a/member-agent/test/codex-integration.test.ts b/member-agent/test/codex-integration.test.ts
+index 2922f04..4e14a30 100644
+--- a/member-agent/test/codex-integration.test.ts
++++ b/member-agent/test/codex-integration.test.ts
+@@ -5,6 +5,7 @@ import os from "node:os";
+ import path from "node:path";
+ import { execFile } from "node:child_process";
+ import { promisify } from "node:util";
++import { randomUUID } from "node:crypto";
+ import { afterEach, describe, expect, it } from "vitest";
+ import { Logger } from "../src/logger.ts";
+ import { JobRunner } from "../src/job-runner.ts";
+@@ -23,6 +24,9 @@ async function cachedCodexExecutable(source: string): Promise<string> {
+   const executable = path.join(cacheRoot, "codex-0.160.0.exe");
+   try { await access(executable); }
+   catch { await cp(source, executable); }
++  const host = path.join(cacheRoot, "codex-code-mode-host.exe");
++  try { await access(host); }
++  catch { await cp(path.join(path.dirname(source), "codex-code-mode-host.exe"), host); }
+   return executable;
+ }
+ afterEach(async () => {
+@@ -40,21 +44,25 @@ afterEach(async () => {
+   }
+ });
+ 
+-describe("Codex end-to-end adapter integration", () => {
+-  it.skipIf(process.platform !== "win32")("uses the packaged adapter, real Codex 0.160.0 and a loopback fake model without credentials", async () => {
++async function runIntegration(useTools: boolean) {
+     const source = CODEx_SOURCE;
+     const root = await tempDir();
+     const executable = await cachedCodexExecutable(source);
+     await expect(readCodexVersion(executable)).resolves.toBe("0.160.0");
+ 
+     const cwd = path.join(root, "workspace");
++    const fileContent = `TOOL_FILE_CONTENT_${randomUUID()}`;
+     const codexHome = path.join(root, "member-codex-home");
+     const configDir = path.join(root, "agent-state");
+     await Promise.all([mkdir(cwd), mkdir(codexHome), mkdir(configDir)]);
++    // This nonce never enters the prompt or fake tool call; only a real file read can return it.
++    await writeFile(path.join(cwd, "tool-input.txt"), fileContent);
+     await execFileAsync("git", ["init", "--quiet"], { cwd, windowsHide: true });
+ 
+     let requestCount = 0;
+     const prompts: string[] = [];
++    const toolOutputs: Array<Record<string, unknown>> = [];
++    let advertisedCodeMode = false;
+     const fakeModel = createServer(async (req, res) => {
+       let bodyText = "";
+       for await (const chunk of req) bodyText += chunk.toString();
+@@ -62,6 +70,27 @@ describe("Codex end-to-end adapter integration", () => {
+       if (req.method !== "POST" || !req.url?.endsWith("/responses")) { res.writeHead(404); res.end(); return; }
+       prompts.push(bodyText);
+       const request = JSON.parse(bodyText);
++      toolOutputs.push(...(Array.isArray(request.input) ? request.input.filter((item: Record<string, unknown>) => item.type === "custom_tool_call_output" && item.call_id === "call_read_fixture") : []));
++      if (useTools && requestCount === 1) {
++        advertisedCodeMode = request.tools?.some((tool: Record<string, unknown>) => tool.type === "custom" && tool.name === "exec") === true;
++        const input = `const result = await tools.exec_command(${JSON.stringify({
++          cmd: "Get-Content -LiteralPath './tool-input.txt'", workdir: cwd,
++          shell: path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "WindowsPowerShell", "v1.0", "powershell.exe"),
++          login: false, max_output_tokens: 1000,
++        })}); text(result);`;
++        const call = { id: "ctc_fixture", type: "custom_tool_call", call_id: "call_read_fixture", name: "exec", input, status: "completed" };
++        const result = { id: "resp_tool", object: "response", status: "completed", model: request.model, output: [call], usage: { input_tokens: 17, output_tokens: 4, total_tokens: 21 } };
++        res.writeHead(200, { "content-type": "text/event-stream" });
++        const emit = (type: string, data: Record<string, unknown>) => res.write(`event: ${type}\ndata: ${JSON.stringify({ type, ...data })}\n\n`);
++        emit("response.created", { response: { ...result, status: "in_progress", output: [] } });
++        emit("response.output_item.added", { output_index: 0, item: { ...call, status: "in_progress", input: "" } });
++        emit("response.custom_tool_call_input.delta", { item_id: call.id, output_index: 0, delta: input });
++        emit("response.custom_tool_call_input.done", { item_id: call.id, output_index: 0, input });
++        emit("response.output_item.done", { output_index: 0, item: call });
++        emit("response.completed", { response: result });
++        res.end();
++        return;
++      }
+       const message = { id: "msg_phase3", type: "message", role: "assistant", status: "completed", content: [{ type: "output_text", text: "MEMBER_AGENT_PHASE3_INTEGRATION_OK", annotations: [] }] };
+       const result = { id: `resp_phase3_${requestCount}`, object: "response", created_at: 1700000000, status: "completed", model: request.model, output: [message], usage: { input_tokens: 17, output_tokens: 4, total_tokens: 21, input_tokens_details: { cached_tokens: 0 } } };
+       res.writeHead(200, { "content-type": "text/event-stream" });
+@@ -81,6 +110,7 @@ describe("Codex end-to-end adapter integration", () => {
+     await writeFile(path.join(codexHome, "config.toml"), [
+       'model = "gpt-5.4"', 'model_provider = "phase3_fake"', "[model_providers.phase3_fake]", 'name = "phase3 loopback fake"',
+       `base_url = "${baseUrl}/v1"`, 'wire_api = "responses"', "requires_openai_auth = false", "request_max_retries = 0", "stream_max_retries = 0",
++      ...(useTools ? ["[features]", "code_mode = true", "code_mode_host = true", "code_mode_only = true"] : []),
+     ].join("\n"));
+ 
+     const logDir = path.join(root, "logs"); const logger = new Logger(logDir, ["FAKE-long-lived-key", "FAKE-run-token", "FAKE-tool-token"], () => undefined);
+@@ -93,7 +123,7 @@ describe("Codex end-to-end adapter integration", () => {
+     const job = {
+       v: 1, type: "job.start", jobId: "FAKE-phase3-run-id", companyId: "FAKE-company-id",
+       agent: { id: "FAKE-agent-id", name: "Phase 3 Integration" }, authToken: "FAKE-run-token",
+-      context: { projectId: "FAKE-project-id", paperclipWorkspace: { projectId: "FAKE-project-id", cwd: "Z:\\server\\workspace", source: "project_primary" }, paperclipTaskMarkdown: "Reply exactly MEMBER_AGENT_PHASE3_INTEGRATION_OK. Do not use tools." },
++      context: { projectId: "FAKE-project-id", paperclipWorkspace: { projectId: "FAKE-project-id", cwd: "Z:\\server\\workspace", source: "project_primary" }, paperclipTaskMarkdown: useTools ? "Read tool-input.txt in the work directory using a tool, then reply MEMBER_AGENT_PHASE3_INTEGRATION_OK." : "Reply exactly MEMBER_AGENT_PHASE3_INTEGRATION_OK. Do not use tools." },
+       config: { maxRunSec: 60 }, runtime: { sessionId: null, sessionParams: null, sessionDisplayId: null }, runtimeTools: null,
+       handoffMarkdown: "", codeSyncDir: "",
+     };
+@@ -129,11 +159,24 @@ describe("Codex end-to-end adapter integration", () => {
+       expect(frames.some((frame) => frame.type === "job.usage")).toBe(true);
+       expect(requestCount).toBeGreaterThan(0);
+       expect(prompts.some((prompt) => /paperclip/i.test(prompt))).toBe(true);
++      if (useTools) {
++        expect(advertisedCodeMode, "the real Codex must advertise its code-mode exec tool").toBe(true);
++        expect(requestCount, "Codex must send the tool result back to the model").toBe(2);
++        expect(toolOutputs, "one real code-mode tool result must return to the fake model").toHaveLength(1);
++        const output = JSON.stringify(toolOutputs[0].output);
++        expect(output, `code-mode tool output: ${output}`).toContain(fileContent);
++        expect(output).toMatch(/(?:Process exited with code 0|exit_code[\\"\s:]+0)/);
++        console.info("CODE_MODE_TOOL_ROUNDTRIP_OK fileNonceMatched=true toolOutputs=1 modelRequests=2");
++      }
+       const authPath = path.join(codexHome, "auth.json");
+       expect(frames.some((frame) => JSON.stringify(frame).includes(authPath))).toBe(false);
+     } finally {
+       await runner.shutdown();
+       await new Promise<void>((resolve) => fakeModel.close(() => resolve()));
+     }
+-  }, 120_000);
++}
++
++describe("Codex end-to-end adapter integration", () => {
++  it.skipIf(process.platform !== "win32")("uses the packaged adapter, real Codex 0.160.0 and a loopback fake model without credentials", () => runIntegration(false), 120_000);
++  it.skipIf(process.platform !== "win32")("executes a real code-mode file read and returns its output to the loopback fake model without credentials", () => runIntegration(true), 120_000);
+ });

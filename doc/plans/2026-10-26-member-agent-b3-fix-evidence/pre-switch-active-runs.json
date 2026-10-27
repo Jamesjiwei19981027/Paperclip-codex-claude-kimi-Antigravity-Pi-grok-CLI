@@ -1,0 +1,11 @@
+{
+  "liveRunCount": 0,
+  "liveRunShape": "array",
+  "activeRecent": [],
+  "targetAgent": {
+    "id": "5ca3ec43-4f0a-4dbb-993c-998c145460c0",
+    "name": "成员智能体-测试",
+    "status": "paused",
+    "adapterType": "member_agent"
+  }
+}

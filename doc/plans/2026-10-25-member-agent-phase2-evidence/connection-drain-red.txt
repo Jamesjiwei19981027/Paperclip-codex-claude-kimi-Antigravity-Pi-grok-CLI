@@ -1,0 +1,55 @@
+
+ RUN  v5.0.3 E:/workspace/paperclip-member-agent-dev/member-agent
+
+ ↓ test/connection.test.ts > 连接和重连 > 发送有效 hello 和认证头，check 在 ack 后读取服务器参数并正常退出
+ ↓ test/connection.test.ts > 连接和重连 > HTTP 401 退出码 3 且不重试
+ ↓ test/connection.test.ts > 连接和重连 > HTTP 403 退出码 4 且不重试
+ ↓ test/connection.test.ts > 连接和重连 > 10 秒未收到 hello 响应就关闭，1 秒退避后重连
+ ↓ test/connection.test.ts > 连接和重连 > HTTP 429 至少等 60 秒才重试
+ ↓ test/connection.test.ts > 连接和重连 > already_connected 每次等 30 秒无限重试，not_allowed 不重试
+ ↓ test/connection.test.ts > 连接和重连 > 失败指数退避到 30 秒上限，ack 后重置
+ ↓ test/connection.test.ts > 连接和重连 > 随机抖动在 0–20%，独立心跳按 ack 周期发送
+ ↓ test/connection.test.ts > 连接和重连 > 未知 type 记录日志，未知版本断开，重连等待任务清理且旧 sender 失效
+ ↓ test/connection.test.ts > 连接和重连 > 6 执行器在独立 Worker 中同步忙等时，真实 WebSocket 心跳持续发送
+ ↓ test/connection.test.ts > 连接和重连 > 原生 pong 无响应满 45 秒中止任务并退避重连，不依赖应用心跳 ack
+ ↓ test/connection.test.ts > 连接和重连 > 原生自动 pong 保持连接，不要求服务器回复 JSON heartbeat
+ ↓ test/connection.test.ts > 有界发送队列 > 超过1000帧只丢弃最旧日志，保留结果且发送回调继续排空
+ ↓ test/connection.test.ts > 有界发送队列 > 8MiB 字节上限生效，停止后丢弃后续输出
+ ↓ test/connection.test.ts > 有界发送队列 > ws 缓冲区积压时暂缓发送，并在缓冲释放后恢复
+ × test/connection.test.ts > 有界发送队列 > drain 等待积压日志和结果的发送回调后才成功，结果不丢失 6ms
+   → queue.drain is not a function
+ × test/connection.test.ts > 有界发送队列 > drain 发送超时或队列关闭时返回 false，无积压时立即返回 true 1ms
+   → queue.drain is not a function
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/connection.test.ts > 有界发送队列 > drain 等待积压日志和结果的发送回调后才成功，结果不丢失
+TypeError: queue.drain is not a function
+ ❯ test/connection.test.ts:155:44
+    153|     queue.send({v:1,type:'job.log',jobId:'j',seq:1,stream:'stdout',chu…
+    154|     queue.send({v:1,type:'job.result',jobId:'j',exitCode:0,signal:null…
+    155|     let finished=false;const drained=queue.drain().then(value=>{finish…
+       |                                            ^
+    156|     await Promise.resolve();expect(finished).toBe(false);expect(sent.m…
+    157|     callbacks.shift()!();await Promise.resolve();expect(finished).toBe…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  test/connection.test.ts > 有界发送队列 > drain 发送超时或队列关闭时返回 false，无积压时立即返回 true
+TypeError: queue.drain is not a function
+ ❯ test/connection.test.ts:162:70
+    160|   it('drain 发送超时或队列关闭时返回 false，无积压时立即返回 true',async()=>{
+    161|     const clock=new ManualClock();const socket={readyState:1,bufferedA…
+    162|     const queue=new OutboundQueue(socket,{clock});expect(await queue.d…
+       |                                                                      ^
+    163|     queue.send({v:1,type:'job.result',jobId:'j',exitCode:0,signal:null…
+    164|     let finished=false;const timeout=queue.drain(100).then(value=>{fin…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 15 skipped (17)
+   Start at  20:13:41
+   Duration  471ms (transform 56%, import 36%, tests 4%, worker 3%)
+

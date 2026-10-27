@@ -1,0 +1,10 @@
+{
+  "checkedAt": "2026-10-27T04:18:49.886Z",
+  "target": "192.168.0.213:3100",
+  "health": {
+    "httpStatus": 200,
+    "status": "ok",
+    "deploymentMode": "authenticated"
+  },
+  "memberNoKeyHttpStatus": 401
+}

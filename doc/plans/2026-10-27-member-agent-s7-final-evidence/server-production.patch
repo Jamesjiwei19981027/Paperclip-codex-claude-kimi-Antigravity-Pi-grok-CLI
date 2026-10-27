@@ -1,0 +1,100 @@
+diff --git a/server/src/adapters/member-agent/execute.ts b/server/src/adapters/member-agent/execute.ts
+index 40ee17e..52dc0c8 100644
+--- a/server/src/adapters/member-agent/execute.ts
++++ b/server/src/adapters/member-agent/execute.ts
+@@ -43,6 +43,14 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
+   // JSON-level redaction also protects property names from credential echoes.
+   const clean = <T>(value: T): T => JSON.parse(redact.redact(JSON.stringify(value))) as T;
+   const failure = (errorCode: string, errorMessage: string, timedOut = false): AdapterExecutionResult => ({ exitCode: 1, signal: null, timedOut, errorCode, errorMessage });
++  const busy = (): AdapterExecutionResult => ({
++    ...failure("member_agent_busy", "该成员智能体正在执行其他任务，将稍后自动重试"),
++    errorFamily: "transient_upstream",
++    retryNotBefore: new Date(Date.now() + 30000).toISOString(),
++    // No work started for this refused job. The heartbeat scheduler requires
++    // this existing recovery proof before it may retry a failed legacy run.
++    executionRecovery: { kind: "bootstrap", providerWorkStarted: false },
++  });
+   const report = async (result: AdapterExecutionResult) => {
+     const safe = clean(result);
+     if (safe.timedOut || safe.errorCode || safe.exitCode !== 0) {
+@@ -53,7 +61,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
+     return safe;
+   };
+   if (!connection) return report(failure("member_agent_offline", "该成员智能体当前不在线"));
+-  if (connection.currentJobId) return report(failure("member_agent_busy", "该成员智能体正在执行其他任务"));
++  if (connection.currentJobId) return report(busy());
+   if (!ctx.authToken?.trim()) return report(failure("member_agent_no_token", "本次运行缺少运行令牌，未派发任务"));
+   const maxRunSec = ctx.config.maxRunSec ?? 3600;
+   if (typeof maxRunSec !== "number" || !Number.isInteger(maxRunSec) || maxRunSec < 1 || maxRunSec > 14400
+@@ -103,7 +111,19 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
+   const receive = async (frame: MemberFrame) => {
+     if (settled) return;
+     if (frame.type === "job.accepted") { accepted = true; clearTimeout(acceptTimer); return; }
+-    if (!accepted) { fail("member_agent_protocol_error", "成员必须先确认 job.accepted"); return; }
++    if (!accepted) {
++      // A busy member refuses admission before acknowledging preparation.
++      // Only this exact terminal refusal proves the job did not start.
++      if (!stopReason && frame.type === "job.result") {
++        const { v: _v, type: _type, jobId: _jobId, ...payload } = frame;
++        const parsed = resultSchema.safeParse(payload);
++        if (parsed.success && parsed.data.errorCode === "member_agent_busy" && parsed.data.exitCode === 1
++          && parsed.data.signal === null && parsed.data.timedOut === false) {
++          settle(busy()); return;
++        }
++      }
++      fail("member_agent_protocol_error", "成员必须先确认 job.accepted"); return;
++    }
+     if (frame.type === "job.log") {
+       if (!Number.isSafeInteger(frame.seq) || (frame.seq as number) < 1 || !["stdout", "stderr"].includes(String(frame.stream)) || typeof frame.chunk !== "string" || Buffer.byteLength(frame.chunk) > 32 * 1024) {
+         fail("member_agent_protocol_error", "成员日志消息无效"); return;
+diff --git a/server/src/routes/agents.ts b/server/src/routes/agents.ts
+index e481c66..932b4a4 100644
+--- a/server/src/routes/agents.ts
++++ b/server/src/routes/agents.ts
+@@ -2091,7 +2091,7 @@ export function agentRoutes(
+     };
+   }
+ 
+-  function normalizeNewAgentRuntimeConfig(runtimeConfig: unknown): Record<string, unknown> {
++  function normalizeNewAgentRuntimeConfig(runtimeConfig: unknown, adapterType: string): Record<string, unknown> {
+     const parsedRuntimeConfig = asRecord(runtimeConfig);
+     const normalizedRuntimeConfig = parsedRuntimeConfig ? { ...parsedRuntimeConfig } : {};
+     const parsedHeartbeat = asRecord(normalizedRuntimeConfig.heartbeat);
+@@ -2100,8 +2100,8 @@ export function agentRoutes(
+     if (parseBooleanLike(heartbeat.enabled) == null) {
+       heartbeat.enabled = false;
+     }
+-    if (parseNumberLike(heartbeat.maxConcurrentRuns) == null) {
+-      heartbeat.maxConcurrentRuns = AGENT_DEFAULT_MAX_CONCURRENT_RUNS;
++    if (adapterType === "member_agent" || parseNumberLike(heartbeat.maxConcurrentRuns) == null) {
++      heartbeat.maxConcurrentRuns = adapterType === "member_agent" ? 1 : AGENT_DEFAULT_MAX_CONCURRENT_RUNS;
+     }
+ 
+     normalizedRuntimeConfig.heartbeat = heartbeat;
+@@ -2116,7 +2116,7 @@ export function agentRoutes(
+     adapterConfig: Record<string, unknown>,
+     runtimeConfig: unknown,
+   ) {
+-    const normalized = normalizeNewAgentRuntimeConfig(runtimeConfig);
++    const normalized = normalizeNewAgentRuntimeConfig(runtimeConfig, adapterType);
+     if (req.actor.type !== "agent" || normalized.aiConnection) return normalized;
+     const manager = req.actor.agentId ? await svc.getById(req.actor.agentId) : null;
+     if (!manager || manager.companyId !== companyId) throw forbidden("Hiring agent is unavailable");
+diff --git a/server/src/services/agent-configuration.ts b/server/src/services/agent-configuration.ts
+index 8037f15..284a57d 100644
+--- a/server/src/services/agent-configuration.ts
++++ b/server/src/services/agent-configuration.ts
+@@ -55,6 +55,13 @@ export async function prepareAgentConfiguration(db: Db, existing: AgentConfigura
+     }
+   }
+   const normalizedPatch = { ...data } as AgentConfigurationPatch;
++  // A member connection can execute exactly one job. Enforce on every allowed
++  // configuration write, including profile-only edits and revision rollback.
++  if ((data.adapterType ?? existing.adapterType) === "member_agent") {
++    const runtimeConfig = isPlainRecord(data.runtimeConfig) ? data.runtimeConfig : existing.runtimeConfig;
++    const heartbeat = isPlainRecord(runtimeConfig?.heartbeat) ? runtimeConfig.heartbeat : {};
++    normalizedPatch.runtimeConfig = { ...runtimeConfig, heartbeat: { ...heartbeat, maxConcurrentRuns: 1 } };
++  }
+   if (data.permissions !== undefined) {
+     normalizedPatch.permissions = normalizeAgentPermissions(data.permissions);
+   }

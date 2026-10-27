@@ -1,0 +1,5 @@
+{
+  "operation": "exec",
+  "timeout": 60,
+  "command": "set -eu\nfor p in server/src/routes/agents.ts server/src/services/agent-configuration.ts server/src/adapters/member-agent/execute.ts; do docker exec 86c1841b597245f488a4125c6f79b03e60e9dee7d5853b5a76d4650fb82b2cbc sha256sum /app/$p; done\nprintf '\\nDOCKERFILE\\n'\ncat /root/paperclip-deploy/src/Dockerfile\nprintf '\\nDOCKERIGNORE\\n'\ncat /root/paperclip-deploy/src/.dockerignore"
+}

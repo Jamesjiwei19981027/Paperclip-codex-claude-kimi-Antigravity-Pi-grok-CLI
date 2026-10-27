@@ -1,0 +1,988 @@
+{
+  "baselineCount": 129,
+  "afterCount": 163,
+  "missing": [],
+  "regressions": [],
+  "added": [
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > registers the transport module required by the nine acceptance cases",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > registers the transport module required by the nine acceptance cases"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > 1 rejects invalid authentication: missing",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > 1 rejects invalid authentication: missing"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > 1 rejects invalid authentication: wrong",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > 1 rejects invalid authentication: wrong"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > 1 rejects invalid authentication: revoked",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > 1 rejects invalid authentication: revoked"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > 1 rejects invalid authentication: other_adapter",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > 1 rejects invalid authentication: other_adapter"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > 1 rejects invalid authentication: paused",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > 1 rejects invalid authentication: paused"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > 1 rejects invalid authentication: terminated",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > 1 rejects invalid authentication: terminated"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > 1 rejects invalid authentication: query_only",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > 1 rejects invalid authentication: query_only"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > 2 refuses a second connection without evicting the first",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > 2 refuses a second connection without evicting the first"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > 3 fails an offline dispatch immediately with a visible error",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > 3 fails an offline dispatch immediately with a visible error"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > 4 relays job, ordered logs, events, usage, and the first result",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > 4 relays job, ordered logs, events, usage, and the first result"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > 4 persists a real heartbeat run, visible logs, usage and result without credentials",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > 4 persists a real heartbeat run, visible logs, usage and result without credentials"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > 5 fails at the five-second acceptance deadline",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > 5 fails at the five-second acceptance deadline"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > 6 fails a silent connection within 45 seconds",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > 6 fails a silent connection within 45 seconds"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > 7 sends job.cancel and settles the operator abort",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > 7 sends job.cancel and settles the operator abort"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > 8 never delivers another company's job to a valid connected member",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > 8 never delivers another company's job to a valid connected member"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > 9 redacts full and split run/tool/key secrets from logs and structured results",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > 9 redacts full and split run/tool/key secrets from logs and structured results"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > fails explicitly before dispatch for missing/invalid token",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > fails explicitly before dispatch for missing/invalid token"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > fails explicitly before dispatch for missing/invalid history",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > fails explicitly before dispatch for missing/invalid history"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > fails explicitly before dispatch for missing/invalid config",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > fails explicitly before dispatch for missing/invalid config"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > reserves one job atomically and releases it after completion",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > reserves one job atomically and releases it after completion"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > fails safely for invalid version frames",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > fails safely for invalid version frames"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > fails safely for invalid binary frames",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > fails safely for invalid binary frames"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > fails safely for invalid oversize frames",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > fails safely for invalid oversize frames"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > fails safely for invalid result frames",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > fails safely for invalid result frames"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > ignores unknown types and foreign job IDs without completing another job",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > ignores unknown types and foreign job IDs without completing another job"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > enforces total runtime even when the member reports success after cancellation",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > enforces total runtime even when the member reports success after cancellation"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > finishes cancellation after graceSec plus ten seconds without a result",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > finishes cancellation after graceSec plus ten seconds without a result"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > bounds hung cancellation_ready preparation without dispatch",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > bounds hung cancellation_ready preparation without dispatch"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > bounds hung history preparation without dispatch",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > bounds hung history preparation without dispatch"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > preserves live-events query-key compatibility and checks company scope",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > preserves live-events query-key compatibility and checks company scope"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > rate-limits hello failures across multiple keys of one agent",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > rate-limits hello failures across multiple keys of one agent"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/member-agent/protocol.test.ts",
+      "test": "member_agent phase 1 > warns without concrete member identity and enforces the eight-hour startup TTL",
+      "key": "src/adapters/member-agent/protocol.test.ts > member_agent phase 1 > warns without concrete member identity and enforces the eight-hour startup TTL"
+    },
+    {
+      "status": "passed",
+      "file": "src/adapters/registry.test.ts",
+      "test": "built-in runtime connection tool delivery > delivers member_agent runtime tools through environment",
+      "key": "src/adapters/registry.test.ts > built-in runtime connection tool delivery > delivers member_agent runtime tools through environment"
+    }
+  ],
+  "beforeAfter": [
+    {
+      "file": "src/__tests__/heartbeat-runtime-mcp-servers.test.ts",
+      "test": "heartbeat runtime MCP servers > provisions one aggregate gateway and omits unavailable access without blocking any runtime",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/heartbeat-runtime-mcp-servers.test.ts",
+      "test": "heartbeat runtime MCP servers > rejects another agent's run token on a run-scoped gateway",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/heartbeat-runtime-mcp-servers.test.ts",
+      "test": "heartbeat runtime MCP servers > binds a reused run-scoped gateway that was created without an agent",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/heartbeat-runtime-mcp-servers.test.ts",
+      "test": "heartbeat runtime MCP servers > rejects another run on a legacy native gateway before the owner runs again",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/heartbeat-runtime-mcp-servers.test.ts",
+      "test": "heartbeat runtime MCP servers > rejects a legacy native gateway with cleared metadata and omits it from managed discovery",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/heartbeat-runtime-mcp-servers.test.ts",
+      "test": "heartbeat runtime MCP servers > rejects JSON null profile metadata with an HTTP authentication response",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/heartbeat-runtime-mcp-servers.test.ts",
+      "test": "heartbeat runtime MCP servers > delivers native assignments once and preserves explicit shared gateways",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/heartbeat-runtime-mcp-servers.test.ts",
+      "test": "heartbeat runtime MCP servers > does not repair a gateway with conflicting ownership metadata",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/heartbeat-runtime-mcp-servers.test.ts",
+      "test": "heartbeat runtime MCP servers > preserves exact permissions when an aggregate assignment exceeds the public 250-entry edit limit",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/heartbeat-runtime-mcp-servers.test.ts",
+      "test": "heartbeat runtime MCP servers > exposes only the dedicated GitHub connection when a personal connection is also installed",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/heartbeat-runtime-mcp-servers.test.ts",
+      "test": "heartbeat runtime MCP servers > audits permitted remote MCP connections that were not installed when delivery is empty",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/heartbeat-runtime-mcp-servers.test.ts",
+      "test": "heartbeat runtime MCP servers > injects only managed gateways whose profile connections are installed for the agent",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/adapter-registry.test.ts",
+      "test": "advertises tool-refresh recovery for the selected legacy harness",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/adapter-registry.test.ts",
+      "test": "server adapter registry > registers external adapters and exposes them through lookup helpers",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/adapter-registry.test.ts",
+      "test": "server adapter registry > removes external adapters when unregistered",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/adapter-registry.test.ts",
+      "test": "server adapter registry > allows external plugin to override a built-in adapter type",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/adapter-registry.test.ts",
+      "test": "server adapter registry > ships Hermes adapters as built-ins and still accepts external overrides",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/adapter-registry.test.ts",
+      "test": "server adapter registry > exposes capability flags from registered adapters",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/adapter-registry.test.ts",
+      "test": "server adapter registry > returns undefined for capability flags on adapters that do not set them",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/adapter-registry.test.ts",
+      "test": "server adapter registry > built-in claude_local adapter declares capability flags",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/adapter-registry.test.ts",
+      "test": "server adapter registry > rejects an incomplete managed runner provider before probing Codex",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/adapter-registry.test.ts",
+      "test": "server adapter registry > accepts a complete claude_managed profile selection",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/adapter-registry.test.ts",
+      "test": "server adapter registry > accepts a complete aws_agentcore profile selection",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/adapter-registry.test.ts",
+      "test": "server adapter registry > does not claim runtime readiness from the remote ACPX claude platform alone",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/adapter-registry.test.ts",
+      "test": "server adapter registry > checks actual local ACPX installation readiness (true)",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/adapter-registry.test.ts",
+      "test": "server adapter registry > checks actual local ACPX installation readiness (false)",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/adapter-registry.test.ts",
+      "test": "server adapter registry > probes the exact Pi installation without qualification opt-in (ready=true)",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/adapter-registry.test.ts",
+      "test": "server adapter registry > probes the exact Pi installation without qualification opt-in (ready=false)",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/adapter-registry.test.ts",
+      "test": "server adapter registry > reports qualification-only readiness for an exact host-authorized candidate",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/adapter-registry.test.ts",
+      "test": "server adapter registry > wraps built-in npm runtime installs with the sandbox-aware install helper",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/adapter-registry.test.ts",
+      "test": "server adapter registry > switches active adapter behavior back to the builtin when an override is paused",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/adapter-registry.test.ts",
+      "test": "resolveExternalAdapterRegistration > preserves module-provided sessionManagement",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/adapter-registry.test.ts",
+      "test": "resolveExternalAdapterRegistration > falls back to the hardcoded registry when the module omits sessionManagement",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/adapter-registry.test.ts",
+      "test": "resolveExternalAdapterRegistration > leaves sessionManagement undefined when neither module nor registry provides one",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/recovery.test.ts",
+      "test": "heartbeat recovery module callbacks > constructs without database access, shutdown, or background work",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/recovery.test.ts",
+      "test": "heartbeat recovery module callbacks > enters shutdown before checkpointing for not_requested",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/recovery.test.ts",
+      "test": "heartbeat recovery module callbacks > enters shutdown before checkpointing for read_error",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/recovery.test.ts",
+      "test": "heartbeat recovery module callbacks > does not adopt or query runs without a restart intent",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/recovery.test.ts",
+      "test": "heartbeat recovery module callbacks > does not broaden an empty selective shutdown drain to every run",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/recovery.test.ts",
+      "test": "heartbeat recovery module callbacks > keeps a running ownership hold when a status race wins",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/recovery.test.ts",
+      "test": "heartbeat recovery module callbacks > keeps a failed ownership hold when a status race wins",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/recovery.test.ts",
+      "test": "heartbeat recovery module callbacks > persists an authentication ownership hold before its event without terminating or retrying",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/recovery.test.ts",
+      "test": "heartbeat recovery module ownership > uses the shared live-execution set after construction across two factories",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/recovery.test.ts",
+      "test": "heartbeat recovery module ownership > settles persisted native results before claiming restart authority and tracks the exact execution",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/recovery.test.ts",
+      "test": "heartbeat recovery module ownership > does not claim or execute recovery when persisted finalization fails",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/recovery.test.ts",
+      "test": "heartbeat recovery module ownership > keeps blocked and ambiguous ownership out of execution",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/recovery.test.ts",
+      "test": "heartbeat recovery module ownership > rearms the persisted native retry deadline through the service callback",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/recovery.test.ts",
+      "test": "heartbeat recovery module ownership > retains shutdown ownership until background native cleanup physically settles",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/agent-auth-jwt.test.ts",
+      "test": "agent local JWT > creates and verifies a token",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/agent-auth-jwt.test.ts",
+      "test": "agent local JWT > round-trips a skill_test run scope",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/agent-auth-jwt.test.ts",
+      "test": "agent local JWT > returns null when secret is missing",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/agent-auth-jwt.test.ts",
+      "test": "agent local JWT > falls back to BETTER_AUTH_SECRET when PAPERCLIP_AGENT_JWT_SECRET is absent",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/agent-auth-jwt.test.ts",
+      "test": "agent local JWT > rejects expired tokens",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/agent-auth-jwt.test.ts",
+      "test": "agent local JWT > rejects issuer/audience mismatch",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/agent-auth-jwt.test.ts",
+      "test": "agent local JWT > does not verify a token across companies (per-company isolation)",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/agent-auth-jwt.test.ts",
+      "test": "agent local JWT > accepts legacy tokens signed with the master secret (backward compat)",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/agent-auth-jwt.test.ts",
+      "test": "agent local JWT > stamps the minting instance id into the token claims",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/agent-auth-jwt.test.ts",
+      "test": "agent local JWT > rejects a fork/worktree-minted token on the live control plane",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/agent-auth-jwt.test.ts",
+      "test": "agent local JWT > keeps live-plane heartbeat tokens authenticating across mint/verify",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/agent-auth-jwt.test.ts",
+      "test": "agent local JWT > rejects a token whose instance_id claim is forged to match the live plane",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/agent-auth-jwt.test.ts",
+      "test": "agent local JWT > still rejects the master-secret legacy fallback once it is disabled (full instance isolation)",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/agent-auth-jwt.test.ts",
+      "test": "agent local JWT > defaults TTL to 48h when PAPERCLIP_AGENT_JWT_TTL_SECONDS is unset",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/agent-auth-jwt.test.ts",
+      "test": "agent local JWT > accepts master-secret-signed tokens when PAPERCLIP_AGENT_JWT_DISABLE_LEGACY_FALLBACK is unset",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/agent-auth-jwt.test.ts",
+      "test": "agent local JWT > rejects master-secret-signed tokens when PAPERCLIP_AGENT_JWT_DISABLE_LEGACY_FALLBACK is enabled",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/agent-auth-jwt.test.ts",
+      "test": "agent local JWT > still verifies per-company-signed tokens when PAPERCLIP_AGENT_JWT_DISABLE_LEGACY_FALLBACK is enabled",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/run-lifecycle.test.ts",
+      "test": "heartbeat lifecycle module boundary > constructs without database work or reporting effects",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/run-lifecycle.test.ts",
+      "test": "heartbeat lifecycle module boundary > ignores absent wake requests without accessing the database",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/run-lifecycle.test.ts",
+      "test": "heartbeat lifecycle module boundary > keeps ineligible continuations out of wake admission ({\"livenessState\":\"empty_response\",\"contextSnapshot\":{\"goalControlRequestId\":\"goal\"}})",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/run-lifecycle.test.ts",
+      "test": "heartbeat lifecycle module boundary > keeps ineligible continuations out of wake admission ({\"livenessState\":\"plan_only\",\"contextSnapshot\":{\"resumeSessionGoalHeartbeat\":true}})",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/run-lifecycle.test.ts",
+      "test": "heartbeat lifecycle module boundary > keeps ineligible continuations out of wake admission ({\"livenessState\":\"productive\",\"contextSnapshot\":{\"issueId\":\"issue\"}})",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/run-lifecycle.test.ts",
+      "test": "heartbeat lifecycle module boundary > keeps ineligible continuations out of wake admission ({\"livenessState\":\"empty_response\",\"contextSnapshot\":{}})",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/run-lifecycle.test.ts",
+      "test": "heartbeat lifecycle module boundary > preserves retained native ownership before lease-release teardown reads or writes",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/run-lifecycle.test.ts",
+      "test": "heartbeat lifecycle module boundary > rejects late progress after re-reading a terminal run through the service callback",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/run-lifecycle.test.ts",
+      "test": "heartbeat lifecycle database wiring > preserves sandbox process birth instead of inspecting a colliding controller PID",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/run-lifecycle.test.ts",
+      "test": "heartbeat lifecycle database wiring > keeps one terminal outcome and reports only the winner of competing writes",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/run-lifecycle.test.ts",
+      "test": "heartbeat lifecycle database wiring > rechecks native ownership atomically before a terminal write",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/run-lifecycle.test.ts",
+      "test": "heartbeat lifecycle database wiring > preserves accounting metadata while setRunStatus enriches usage",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/run-lifecycle.test.ts",
+      "test": "heartbeat lifecycle database wiring > preserves accounting metadata while setRunStatusIfRunning enriches usage",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/run-lifecycle.test.ts",
+      "test": "heartbeat lifecycle database wiring > settles a claimed wake without reviving a revoked request",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/run-lifecycle.test.ts",
+      "test": "heartbeat lifecycle database wiring > settles a cancelled wake without reviving a revoked request",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/run-lifecycle.test.ts",
+      "test": "heartbeat lifecycle database wiring > publishes the persisted sequence for concurrent event writes",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/services/heartbeat/run-lifecycle.test.ts",
+      "test": "heartbeat lifecycle database wiring > reads current redaction settings for each event and persists the published sanitized payload",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "built-in adapter login capabilities > registers the Codex device-login capability",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "built-in adapter login capabilities > registers the Grok device-login capability",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "built-in adapter login capabilities > registers the Claude setup-token capability",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "built-in runtime connection tool delivery > requires every built-in adapter to declare its expected delivery strategy",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "built-in runtime connection tool delivery > delivers acpx_local runtime tools through environment",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "built-in runtime connection tool delivery > delivers claude_local runtime tools through native_mcp",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "built-in runtime connection tool delivery > delivers codex_local runtime tools through native_mcp",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "built-in runtime connection tool delivery > delivers cursor_cloud runtime tools through invocation_context",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "built-in runtime connection tool delivery > delivers cursor runtime tools through environment",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "built-in runtime connection tool delivery > delivers gemini_local runtime tools through environment",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "built-in runtime connection tool delivery > delivers grok_local runtime tools through environment",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "built-in runtime connection tool delivery > delivers hermes_gateway runtime tools through invocation_context",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "built-in runtime connection tool delivery > delivers hermes_local runtime tools through environment",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "built-in runtime connection tool delivery > delivers kimi_local runtime tools through environment",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "built-in runtime connection tool delivery > delivers openclaw_gateway runtime tools through invocation_context",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "built-in runtime connection tool delivery > delivers opencode_local runtime tools through environment",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "built-in runtime connection tool delivery > delivers paperclip_runner runtime tools through environment",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "built-in runtime connection tool delivery > delivers pi_local runtime tools through environment",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "built-in runtime connection tool delivery > delivers process runtime tools through environment",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "built-in runtime connection tool delivery > delivers http runtime tools through invocation_context",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "native ACPX environment checks > reports unsupported local platforms before a successful CLI login can mask them",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "native ACPX environment checks > requires a successful installed runtime probe",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "native ACPX environment checks > checks Grok's own installation readiness (true)",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "native ACPX environment checks > checks Grok's own installation readiness (false)",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "native ACPX environment checks > checks qualified Pi's own installation readiness (true)",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "native ACPX environment checks > checks qualified Pi's own installation readiness (false)",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "native ACPX environment checks > does not use the host platform to reject a remote environment",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "native ACPX environment checks > qualifies the SSH platform from its own uname output \"Linux\\nx86_64\\n\"",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "native ACPX environment checks > qualifies the SSH platform from its own uname output \"Darwin\\nx86_64\\n\"",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "native ACPX environment checks > qualifies the SSH platform from its own uname output \"Darwin\\narm64\\n\"",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "native ACPX environment checks > qualifies the SSH platform from its own uname output \"Linux\\naarch64\\n\"",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "native ACPX environment checks > qualifies the SSH platform from its own uname output \"\"",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "native ACPX environment checks > does not qualify an SSH target after a probe timeout",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "native ACPX environment checks > does not qualify an SSH target after a probe exit",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/adapters/registry.test.ts",
+      "test": "native ACPX environment checks > does not qualify an SSH target after a probe exception",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/live-events-ws.test.ts",
+      "test": "setupLiveEventsWebSocketServer > counts accepted upgrade authentication after disconnect (failure=false)",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/live-events-ws.test.ts",
+      "test": "setupLiveEventsWebSocketServer > counts accepted upgrade authentication after disconnect (failure=true)",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/live-events-ws.test.ts",
+      "test": "setupLiveEventsWebSocketServer > does not write a rejection response after the raw upgrade socket is already closed",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/live-events-ws.test.ts",
+      "test": "setupLiveEventsWebSocketServer > handles raw upgrade socket errors during async authorization",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/live-events-ws.test.ts",
+      "test": "setupLiveEventsWebSocketServer > destroys and cleans up listeners after flushing a rejection response",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/live-events-ws.test.ts",
+      "test": "setupLiveEventsWebSocketServer > authorizes a cloud-proxied browser for a company in its membership scope",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/live-events-ws.test.ts",
+      "test": "setupLiveEventsWebSocketServer > rejects a cloud actor for a company outside its membership scope",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/live-events-ws.test.ts",
+      "test": "setupLiveEventsWebSocketServer > falls through to session auth when no cloud actor resolves",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/heartbeat-direct-adapter-native-isolation.test.ts",
+      "test": "direct adapter native-runner isolation > executes flag-off codex_local once without creating native records",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/heartbeat-direct-adapter-native-isolation.test.ts",
+      "test": "direct adapter native-runner isolation > executes flag-off claude_local once without creating native records",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/heartbeat-direct-adapter-native-isolation.test.ts",
+      "test": "direct adapter native-runner isolation > executes flag-off opencode_local once without creating native records",
+      "before": "passed",
+      "after": "passed"
+    },
+    {
+      "file": "src/__tests__/heartbeat-direct-adapter-native-isolation.test.ts",
+      "test": "direct adapter native-runner isolation > retains an unsolicited provider cancellation through finalization",
+      "before": "passed",
+      "after": "passed"
+    }
+  ]
+}

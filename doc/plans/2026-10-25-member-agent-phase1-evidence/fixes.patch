@@ -1,0 +1,272 @@
+diff --git a/server/src/adapters/member-agent/execute.ts b/server/src/adapters/member-agent/execute.ts
+index 06bf410..6e1e356 100644
+--- a/server/src/adapters/member-agent/execute.ts
++++ b/server/src/adapters/member-agent/execute.ts
+@@ -140,12 +140,30 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
+     if (!settled) await Promise.race([Promise.resolve().then(() => ctx.onCancellationReady?.()), completed]);
+     if (!settled) {
+       const preparation = (async () => {
+-        const handoff = ctx.getFreshSessionHandoff ? await ctx.getFreshSessionHandoff() : ctx.context.paperclipFreshSessionHandoffMarkdown;
+-        if (typeof handoff !== "string" || !handoff.trim()) { fail("member_agent_no_handoff", "本次运行缺少历史摘要，未派发任务"); return; }
++        let handoff: string;
++        try {
++          const generated = ctx.getFreshSessionHandoff ? await ctx.getFreshSessionHandoff() : ctx.context.paperclipFreshSessionHandoffMarkdown;
++          handoff = typeof generated === "string" ? generated : "";
++        } catch {
++          fail("member_agent_dispatch_failed", "生成历史摘要出错");
++          return;
++        }
+         if (settled) return;
+         const context = Object.fromEntries(CONTEXT_KEYS.filter(key => ctx.context[key] !== undefined).map(key => [key, ctx.context[key]]));
+         let handoffMarkdown = handoff;
+-        while (Buffer.byteLength(handoffMarkdown) > 24000) handoffMarkdown = handoffMarkdown.slice(0, Math.max(1, Math.floor(handoffMarkdown.length * .9)));
++        if (Buffer.byteLength(handoffMarkdown, "utf8") > 24000) {
++          const marker = "[更早的历史已省略]\n";
++          const remainingBytes = 24000 - Buffer.byteLength(marker, "utf8");
++          const suffix: string[] = [];
++          let suffixBytes = 0;
++          for (const character of Array.from(handoffMarkdown).reverse()) {
++            const characterBytes = Buffer.byteLength(character, "utf8");
++            if (suffixBytes + characterBytes > remainingBytes) break;
++            suffix.push(character);
++            suffixBytes += characterBytes;
++          }
++          handoffMarkdown = marker + suffix.reverse().join("");
++        }
+         send({ type: "job.start", jobId: ctx.runId, companyId: ctx.agent.companyId, agent: { id: ctx.agent.id, name: ctx.agent.name },
+           authToken: ctx.authToken, config: { maxRunSec }, context: clean(context),
+           runtime: clean({ sessionId: ctx.runtime.sessionId, sessionDisplayId: ctx.runtime.sessionDisplayId, sessionParams: ctx.runtime.sessionParams, taskKey: ctx.runtime.taskKey }),
+diff --git a/server/src/adapters/member-agent/protocol.test.ts b/server/src/adapters/member-agent/protocol.test.ts
+index 4b61707..293070e 100644
+--- a/server/src/adapters/member-agent/protocol.test.ts
++++ b/server/src/adapters/member-agent/protocol.test.ts
+@@ -134,6 +134,16 @@ describe("member_agent phase 1", () => {
+     expect(await second.wait("hello.reject")).toMatchObject({ code: "already_connected" });
+     expect(first.socket.readyState).toBe(WebSocket.OPEN);
+   });
++  it("does not rate-limit quick reconnects after already_connected refusals", async () => {
++    const f = await fixture(), first = peer(f.key); await first.hello();
++    for (let i = 0; i < 5; i++) {
++      const duplicate = peer(f.key);
++      expect(await duplicate.wait("hello.reject")).toMatchObject({ code: "already_connected" });
++    }
++    first.close();
++    const reconnect = peer(f.key);
++    expect(await reconnect.hello()).toMatchObject({ type: "hello.ack" });
++  });
+   it("3 fails an offline dispatch immediately with a visible error", async () => {
+     const f = await fixture(), ctx = context(f);
+     expect(await execute(ctx)).toMatchObject({ exitCode: 1, errorCode: "member_agent_offline" });
+@@ -240,15 +250,52 @@ describe("member_agent phase 1", () => {
+     expect(output).not.toContain(ctx.runtimeTools!.bearerToken);
+     expect((ctx.onLog as any).mock.calls.map((c: any[]) => c[1]).join("")).not.toContain(secret);
+   });
+-  it.each(["token", "history", "config"])("fails explicitly before dispatch for missing/invalid %s", async kind => {
++  it.each(["token", "config"])("fails explicitly before dispatch for missing/invalid %s", async kind => {
+     const f = await fixture(), p = peer(f.key); await p.hello();
+-    const ctx = context(f, kind === "token" ? { authToken: "" } : kind === "history" ? { getFreshSessionHandoff: async () => null } : { config: { maxRunSec: 14401 } });
++    const ctx = context(f, kind === "token" ? { authToken: "" } : { config: { maxRunSec: 14401 } });
+     const result = await execute(ctx);
+-    expect(result).toMatchObject({ exitCode: 1, errorCode: { token: "member_agent_no_token", history: "member_agent_no_handoff", config: "member_agent_invalid_config" }[kind] });
++    expect(result).toMatchObject({ exitCode: 1, errorCode: { token: "member_agent_no_token", config: "member_agent_invalid_config" }[kind] });
+     expect(ctx.onLog).toHaveBeenCalledWith("stderr", expect.any(String));
+     expect(p.frames.some(frame => frame.type === "job.start")).toBe(false);
+     expect(api.memberAgentConnections.get(f.companyId, f.agentId).currentJobId).toBeNull();
+   });
++  it("dispatches without a handoff function or context summary", async () => {
++    const f = await fixture(), p = peer(f.key); await p.hello();
++    const ctx = context(f, { getFreshSessionHandoff: undefined, context: { issueId: randomUUID() } });
++    const pending = execute(ctx), job = await p.wait("job.start");
++    expect(job.handoffMarkdown).toBe("");
++    p.send("job.accepted", { jobId: job.jobId });
++    p.send("job.result", { jobId: job.jobId, exitCode: 0, signal: null, timedOut: false });
++    expect(await pending).toMatchObject({ exitCode: 0 });
++  });
++  it("dispatches with a null history handoff", async () => {
++    const f = await fixture(), p = peer(f.key); await p.hello();
++    const ctx = context(f, { getFreshSessionHandoff: async () => null });
++    const pending = execute(ctx), job = await p.wait("job.start");
++    expect(job.handoffMarkdown).toBe("");
++    p.send("job.accepted", { jobId: job.jobId });
++    p.send("job.result", { jobId: job.jobId, exitCode: 0, signal: null, timedOut: false });
++    expect(await pending).toMatchObject({ exitCode: 0 });
++  });
++  it("fails with a history generation error before dispatch when handoff throws", async () => {
++    const f = await fixture(), p = peer(f.key); await p.hello();
++    const ctx = context(f, { getFreshSessionHandoff: async () => { throw new Error("synthetic history failure"); } });
++    expect(await execute(ctx)).toMatchObject({ exitCode: 1, errorCode: "member_agent_dispatch_failed" });
++    expect(ctx.onLog).toHaveBeenCalledWith("stderr", expect.stringContaining("生成历史摘要出错"));
++    expect(p.frames.some(frame => frame.type === "job.start")).toBe(false);
++  });
++  it("keeps the newest complete UTF-8 history bytes under the handoff limit", async () => {
++    const f = await fixture(), p = peer(f.key); await p.hello();
++    const history = `${"早期记录。".repeat(5000)}\n结尾最新内容：重要决定已确认。`;
++    const pending = execute(context(f, { getFreshSessionHandoff: async () => history }));
++    const job = await p.wait("job.start");
++    expect(Buffer.byteLength(job.handoffMarkdown, "utf8")).toBeLessThanOrEqual(24000);
++    expect(job.handoffMarkdown.startsWith("[更早的历史已省略]\n")).toBe(true);
++    expect(job.handoffMarkdown.endsWith("结尾最新内容：重要决定已确认。")).toBe(true);
++    p.send("job.accepted", { jobId: job.jobId });
++    p.send("job.result", { jobId: job.jobId, exitCode: 0, signal: null, timedOut: false });
++    expect(await pending).toMatchObject({ exitCode: 0 });
++  });
+   it("reserves one job atomically and releases it after completion", async () => {
+     const f = await fixture(), p = peer(f.key); await p.hello();
+     const first = execute(context(f)), job = await p.wait("job.start");
+@@ -345,4 +392,57 @@ describe("member_agent phase 1", () => {
+     expect(isolated.listenerCount("upgrade")).toBe(0);
+     await disabled.close();
+   });
++  it("enforces the member WebSocket transport address and forwarding rules", async () => {
++    const { isMemberAgentTransportAllowed } = await import("../../realtime/member-agent-ws.js");
++    const cases = [
++      { name: "public IPv4 cleartext", encrypted: false, remoteAddress: "8.8.8.8", want: false },
++      { name: "public IPv6 cleartext", encrypted: false, remoteAddress: "2001:4860:4860::8888", want: false },
++      { name: "IPv4 loopback", encrypted: false, remoteAddress: "127.255.0.1", want: true },
++      { name: "IPv6 loopback", encrypted: false, remoteAddress: "::1", want: true },
++      { name: "10/8", encrypted: false, remoteAddress: "10.4.5.6", want: true },
++      { name: "172.16/12 lower bound", encrypted: false, remoteAddress: "172.16.0.1", want: true },
++      { name: "172.16/12 upper bound", encrypted: false, remoteAddress: "172.31.255.254", want: true },
++      { name: "172.32 outside private range", encrypted: false, remoteAddress: "172.32.0.1", want: false },
++      { name: "192.168/16", encrypted: false, remoteAddress: "192.168.40.5", want: true },
++      { name: "169.254/16", encrypted: false, remoteAddress: "169.254.10.5", want: true },
++      { name: "Tailscale CGNAT lower bound", encrypted: false, remoteAddress: "100.64.0.1", want: true },
++      { name: "Tailscale CGNAT upper bound", encrypted: false, remoteAddress: "100.127.255.254", want: true },
++      { name: "above Tailscale CGNAT range", encrypted: false, remoteAddress: "100.128.0.1", want: false },
++      { name: "below Tailscale CGNAT range", encrypted: false, remoteAddress: "100.63.255.255", want: false },
++      { name: "IPv4 mapped private address", encrypted: false, remoteAddress: "::ffff:192.168.1.5", want: true },
++      { name: "IPv4 mapped Tailscale CGNAT address", encrypted: false, remoteAddress: "::ffff:100.100.1.1", want: true },
++      { name: "IPv4 mapped loopback", encrypted: false, remoteAddress: "::ffff:127.0.0.1", want: true },
++      { name: "IPv6 unique-local", encrypted: false, remoteAddress: "fc00::", want: true },
++      { name: "Tailscale IPv6 unique-local address", encrypted: false, remoteAddress: "fd7a:115c:a1e0::1", want: true },
++      { name: "IPv6 link-local", encrypted: false, remoteAddress: "fe80::1", want: true },
++      { name: "missing address", encrypted: false, remoteAddress: undefined, want: false },
++      { name: "loopback forwarded HTTP", encrypted: false, remoteAddress: "127.0.0.1", forwardedProto: "http", want: false },
++      { name: "Tailscale CGNAT forwarded HTTP", encrypted: false, remoteAddress: "100.64.0.1", forwardedProto: "http", want: false },
++      { name: "loopback forwarded HTTPS", encrypted: false, remoteAddress: "127.0.0.1", forwardedProto: "https", want: true },
++      { name: "public forwarded HTTPS", encrypted: false, remoteAddress: "8.8.8.8", forwardedProto: "https", want: false },
++      { name: "TLS socket", encrypted: true, remoteAddress: "8.8.8.8", want: true },
++      { name: "TLS socket forwarded HTTP adds rejection", encrypted: true, remoteAddress: "127.0.0.1", forwardedProto: "http", want: false },
++    ];
++    for (const testCase of cases) {
++      expect(isMemberAgentTransportAllowed(testCase).allowed, testCase.name).toBe(testCase.want);
++    }
++  });
++  it("rejects public cleartext upgrades before authentication or failure limiting", async () => {
++    const { setupMemberAgentWebSocketServer } = await import("../../realtime/member-agent-ws.js");
++    const select = vi.fn(async () => []);
++    const fakeDb = { select } as any;
++    const isolatedServer = createServer();
++    const service = setupMemberAgentWebSocketServer(isolatedServer, fakeDb, { deploymentMode: "authenticated" });
++    const responses: string[] = [];
++    for (let i = 0; i < 6; i++) {
++      const rawSocket: any = { destroyed: false, writable: true, end: vi.fn((data: string) => responses.push(data)), on: vi.fn() };
++      const request: any = { url: "/api/member-agent/v1/connect", headers: { authorization: "Bearer untrusted-fixture" }, socket: { remoteAddress: "8.8.8.8", encrypted: false } };
++      isolatedServer.emit("upgrade", request, rawSocket, Buffer.alloc(0));
++    }
++    await new Promise(resolve => setTimeout(resolve, 10));
++    expect(select).not.toHaveBeenCalled();
++    expect(responses).toHaveLength(6);
++    expect(responses.every(response => response.startsWith("HTTP/1.1 403"))).toBe(true);
++    await service.close();
++  });
+ });
+diff --git a/server/src/realtime/member-agent-ws.ts b/server/src/realtime/member-agent-ws.ts
+index 98de09f..f18ee4b 100644
+--- a/server/src/realtime/member-agent-ws.ts
++++ b/server/src/realtime/member-agent-ws.ts
+@@ -1,7 +1,9 @@
+ import { createHash } from "node:crypto";
+ import type { IncomingMessage, Server } from "node:http";
+ import { createRequire } from "node:module";
++import { BlockList, isIP } from "node:net";
+ import type { Duplex } from "node:stream";
++import type { TLSSocket } from "node:tls";
+ import { and, eq } from "drizzle-orm";
+ import { agents, type Db } from "@paperclipai/db";
+ import type { DeploymentMode } from "@paperclipai/shared";
+@@ -67,6 +69,47 @@ export class MemberAgentConnections {
+ }
+ export const memberAgentConnections = new MemberAgentConnections();
+ 
++const loopbackAddresses = new BlockList();
++loopbackAddresses.addSubnet("127.0.0.0", 8, "ipv4");
++loopbackAddresses.addAddress("::1", "ipv6");
++
++const privateAddresses = new BlockList();
++privateAddresses.addSubnet("10.0.0.0", 8, "ipv4");
++// Tailscale/运营商级 NAT 地址段；按其网络自身加密的信任边界放行。
++privateAddresses.addSubnet("100.64.0.0", 10, "ipv4");
++privateAddresses.addSubnet("172.16.0.0", 12, "ipv4");
++privateAddresses.addSubnet("192.168.0.0", 16, "ipv4");
++privateAddresses.addSubnet("169.254.0.0", 16, "ipv4");
++privateAddresses.addSubnet("fc00::", 7, "ipv6");
++privateAddresses.addSubnet("fe80::", 10, "ipv6");
++
++type MemberPeerCategory = "public" | "private" | "loopback";
++
++export function isMemberAgentTransportAllowed(input: {
++  encrypted: boolean;
++  remoteAddress?: string;
++  forwardedProto?: string | string[];
++}): { allowed: boolean; category: MemberPeerCategory; reason: string | null } {
++  const forwardedProto = (Array.isArray(input.forwardedProto) ? input.forwardedProto[0] : input.forwardedProto)
++    ?.split(",", 1)[0]?.trim().toLowerCase();
++  const rawAddress = input.remoteAddress?.trim();
++  const mappedIpv4 = rawAddress?.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i)?.[1];
++  const address = mappedIpv4 ?? rawAddress;
++  const version = address ? isIP(address) : 0;
++  const category: MemberPeerCategory = version && loopbackAddresses.check(address!, version === 4 ? "ipv4" : "ipv6")
++    ? "loopback"
++    : version && privateAddresses.check(address!, version === 4 ? "ipv4" : "ipv6")
++      ? "private"
++      : "public";
++
++  if ((category === "loopback" || category === "private") && forwardedProto === "http") {
++    return { allowed: false, category, reason: "forwarded_http" };
++  }
++  if (input.encrypted) return { allowed: true, category, reason: null };
++  if (category === "loopback" || category === "private") return { allowed: true, category, reason: null };
++  return { allowed: false, category, reason: rawAddress ? "public_cleartext" : "missing_peer_address" };
++}
++
+ export function assertMemberAgentJwtTtl(env: NodeJS.ProcessEnv = process.env) {
+   const configured = Number(env.PAPERCLIP_AGENT_JWT_TTL_SECONDS);
+   const ttl = Number.isFinite(configured) && configured > 0 ? Math.floor(configured) : 48 * 3600;
+@@ -99,6 +142,16 @@ export function setupMemberAgentWebSocketServer(server: Server, db: Db, options:
+     // The existing live-events handler closes unclaimed paths. Claim synchronously first.
+     req.paperclipWebSocketHandled = true;
+     socket.on("error", () => {});
++    const transport = isMemberAgentTransportAllowed({
++      encrypted: (req.socket as TLSSocket).encrypted === true,
++      remoteAddress: req.socket.remoteAddress,
++      forwardedProto: req.headers["x-forwarded-proto"],
++    });
++    if (!transport.allowed) {
++      logger.warn({ reason: transport.reason, peerCategory: transport.category }, "member_agent rejected an insecure peer transport");
++      reject(socket, "403 Forbidden");
++      return;
++    }
+     const authorization = typeof req.headers.authorization === "string" ? req.headers.authorization : "";
+     let fingerprint = createHash("sha256").update(authorization || req.socket.remoteAddress || "unknown").digest("hex");
+     const now = Date.now();
+@@ -123,8 +176,8 @@ export function setupMemberAgentWebSocketServer(server: Server, db: Db, options:
+         let helloTimer: ReturnType<typeof setTimeout>;
+         let heartbeatTimer: ReturnType<typeof setTimeout>;
+         let closed = false;
+-        const sendReject = (code: string, message: string) => {
+-          recordFailure();
++        const sendReject = (code: string, message: string, countsAsFailure = true) => {
++          if (countsAsFailure) recordFailure();
+           ws.send(JSON.stringify({ v: 1, type: "hello.reject", code, message }));
+           ws.close(1008, code);
+         };
+@@ -146,7 +199,7 @@ export function setupMemberAgentWebSocketServer(server: Server, db: Db, options:
+             if (ws.readyState === 1 || ws.readyState === 0) ws.terminate();
+           },
+         };
+-        if (!connections.reserve(connection)) { sendReject("already_connected", "该智能体已经建立连接"); return; }
++        if (!connections.reserve(connection)) { sendReject("already_connected", "该智能体已经建立连接", false); return; }
+         owned.add(connection);
+         const touch = () => {
+           connection.lastHeartbeatAt = Date.now(); clearTimeout(heartbeatTimer);

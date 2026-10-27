@@ -1,0 +1,13 @@
+{
+  "checkedAt": "2026-10-25T16:45:44.1264543+08:00",
+  "backupPid": 31636,
+  "currentPid": 59752,
+  "parentPid": 22972,
+  "processCreated": "2026-10-25T16:43:37.906033+08:00",
+  "command": "\"C:\\Program Files\\nodejs\\node.exe\" --require D:\\paperclip\\node_modules\\.pnpm\\tsx@4.23.15\\node_modules\\tsx\\dist\\preflight.cjs --import file:///D:/paperclip/node_modules/.pnpm/tsx@4.23.15/node_modules/tsx/dist/loader.mjs src/index.ts",
+  "watchCommand": "\"C:\\Program Files\\nodejs\\node.exe\" D:\\paperclip\\node_modules\\.pnpm\\tsx@4.23.15\\node_modules\\tsx\\dist\\cli.mjs watch --exclude **/{node_modules,bower_components,vendor}/** --exclude **/.vite-temp/** --exclude D:\\paperclip\\ui\\node_modules --exclude D:/paperclip/ui/node_modules/** --exclude D:\\paperclip\\ui\\node_modules\\.vite-temp --exclude D:/paperclip/ui/node_modules/.vite-temp/** --exclude D:\\paperclip\\ui\\.vite --exclude D:/paperclip/ui/.vite/** --exclude D:\\paperclip\\ui\\dist --exclude D:/paperclip/ui/dist/** --exclude D:\\paperclip\\.paperclip\\worktrees --exclude D:/paperclip/.paperclip/worktrees/** --exclude C:\\Users\\11580\\.paperclip\\adapter-plugins --exclude C:/Users/11580/.paperclip/adapter-plugins/** src/index.ts",
+  "healthStatus": "ok",
+  "processStartedAt": "2026-10-25T08:43:51.466Z",
+  "explicitRestartCommandExecuted": false,
+  "note": "Source watcher is active. PID changed during implementation; cannot claim no restart. Product source writes frozen after discovery. No business dispatch/cancel API requests made."
+}

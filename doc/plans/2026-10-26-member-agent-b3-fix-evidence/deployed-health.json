@@ -1,0 +1,7 @@
+{
+  "http": 200,
+  "status": "ok",
+  "deploymentMode": "authenticated",
+  "authReady": true,
+  "image": "sha256:63eee16371c563b6be911e31af1c96c79d4896268347897d54d74d687a9d54cb"
+}

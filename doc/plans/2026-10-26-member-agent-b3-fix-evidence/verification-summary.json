@@ -1,0 +1,32 @@
+{
+  "serverRegression": {
+    "files": 10,
+    "passed": 178,
+    "failed": 0
+  },
+  "memberRegression": {
+    "files": 14,
+    "passed": 201,
+    "failed": 0
+  },
+  "newCancellationCases": 9,
+  "serverTscNewErrors": 0,
+  "memberTscErrors": 0,
+  "patchApplyCheckExit": 0,
+  "patchPaths": [
+    "server/src/adapters/member-agent/cancellation.test.ts",
+    "server/src/adapters/member-agent/execute.ts"
+  ],
+  "patchSha256": "725C01C3F773FA57BD5E84598EC05846C5D3401976E599E5841244CCC0BB680F",
+  "productionSourceChanges": 0,
+  "serviceContinuity": "not satisfied across user-confirmed computer restart; original PID/start time cannot persist",
+  "realB3Retest": "not executed; requires owner deployment",
+  "outputs": {
+    "server-tsc-retry.log": true,
+    "member-regression-retry.log": true,
+    "server-tsc-before.log": true,
+    "baseline-tests.log": true,
+    "regression-tests-retry.log": true,
+    "member-tsc.log": true
+  }
+}

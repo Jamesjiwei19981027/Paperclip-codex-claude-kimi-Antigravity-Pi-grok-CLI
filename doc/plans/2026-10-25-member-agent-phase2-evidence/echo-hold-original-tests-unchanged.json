@@ -1,0 +1,35 @@
+{
+  "comparison": "UTF-8 with CRLF normalized to LF; temporary Git checkout applies Windows line endings",
+  "files": [
+    {
+      "path": "member-agent/test/foundation.test.ts",
+      "beforeNormalized": "26d35c852961bae0afc8ab47dc9b87d77ade35439bebb102aa793028601e1724",
+      "afterNormalized": "26d35c852961bae0afc8ab47dc9b87d77ade35439bebb102aa793028601e1724",
+      "unchanged": true
+    },
+    {
+      "path": "member-agent/test/connection.test.ts",
+      "beforeNormalized": "419afb926be035bfed13af89a8d25127376e027b2d7fcbf44cd436d66b3cf15f",
+      "afterNormalized": "419afb926be035bfed13af89a8d25127376e027b2d7fcbf44cd436d66b3cf15f",
+      "unchanged": true
+    },
+    {
+      "path": "member-agent/test/job-runner.test.ts",
+      "beforeNormalized": "856f92d01ba71ea94110a127e9cc844c42297888cb55a48f9ffb65cc509fd960",
+      "afterNormalized": "856f92d01ba71ea94110a127e9cc844c42297888cb55a48f9ffb65cc509fd960",
+      "unchanged": true
+    },
+    {
+      "path": "member-agent/test/protocol-echo.test.ts",
+      "beforeNormalized": "ab94b1d584a70740f76def04ed25a154603e4fca6d64788f049e3364fc375dcf",
+      "afterNormalized": "ab94b1d584a70740f76def04ed25a154603e4fca6d64788f049e3364fc375dcf",
+      "unchanged": true
+    },
+    {
+      "path": "member-agent/test/cli.test.ts",
+      "beforeNormalized": "c8bace1c114f240dea2bde9dd8a5505141a9a6b06425d6d54787d3877e124c3a",
+      "afterNormalized": "c8bace1c114f240dea2bde9dd8a5505141a9a6b06425d6d54787d3877e124c3a",
+      "unchanged": true
+    }
+  ]
+}

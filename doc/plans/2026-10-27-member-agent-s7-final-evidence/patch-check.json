@@ -1,0 +1,17 @@
+{
+  "patch": "E:\\workspace\\paperclip-member-agent-dev\\doc\\plans\\2026-10-27-member-agent-s7-final-evidence\\member-agent-s7-final.patch",
+  "tempSnapshot": "C:\\Users\\11580\\AppData\\Local\\Temp\\paperclip-s7-apply-check-s4dcXC",
+  "files": [
+    "member-agent/src/executors/codex.ts",
+    "member-agent/test/codex-executor.test.ts",
+    "member-agent/test/codex-integration.test.ts",
+    "server/src/routes/agents.ts",
+    "server/src/__tests__/agent-permissions-routes.test.ts",
+    "server/src/adapters/member-agent/execute.ts",
+    "server/src/adapters/member-agent/protocol.test.ts",
+    "server/src/services/agent-configuration.ts",
+    "server/src/__tests__/member-agent-concurrency.test.ts"
+  ],
+  "checkExit": 0,
+  "output": "git apply --check: exit 0 (no output)"
+}

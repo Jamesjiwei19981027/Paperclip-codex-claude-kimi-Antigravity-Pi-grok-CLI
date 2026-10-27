@@ -1,0 +1,84 @@
+
+ RUN  v5.0.3 E:/workspace/paperclip-member-agent-dev/member-agent
+
+ × test/connection.test.ts > 连接和重连 > 发送有效 hello 和认证头，check 在 ack 后读取服务器参数并正常退出 22ms
+   → expected 1 to be +0 // Object.is equality
+ × test/connection.test.ts > 连接和重连 > HTTP 401 退出码 3 且不重试 4ms
+   → expected 1 to be 3 // Object.is equality
+ × test/connection.test.ts > 连接和重连 > HTTP 403 退出码 4 且不重试 2ms
+   → expected 1 to be 4 // Object.is equality
+ ↓ test/connection.test.ts > 连接和重连 > 10 秒未收到 hello 响应就关闭，1 秒退避后重连
+ ↓ test/connection.test.ts > 连接和重连 > HTTP 429 至少等 60 秒才重试
+ ↓ test/connection.test.ts > 连接和重连 > already_connected 每次等 30 秒无限重试，not_allowed 不重试
+ ↓ test/connection.test.ts > 连接和重连 > 失败指数退避到 30 秒上限，ack 后重置
+ ↓ test/connection.test.ts > 连接和重连 > 随机抖动在 0–20%，独立心跳按 ack 周期发送
+ ↓ test/connection.test.ts > 连接和重连 > 未知 type 记录日志，未知版本断开，重连等待任务清理且旧 sender 失效
+ × test/connection.test.ts > 有界发送队列 > 超过1000帧只丢弃最旧日志，保留结果且发送回调继续排空 1ms
+   → Cannot read properties of undefined (reading 'seq')
+ × test/connection.test.ts > 有界发送队列 > 8MiB 字节上限生效，停止后丢弃后续输出 1ms
+   → Cannot read properties of undefined (reading 'type')
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/connection.test.ts > 连接和重连 > 发送有效 hello 和认证头，check 在 ack 后读取服务器参数并正常退出
+AssertionError: expected 1 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ test/connection.test.ts:37:18
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  test/connection.test.ts > 连接和重连 > HTTP 401 退出码 3 且不重试
+AssertionError: expected 1 to be 3 // Object.is equality
+
+- Expected
++ Received
+
+- 3
++ 1
+
+ ❯ test/connection.test.ts:44:111
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  test/connection.test.ts > 连接和重连 > HTTP 403 退出码 4 且不重试
+AssertionError: expected 1 to be 4 // Object.is equality
+
+- Expected
++ Received
+
+- 4
++ 1
+
+ ❯ test/connection.test.ts:44:111
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  test/connection.test.ts > 有界发送队列 > 超过1000帧只丢弃最旧日志，保留结果且发送回调继续排空
+TypeError: Cannot read properties of undefined (reading 'seq')
+ ❯ test/connection.test.ts:79:66
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  test/connection.test.ts > 有界发送队列 > 8MiB 字节上限生效，停止后丢弃后续输出
+TypeError: Cannot read properties of undefined (reading 'type')
+ ❯ test/connection.test.ts:83:343
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  5 failed | 6 skipped (11)
+   Start at  20:05:06
+   Duration  316ms (transform 37%, import 37%, tests 23%, worker 3%)
+

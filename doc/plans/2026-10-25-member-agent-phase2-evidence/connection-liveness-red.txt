@@ -1,0 +1,48 @@
+
+ RUN  v5.0.3 E:/workspace/paperclip-member-agent-dev/member-agent
+
+ ↓ test/connection.test.ts > 连接和重连 > 发送有效 hello 和认证头，check 在 ack 后读取服务器参数并正常退出
+ ↓ test/connection.test.ts > 连接和重连 > HTTP 401 退出码 3 且不重试
+ ↓ test/connection.test.ts > 连接和重连 > HTTP 403 退出码 4 且不重试
+ ↓ test/connection.test.ts > 连接和重连 > 10 秒未收到 hello 响应就关闭，1 秒退避后重连
+ ↓ test/connection.test.ts > 连接和重连 > HTTP 429 至少等 60 秒才重试
+ ↓ test/connection.test.ts > 连接和重连 > already_connected 每次等 30 秒无限重试，not_allowed 不重试
+ ↓ test/connection.test.ts > 连接和重连 > 失败指数退避到 30 秒上限，ack 后重置
+ ↓ test/connection.test.ts > 连接和重连 > 随机抖动在 0–20%，独立心跳按 ack 周期发送
+ ↓ test/connection.test.ts > 连接和重连 > 未知 type 记录日志，未知版本断开，重连等待任务清理且旧 sender 失效
+ ↓ test/connection.test.ts > 连接和重连 > 6 执行器在独立 Worker 中同步忙等时，真实 WebSocket 心跳持续发送
+ × test/connection.test.ts > 连接和重连 > 原生 pong 无响应满 45 秒中止任务并退避重连，不依赖应用心跳 ack 160ms
+   → expected 0 to be greater than 0
+ × test/connection.test.ts > 连接和重连 > 原生自动 pong 保持连接，不要求服务器回复 JSON heartbeat 140ms
+   → expected 0 to be greater than 0
+ ↓ test/connection.test.ts > 有界发送队列 > 超过1000帧只丢弃最旧日志，保留结果且发送回调继续排空
+ ↓ test/connection.test.ts > 有界发送队列 > 8MiB 字节上限生效，停止后丢弃后续输出
+ ↓ test/connection.test.ts > 有界发送队列 > ws 缓冲区积压时暂缓发送，并在缓冲释放后恢复
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/connection.test.ts > 连接和重连 > 原生 pong 无响应满 45 秒中止任务并退避重连，不依赖应用心跳 ack
+AssertionError: expected 0 to be greater than 0
+ ❯ test/connection.test.ts:111:107
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  test/connection.test.ts > 连接和重连 > 原生自动 pong 保持连接，不要求服务器回复 JSON heartbeat
+AssertionError: expected 0 to be greater than 0
+ ❯ test/connection.test.ts:123:19
+    121|     await until(()=>options.lines.some(line=>line.includes('已连接')));
+    122|     for(let n=0;n<4;n++){clock.advance(15000);await flush();}
+    123|     expect(pings).toBeGreaterThan(0);expect(heartbeats).toBeGreaterTha…
+       |                   ^
+    124|     options.abort.abort();expect(await running).toBe(0);
+    125|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 13 skipped (15)
+   Start at  20:11:28
+   Duration  768ms (tests 60%, transform 25%, import 13%, worker 1%)
+

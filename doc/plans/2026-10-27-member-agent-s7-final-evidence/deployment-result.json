@@ -1,0 +1,34 @@
+{
+  "deployed": true,
+  "cutoverStartedAt": "2026-10-27T04:17:40.024099+00:00",
+  "ownerActiveRunConfirmedAt": "2026-10-27T11:57:00+08:00",
+  "health": {
+    "httpStatus": 200,
+    "status": "ok",
+    "deploymentMode": "authenticated"
+  },
+  "memberNoKeyHttpStatus": 401,
+  "appAfter": {
+    "id": "71ad99479ec68ad17104ae82a42a67c919919e4c38118166ba8251ec1be6f7b1",
+    "imageId": "sha256:36403ee517fad9e16226c51d8cc0a50ca2e289defdc5be15afd0f432d76e918d",
+    "startedAt": "2026-10-27T04:17:48.379796593Z",
+    "status": "running"
+  },
+  "dbBefore": {
+    "id": "9e373d917e9a9bedd0fd157cc2e648f05af5d590a82be1135e90225a46278aca",
+    "startedAt": "2026-10-25T11:46:25.335708585Z"
+  },
+  "dbAfter": {
+    "id": "9e373d917e9a9bedd0fd157cc2e648f05af5d590a82be1135e90225a46278aca",
+    "startedAt": "2026-10-25T11:46:25.335708585Z",
+    "status": "running"
+  },
+  "dbUnchanged": true,
+  "rollbackTag": "paperclip-s7-rollback:s7-20261027-0406",
+  "sourceBackup": "/root/paperclip-deploy/releases/s7-20261027T0406Z/source-before.tar.gz",
+  "sourceSha256": {
+    "server/src/routes/agents.ts": "4a7cb1b85a70fd4823e5a5091fbaefa30ab0490a834f76de5d8699e71215900d",
+    "server/src/services/agent-configuration.ts": "297232da24e35765f1340826b6456f380ce6f645a5586873f9626e8f34580151",
+    "server/src/adapters/member-agent/execute.ts": "c0973f1d246be0b609320e8ac29ac56b56f39df2a85cfeae6e786f4dac04840d"
+  }
+}

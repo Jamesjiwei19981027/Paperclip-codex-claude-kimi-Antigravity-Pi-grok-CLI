@@ -1,0 +1,11 @@
+{
+  "baselineStatusLines": 112,
+  "preDeliveryStatusLines": 113,
+  "afterStatusLines": 124,
+  "preDeliveryDeltaCount": 1,
+  "preDeliveryDelta": "one unrelated untracked Chinese .docx; source unconfirmed, untouched",
+  "postDeliveryNonEvidenceDeltaCount": 0,
+  "deliveryDirectory": "doc/plans/2026-10-25-member-agent-phase3-evidence",
+  "sourceEditsUnderD": "none by this task",
+  "patchAppliedToD": false
+}

@@ -1,0 +1,9 @@
+{
+  "serverUrl": "http://192.168.0.213:3100",
+  "executor": "codex",
+  "projectDirs": {},
+  "defaultCwd": "E:\\workspace\\paperclip-member-agent-dev\\doc\\plans\\2026-10-26-member-agent-b3-fix-evidence\\b3-a521a7be\\workspace",
+  "codexExecutable": "E:\\AI_Data\\tools\\codex-0.160.0\\codex.exe",
+  "codexHome": "E:\\workspace\\paperclip-member-agent-dev\\doc\\plans\\2026-10-26-member-agent-b3-fix-evidence\\b3-a521a7be\\codex-home-fake",
+  "runtimeDir": "E:\\workspace\\paperclip-member-agent-dev\\member-agent\\runtime"
+}

@@ -1,0 +1,14 @@
+[
+  {
+    "path": "server/src/routes/agents.ts",
+    "sha256": "4a7cb1b85a70fd4823e5a5091fbaefa30ab0490a834f76de5d8699e71215900d"
+  },
+  {
+    "path": "server/src/services/agent-configuration.ts",
+    "sha256": "297232da24e35765f1340826b6456f380ce6f645a5586873f9626e8f34580151"
+  },
+  {
+    "path": "server/src/adapters/member-agent/execute.ts",
+    "sha256": "c0973f1d246be0b609320e8ac29ac56b56f39df2a85cfeae6e786f4dac04840d"
+  }
+]

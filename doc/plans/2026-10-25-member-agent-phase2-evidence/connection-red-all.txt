@@ -1,0 +1,168 @@
+
+ RUN  v5.0.3 E:/workspace/paperclip-member-agent-dev/member-agent
+
+ × test/connection.test.ts > 连接和重连 > 发送有效 hello 和认证头，check 在 ack 后读取服务器参数并正常退出 27ms
+   → expected 1 to be +0 // Object.is equality
+ × test/connection.test.ts > 连接和重连 > HTTP 401 退出码 3 且不重试 4ms
+   → expected 1 to be 3 // Object.is equality
+ × test/connection.test.ts > 连接和重连 > HTTP 403 退出码 4 且不重试 1ms
+   → expected 1 to be 4 // Object.is equality
+ × test/connection.test.ts > 连接和重连 > 10 秒未收到 hello 响应就关闭，1 秒退避后重连 1875ms
+   → 测试等待超时
+ × test/connection.test.ts > 连接和重连 > HTTP 429 至少等 60 秒才重试 1912ms
+   → 测试等待超时
+ × test/connection.test.ts > 连接和重连 > already_connected 每次等 30 秒无限重试，not_allowed 不重试 2041ms
+   → 测试等待超时
+ × test/connection.test.ts > 连接和重连 > 失败指数退避到 30 秒上限，ack 后重置 2140ms
+   → 测试等待超时
+ × test/connection.test.ts > 连接和重连 > 随机抖动在 0–20%，独立心跳按 ack 周期发送 1914ms
+   → 测试等待超时
+ × test/connection.test.ts > 连接和重连 > 未知 type 记录日志，未知版本断开，重连等待任务清理且旧 sender 失效 1846ms
+   → 测试等待超时
+ × test/connection.test.ts > 有界发送队列 > 超过1000帧只丢弃最旧日志，保留结果且发送回调继续排空 2ms
+   → Cannot read properties of undefined (reading 'seq')
+ × test/connection.test.ts > 有界发送队列 > 8MiB 字节上限生效，停止后丢弃后续输出 1ms
+   → Cannot read properties of undefined (reading 'type')
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 11 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/connection.test.ts > 连接和重连 > 发送有效 hello 和认证头，check 在 ack 后读取服务器参数并正常退出
+AssertionError: expected 1 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ test/connection.test.ts:37:18
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/11]⎯
+
+ FAIL  test/connection.test.ts > 连接和重连 > HTTP 401 退出码 3 且不重试
+AssertionError: expected 1 to be 3 // Object.is equality
+
+- Expected
++ Received
+
+- 3
++ 1
+
+ ❯ test/connection.test.ts:44:111
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/11]⎯
+
+ FAIL  test/connection.test.ts > 连接和重连 > HTTP 403 退出码 4 且不重试
+AssertionError: expected 1 to be 4 // Object.is equality
+
+- Expected
++ Received
+
+- 4
++ 1
+
+ ❯ test/connection.test.ts:44:111
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/11]⎯
+
+ FAIL  test/connection.test.ts > 连接和重连 > 10 秒未收到 hello 响应就关闭，1 秒退避后重连
+Error: 测试等待超时
+ ❯ until test/connection.test.ts:11:110
+      9| afterEach(async () => { for (const close of cleanup.splice(0).reverse(…
+     10| const flush = () => new Promise<void>(resolve => setTimeout(resolve, 1…
+     11| async function until(test: () => boolean) { for(let n=0;n<100;n++){ if…
+       |                                                                                                              ^
+     12| class ManualClock implements Clock {
+     13|   now = 0;
+ ❯ test/connection.test.ts:48:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/11]⎯
+
+ FAIL  test/connection.test.ts > 连接和重连 > HTTP 429 至少等 60 秒才重试
+Error: 测试等待超时
+ ❯ until test/connection.test.ts:11:110
+      9| afterEach(async () => { for (const close of cleanup.splice(0).reverse(…
+     10| const flush = () => new Promise<void>(resolve => setTimeout(resolve, 1…
+     11| async function until(test: () => boolean) { for(let n=0;n<100;n++){ if…
+       |                                                                                                              ^
+     12| class ManualClock implements Clock {
+     13|   now = 0;
+ ❯ test/connection.test.ts:52:119
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/11]⎯
+
+ FAIL  test/connection.test.ts > 连接和重连 > already_connected 每次等 30 秒无限重试，not_allowed 不重试
+Error: 测试等待超时
+ ❯ until test/connection.test.ts:11:110
+      9| afterEach(async () => { for (const close of cleanup.splice(0).reverse(…
+     10| const flush = () => new Promise<void>(resolve => setTimeout(resolve, 1…
+     11| async function until(test: () => boolean) { for(let n=0;n<100;n++){ if…
+       |                                                                                                              ^
+     12| class ManualClock implements Clock {
+     13|   now = 0;
+ ❯ test/connection.test.ts:56:27
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/11]⎯
+
+ FAIL  test/connection.test.ts > 连接和重连 > 失败指数退避到 30 秒上限，ack 后重置
+Error: 测试等待超时
+ ❯ until test/connection.test.ts:11:110
+      9| afterEach(async () => { for (const close of cleanup.splice(0).reverse(…
+     10| const flush = () => new Promise<void>(resolve => setTimeout(resolve, 1…
+     11| async function until(test: () => boolean) { for(let n=0;n<100;n++){ if…
+       |                                                                                                              ^
+     12| class ManualClock implements Clock {
+     13|   now = 0;
+ ❯ test/connection.test.ts:60:88
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/11]⎯
+
+ FAIL  test/connection.test.ts > 连接和重连 > 随机抖动在 0–20%，独立心跳按 ack 周期发送
+Error: 测试等待超时
+ ❯ until test/connection.test.ts:11:110
+      9| afterEach(async () => { for (const close of cleanup.splice(0).reverse(…
+     10| const flush = () => new Promise<void>(resolve => setTimeout(resolve, 1…
+     11| async function until(test: () => boolean) { for(let n=0;n<100;n++){ if…
+       |                                                                                                              ^
+     12| class ManualClock implements Clock {
+     13|   now = 0;
+ ❯ test/connection.test.ts:63:351
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/11]⎯
+
+ FAIL  test/connection.test.ts > 连接和重连 > 未知 type 记录日志，未知版本断开，重连等待任务清理且旧 sender 失效
+Error: 测试等待超时
+ ❯ until test/connection.test.ts:11:110
+      9| afterEach(async () => { for (const close of cleanup.splice(0).reverse(…
+     10| const flush = () => new Promise<void>(resolve => setTimeout(resolve, 1…
+     11| async function until(test: () => boolean) { for(let n=0;n<100;n++){ if…
+       |                                                                                                              ^
+     12| class ManualClock implements Clock {
+     13|   now = 0;
+ ❯ test/connection.test.ts:67:502
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/11]⎯
+
+ FAIL  test/connection.test.ts > 有界发送队列 > 超过1000帧只丢弃最旧日志，保留结果且发送回调继续排空
+TypeError: Cannot read properties of undefined (reading 'seq')
+ ❯ test/connection.test.ts:79:66
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/11]⎯
+
+ FAIL  test/connection.test.ts > 有界发送队列 > 8MiB 字节上限生效，停止后丢弃后续输出
+TypeError: Cannot read properties of undefined (reading 'type')
+ ❯ test/connection.test.ts:83:343
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/11]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  11 failed (11)
+   Start at  20:05:11
+   Duration  12.08s (tests 99%, import 1%)
+

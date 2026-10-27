@@ -1,0 +1,23 @@
+[
+  {
+    "package": "server",
+    "beforeExit": 0,
+    "afterExit": 0,
+    "beforeErrors": [],
+    "afterErrors": []
+  },
+  {
+    "package": "packages-shared",
+    "beforeExit": 0,
+    "afterExit": 0,
+    "beforeErrors": [],
+    "afterErrors": []
+  },
+  {
+    "package": "ui",
+    "beforeExit": 0,
+    "afterExit": 0,
+    "beforeErrors": [],
+    "afterErrors": []
+  }
+]

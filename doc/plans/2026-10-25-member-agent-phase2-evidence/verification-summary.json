@@ -1,0 +1,11 @@
+{
+  "patchSha256": "A56161C43AA1655F0E55DE784B299AC41E37854C7B8983041E5A8EEFC9672AEA",
+  "baseline": "92371b0ec3ae6c849f47225a040c92f1e79516be",
+  "newFiles": 26,
+  "existingServerFilesUnchanged": true,
+  "memberTestPass": 126,
+  "stage1RegressionPass": 97,
+  "memberTypecheckErrors": 0,
+  "applyCheckExitCode": 0,
+  "serviceIdentityPreserved": false
+}

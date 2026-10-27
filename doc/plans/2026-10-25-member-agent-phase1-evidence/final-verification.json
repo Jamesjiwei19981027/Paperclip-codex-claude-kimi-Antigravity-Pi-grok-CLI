@@ -1,0 +1,15 @@
+{
+  "checkedAt": "2026-10-25T08:49:23.452Z",
+  "sourceChangedAfterVerification": [],
+  "reportMissingEvidenceLinks": [],
+  "health": "ok",
+  "deploymentMode": "local_trusted",
+  "serviceStartedAt": "2026-10-25T08:43:51.466Z",
+  "tests": "163 passed, 0 failed",
+  "directTsc": "server/shared/ui: exit 0, 0 added errors",
+  "phase1Accepted": false,
+  "openIssues": [
+    "public plaintext WebSocket transport gate missing",
+    "live-source watch reload observed; source writes stopped"
+  ]
+}

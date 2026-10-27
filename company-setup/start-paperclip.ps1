@@ -1,12 +1,16 @@
-param([switch]$Foreground)
+﻿param([switch]$Foreground)
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'windows-common.ps1')
 $repo = Split-Path $PSScriptRoot -Parent
 $principal = [Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
 if ($principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
   throw '请用普通 PowerShell 启动，内嵌 PostgreSQL 不接受管理员运行。'
 }
-$env:npm_config_script_shell = 'D:\Program Files\Git\bin\bash.exe'
-if (!(Test-Path -LiteralPath $env:npm_config_script_shell)) { throw '找不到已配置的 Git Bash。' }
+if ([string]::IsNullOrWhiteSpace($env:npm_config_script_shell)) {
+  $env:npm_config_script_shell = Resolve-SetupGitBash
+} elseif (!(Test-Path -LiteralPath $env:npm_config_script_shell -PathType Leaf)) {
+  throw 'The explicit npm_config_script_shell does not exist.'
+}
 Set-Location -LiteralPath $repo
 try {
   $health = Invoke-RestMethod 'http://127.0.0.1:3100/api/health' -TimeoutSec 3

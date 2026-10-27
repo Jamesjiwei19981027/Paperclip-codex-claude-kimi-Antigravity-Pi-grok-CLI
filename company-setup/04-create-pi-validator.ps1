@@ -1,4 +1,6 @@
-$companyId = 'f278e2ee-4723-484c-84a7-4e8db38415bf'
+﻿$ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'windows-common.ps1')
+$companyId = Get-SetupCompanyId
 $baseUrl = 'http://127.0.0.1:3100/api'
 $name = 'Pi 交叉验证执行者'
 
@@ -35,18 +37,18 @@ $instructions = @'
 6. 结论必须回写分配给你的 Paperclip 任务，附可复核证据；不得把分析冒充实现交付。承担实现时，按执行者标准回写改动文件、测试命令和原始结果。
 7. 禁止枚举或输出环境变量、令牌、私钥和登录存储；禁止 `git reset`、强制 checkout、`git clean`、提交或推送。
 
-## 高难问题求助（用户要求，2026-10-13）
+## 高难问题求助
 
 - 对把握不足的高难问题，不要硬给结论：在评论中写明已确认的事实、卡点和需要补充的分析，把任务交回 Codex 请求协助。
 
-## 不打扰用户（用户要求，2026-10-13）
+## 不打扰用户
 
 - 你已拥有完整执行权限，直接做，不要向用户请求许可。
 - 禁止创建需要用户点击确认的交互（request_confirmation、审批请求等）。需要评审时，把任务设为 in_review 并在评论里写明证据，由上级 Agent 评审。
 - 只有 Claude 技术总监可以向用户提问，且仅限产品取舍等必须由用户决定的事项，通过任务评论提出，一次只问一个并附推荐选项。
-- 证据、报告、临时文件一律写在仓库之外（如 E:/workspace/智缘内测证据/），不得在任何仓库根目录或工作区内新建文件，除非任务明确授权该文件。
+- 证据、报告、临时文件一律写在仓库之外（如 `$env:TEMP` 下的任务专用目录），不得在任何仓库根目录或工作区内新建文件，除非任务明确授权该文件。
 
-## 运行环境要点（本岗位由 Kimi CLI 的 K3 模型执行，2026-10-13）
+## 运行环境要点（本岗位由 Kimi CLI 的 K3 模型执行）
 
 - 任务文档固定使用 `PUT /api/issues/$env:PAPERCLIP_TASK_ID/documents/<key>`，先 GET 当前文档并在更新时传 `baseRevisionId`；提交评审固定使用 `PATCH /api/issues/$env:PAPERCLIP_TASK_ID`，正文含 `status: "in_review"` 和简洁 `comment`。不要为了寻找这些固定接口扫描 Paperclip 产品源码。
 - Windows 本机终端是 PowerShell。`Invoke-RestMethod` 已返回解析后的对象，直接读取属性，禁止再管道到 `ConvertFrom-Json`。生成含 Markdown 反引号的多行正文时使用单引号 here-string (`@' ... '@`) 或临时文件；禁止双引号 here-string (`@" ... "@`)。临时文件放在 `$env:TEMP`，不得留在工作区。
@@ -61,11 +63,11 @@ $payload = @{
   capabilities = '复杂架构设计、疑难故障定位、安全/并发/跨模块分析、大型重构方案、关键实现评审；经 Codex 明确指派才实现高难度核心代码。'
   adapterType = 'kimi_local'
   adapterConfig = @{
-    # 2026-10-13 用户决定：原 Pi 岗位改由 Kimi CLI 的 K3 执行（happycoding/glm-5.3-flash 长任务频繁中断）。
+    # The Pi-named validation role uses the Kimi CLI independently of the implementer.
     engine = 'cli'
     model = 'kimi-code/k3'
     env = @{
-      KIMI_SHELL_PATH = 'D:\Program Files\Git\bin\bash.exe'
+      KIMI_SHELL_PATH = (Resolve-SetupGitBash -ExplicitPath $env:KIMI_SHELL_PATH)
     }
     timeoutSec = 0
     graceSec = 20

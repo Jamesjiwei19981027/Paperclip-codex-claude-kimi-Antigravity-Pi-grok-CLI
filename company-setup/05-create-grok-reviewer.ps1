@@ -1,4 +1,6 @@
-$companyId = 'f278e2ee-4723-484c-84a7-4e8db38415bf'
+﻿$ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'windows-common.ps1')
+$companyId = Get-SetupCompanyId
 $baseUrl = 'http://127.0.0.1:3100/api'
 $name = 'Grok 质量与风险审查'
 
@@ -23,7 +25,7 @@ Completion protocol:
 - When the assigned task requires a Paperclip document or status update, call `run_terminal_command` yourself, inspect the command exit code and JSON receipt, then read the current Paperclip API state back.
 - A final answer, a printed command, or a claim such as “saved and verified” is not completion. Do not end the turn until the required receipt and API read-back exist, or until you record a truthful supported blocker.
 - On Windows use ordinary PowerShell syntax. Do not use Bash heredocs, `cat`, or `2>&1 | cat`.
-- For multiline reports, use your `write` tool to create a Markdown file under `$env:TEMP`, then call `node D:/paperclip/company-setup/save-report.mjs <key> <title> --body-file "$env:TEMP/<file>.md" --complete`. If the write tool is unavailable, use a PowerShell single-quoted here-string (`@' ... '@`) so Markdown backticks stay literal. Never use a double-quoted here-string (`@" ... "@`), shell heredoc syntax, or print this command as your final answer.
+- For multiline reports, use your `write` tool to create a Markdown file under `$env:TEMP`, then call `node "$env:PAPERCLIP_REPORT_HELPER" <key> <title> --body-file "$env:TEMP/<file>.md" --complete`. If the write tool is unavailable, use a PowerShell single-quoted here-string (`@' ... '@`) so Markdown backticks stay literal. Never use a double-quoted here-string (`@" ... "@`), shell heredoc syntax, or print this command as your final answer.
 - Run the helper as one plain command with no pipe, redirection, `Out-String`, `Select-String`, regex extraction, or wrapper script. The helper already prints the JSON receipt. Read that direct tool output. If the tool result has a nonzero exit code, fix the command and call the tool again; never continue to a success claim after a failed helper call.
 - This reviewer is intentionally terminal-only. Use `run_terminal_command` with PowerShell `Get-Content -Raw` for permitted evidence, create the temporary Markdown under `$env:TEMP`, then run the helper as the next plain terminal command. Do not wait for read/list/write tools; they are disabled to make execution receipts unambiguous.
 - Never create test captures, receipts, or other temporary files inside the workspace. Put every transient file under `$env:TEMP` and remove it after verification. Do not pipe commands to `tee` with a workspace path.
@@ -47,7 +49,7 @@ $instructions = @'
 7. 禁止把准备执行的命令当作最终答案输出。任务要求保存文档、更新状态或回写证据时，你必须真正调用终端工具执行命令，检查退出码和 JSON receipt，再通过 Paperclip API 回读确认；只打印命令、只写评论或声称“已保存”均视为未完成。
 8. continuation summary、旧评论和旧 run summary 只是历史线索，不能证明当前文档存在或任务已完成。必须以当前 API 回读结果为准；若摘要声称已有产物而文档列表没有，按产物缺失处理并立即补齐。
 9. Windows 本机终端默认是 PowerShell。禁止使用 Bash heredoc、`cat`、`2>&1 | cat` 或 PowerShell 双引号 here-string (`@" ... "@`) 生成 Markdown；双引号 here-string 会把 Markdown 反引号解释成转义字符并损坏报告。
-10. Windows 多行报告必须优先使用 `write` 工具写入 `$env:TEMP` 下的 Markdown 临时文件，再通过 `run_terminal_command` 执行 `node D:/paperclip/company-setup/save-report.mjs <key> <title> --body-file "$env:TEMP/<file>.md" --complete`。若 `write` 工具不可用，只能使用 PowerShell 单引号 here-string (`@' ... '@`) 写入临时文件，以原样保留 Markdown 反引号。禁止使用 `<<EOF` 或其他 heredoc。
+10. Windows 多行报告必须优先使用 `write` 工具写入 `$env:TEMP` 下的 Markdown 临时文件，再通过 `run_terminal_command` 执行 `node "$env:PAPERCLIP_REPORT_HELPER" <key> <title> --body-file "$env:TEMP/<file>.md" --complete`。若 `write` 工具不可用，只能使用 PowerShell 单引号 here-string (`@' ... '@`) 写入临时文件，以原样保留 Markdown 反引号。禁止使用 `<<EOF` 或其他 heredoc。
 11. 只读审查禁止在 workspace 创建测试日志、收据或任何临时文件。所有临时产物必须放在 `$env:TEMP`，验证后删除；禁止把 `tee` 输出指向 workspace。
 12. PowerShell 的 `Invoke-RestMethod` 已经返回解析后的对象，直接读取 `.key`、`.latestRevisionId`、`.createdByAgentId` 等属性；禁止再次调用 `ConvertFrom-Json`。
 13. **工具调用是完成的前置条件，不是建议。** 每次需要交付报告的 run，在输出任何“完成/已保存/已验证”文字之前，transcript 中必须已经出现一次由你真实发起且成功返回的 `run_terminal_command`，其中执行了 `save-report.mjs`。计划中的命令、prompt 里的命令、旧摘要里的命令、你准备执行的命令都不算。
@@ -70,6 +72,7 @@ $payload = @{
   adapterType = 'grok_local'
   adapterConfig = @{
     model = 'grok-build'
+    env = @{ PAPERCLIP_REPORT_HELPER = (Join-Path $PSScriptRoot 'save-report.mjs') }
     tools = @('run_terminal_command')
     extraArgs = @(
       '--disallowed-tools',

@@ -61,3 +61,25 @@ packages/paperclip-runner/test-fixtures/pi-acp/**
 !packages/paperclip-runner/src/**/*.test.tsx
 
 packages/grok-acp/bin
+
+# Local environment, credentials, and agent/development state are not image inputs.
+**/.env
+**/.env.*
+!**/.env*.example
+!**/.env*.sample
+!**/.env*.template
+**/credentials.json
+**/auth.json
+**/id_rsa
+**/id_ed25519
+**/*.key
+**/*.p12
+**/*.pfx
+.claude
+.codex
+.agents
+.cursor
+.paperclip-local
+.paperclip-runtime
+.paperclip-runner-prp
+company-setup/organization*.png

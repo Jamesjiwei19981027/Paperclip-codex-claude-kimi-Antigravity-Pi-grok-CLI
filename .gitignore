@@ -85,3 +85,25 @@ test-results/
 
 # Local native Runner test/session state
 .paperclip-runner-prp/
+
+# Local credentials, environment overrides, and development evidence.
+# Keep distributable examples; ignoring a file does not remove Git history.
+.env.*
+!.env*.example
+!.env*.sample
+!.env*.template
+*.log
+*.bak
+*.dump
+*.sql.gz
+*.p12
+*.pfx
+*.key
+id_rsa
+id_ed25519
+credentials.json
+auth.json
+**/.paperclip-materialized-skill.json
+/.claude/skills/complain/
+/.claude/skills/suggestion-box/
+/company-setup/organization*.png

@@ -80,6 +80,11 @@ const adapterDisplayMap: Record<string, AdapterDisplayInfo> = {
     icon: Code,
     recommended: true,
   },
+  member_agent: {
+    label: "Member Agent",
+    description: "Run a member's tool on their own computer",
+    icon: Bot,
+  },
   paperclip_runner: {
     label: "Paperclip Runner",
     description: "Experimental Rust runner with a Codex provider",

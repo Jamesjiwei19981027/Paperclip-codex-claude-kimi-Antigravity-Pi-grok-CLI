@@ -2091,7 +2091,7 @@ export function agentRoutes(
     };
   }
 
-  function normalizeNewAgentRuntimeConfig(runtimeConfig: unknown): Record<string, unknown> {
+  function normalizeNewAgentRuntimeConfig(runtimeConfig: unknown, adapterType: string): Record<string, unknown> {
     const parsedRuntimeConfig = asRecord(runtimeConfig);
     const normalizedRuntimeConfig = parsedRuntimeConfig ? { ...parsedRuntimeConfig } : {};
     const parsedHeartbeat = asRecord(normalizedRuntimeConfig.heartbeat);
@@ -2100,8 +2100,8 @@ export function agentRoutes(
     if (parseBooleanLike(heartbeat.enabled) == null) {
       heartbeat.enabled = false;
     }
-    if (parseNumberLike(heartbeat.maxConcurrentRuns) == null) {
-      heartbeat.maxConcurrentRuns = AGENT_DEFAULT_MAX_CONCURRENT_RUNS;
+    if (adapterType === "member_agent" || parseNumberLike(heartbeat.maxConcurrentRuns) == null) {
+      heartbeat.maxConcurrentRuns = adapterType === "member_agent" ? 1 : AGENT_DEFAULT_MAX_CONCURRENT_RUNS;
     }
 
     normalizedRuntimeConfig.heartbeat = heartbeat;
@@ -2116,7 +2116,7 @@ export function agentRoutes(
     adapterConfig: Record<string, unknown>,
     runtimeConfig: unknown,
   ) {
-    const normalized = normalizeNewAgentRuntimeConfig(runtimeConfig);
+    const normalized = normalizeNewAgentRuntimeConfig(runtimeConfig, adapterType);
     if (req.actor.type !== "agent" || normalized.aiConnection) return normalized;
     const manager = req.actor.agentId ? await svc.getById(req.actor.agentId) : null;
     if (!manager || manager.companyId !== companyId) throw forbidden("Hiring agent is unavailable");

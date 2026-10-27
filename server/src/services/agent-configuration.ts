@@ -55,6 +55,13 @@ export async function prepareAgentConfiguration(db: Db, existing: AgentConfigura
     }
   }
   const normalizedPatch = { ...data } as AgentConfigurationPatch;
+  // A member connection can execute exactly one job. Enforce on every allowed
+  // configuration write, including profile-only edits and revision rollback.
+  if ((data.adapterType ?? existing.adapterType) === "member_agent") {
+    const runtimeConfig = isPlainRecord(data.runtimeConfig) ? data.runtimeConfig : existing.runtimeConfig;
+    const heartbeat = isPlainRecord(runtimeConfig?.heartbeat) ? runtimeConfig.heartbeat : {};
+    normalizedPatch.runtimeConfig = { ...runtimeConfig, heartbeat: { ...heartbeat, maxConcurrentRuns: 1 } };
+  }
   if (data.permissions !== undefined) {
     normalizedPatch.permissions = normalizeAgentPermissions(data.permissions);
   }

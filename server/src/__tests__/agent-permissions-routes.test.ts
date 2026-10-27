@@ -1395,6 +1395,41 @@ describe("agent permission routes", () => {
     );
   });
 
+  it.each(["agents", "agent-hires"])("defaults member_agent to one concurrent run via %s", async (route) => {
+    const app = await createApp({ type: "board", userId: "board-user", source: "local_implicit", isInstanceAdmin: true, companyIds: [companyId] });
+    const res = await requestApp(app, baseUrl => request(baseUrl).post(`/api/companies/${companyId}/${route}`).send({
+      name: "Member", role: "engineer", adapterType: "member_agent", adapterConfig: {},
+      runtimeConfig: { heartbeat: { intervalSec: 3600 } },
+    }));
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    expect(mockAgentService.create).toHaveBeenCalledWith(companyId, expect.objectContaining({
+      runtimeConfig: { heartbeat: { enabled: false, intervalSec: 3600, maxConcurrentRuns: 1 } },
+    }), expect.anything());
+  });
+
+  it.each(["process", "codex_local"])("preserves the default concurrent run count for %s", async (adapterType) => {
+    const app = await createApp({ type: "board", userId: "board-user", source: "local_implicit", isInstanceAdmin: true, companyIds: [companyId] });
+    const res = await requestApp(app, baseUrl => request(baseUrl).post(`/api/companies/${companyId}/agents`).send({
+      name: "Other", role: "engineer", adapterType, adapterConfig: {},
+    }));
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    expect(mockAgentService.create).toHaveBeenCalledWith(companyId, expect.objectContaining({
+      runtimeConfig: { heartbeat: { enabled: false, maxConcurrentRuns: 20 } },
+    }), expect.anything());
+  });
+
+  it("forces an explicit member concurrency of 20 to one and preserves unrelated runtime settings", async () => {
+    const app = await createApp({ type: "board", userId: "board-user", source: "local_implicit", isInstanceAdmin: true, companyIds: [companyId] });
+    const res = await requestApp(app, baseUrl => request(baseUrl).post(`/api/companies/${companyId}/agents`).send({
+      name: "Configured member", role: "engineer", adapterType: "member_agent", adapterConfig: {},
+      runtimeConfig: { heartbeat: { maxConcurrentRuns: 20, wakeOnDemand: true } },
+    }));
+    expect(res.status, JSON.stringify(res.body)).toBe(201);
+    expect(mockAgentService.create).toHaveBeenCalledWith(companyId, expect.objectContaining({
+      runtimeConfig: { heartbeat: { enabled: false, maxConcurrentRuns: 1, wakeOnDemand: true } },
+    }), expect.anything());
+  });
+
   it("seeds opencode agent creation with the static default model without live discovery", async () => {
     mockEnsureOpenCodeModelConfiguredAndAvailable.mockRejectedValue(
       new Error("`opencode models` should not be called during creation"),

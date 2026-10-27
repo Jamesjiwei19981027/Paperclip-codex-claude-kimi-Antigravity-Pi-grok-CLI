@@ -1909,6 +1909,31 @@ describeEmbeddedPostgres("heartbeat orphaned process recovery", () => {
     expect(missingCommentWakeups).toHaveLength(0);
   });
 
+  it("persists a Windows NTSTATUS exit code that exceeds the int4 column", async () => {
+    // A Kimi CLI crash on Windows exits with 0xC0000409 = 3221226505.
+    mockAdapterExecute.mockResolvedValueOnce({
+      exitCode: 3221226505,
+      signal: null,
+      timedOut: false,
+      errorMessage: null,
+      provider: "test",
+      model: "test-model",
+    });
+
+    const { runId } = await seedQueuedIssueRunFixture();
+    const heartbeat = heartbeatService(db);
+
+    await heartbeat.resumeQueuedRuns();
+    await waitForRunToSettle(heartbeat, runId);
+    await heartbeat.waitForRunExecutionDrain(runId);
+
+    expect(await heartbeat.getRun(runId)).toMatchObject({
+      status: "failed",
+      error: "Adapter failed",
+      exitCode: -1073740791,
+    });
+  });
+
   it.each([
     "continuation_task_ownership_changed",
   ] as const)("cancels obsolete continuation setup: %s", async (code) => {

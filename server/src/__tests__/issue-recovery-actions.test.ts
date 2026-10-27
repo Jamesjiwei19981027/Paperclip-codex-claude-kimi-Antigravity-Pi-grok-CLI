@@ -952,6 +952,38 @@ describeEmbeddedPostgres("issue recovery actions", () => {
     expect(await db.select().from(issueRecoveryActions)).toHaveLength(0);
   });
 
+  it("leaves a just-due provider-quota monitor to the monitor tick instead of pushing it out", async () => {
+    const { companyId, coderId, sourceIssueId } = await seedCompany();
+    await db.insert(heartbeatRuns).values({
+      id: randomUUID(),
+      companyId,
+      agentId: coderId,
+      invocationSource: "manual",
+      status: "failed",
+      resultJson: { executionRecovery: { kind: "bootstrap", providerWorkStarted: false } },
+      error: "Provider quota exceeded for this model.",
+      errorCode: "adapter_failed",
+      startedAt: new Date("2026-07-15T20:00:00.000Z"),
+      finishedAt: new Date("2026-07-15T20:01:00.000Z"),
+      contextSnapshot: { issueId: sourceIssueId },
+    });
+    const recovery = recoveryService(db, { enqueueWakeup: vi.fn(async () => null) });
+    expect((await recovery.reconcileStrandedAssignedIssues()).providerQuotaMonitored).toBe(1);
+
+    // The sweep and the monitor tick share a scheduler pass; the tick owns a
+    // monitor that just came due.
+    const justDue = new Date(Date.now() - 1_000);
+    await db.update(issues).set({ monitorNextCheckAt: justDue }).where(eq(issues.id, sourceIssueId));
+    expect(await recovery.reconcileStrandedAssignedIssues()).toMatchObject({ providerQuotaMonitored: 0, skipped: 1 });
+    const [untouched] = await db.select().from(issues).where(eq(issues.id, sourceIssueId));
+    expect(untouched?.monitorNextCheckAt).toEqual(justDue);
+
+    // A monitor nobody dispatched for longer than the grace is rescheduled.
+    await db.update(issues).set({ monitorNextCheckAt: new Date(Date.now() - 11 * 60 * 1000) })
+      .where(eq(issues.id, sourceIssueId));
+    expect((await recovery.reconcileStrandedAssignedIssues()).providerQuotaMonitored).toBe(1);
+  });
+
   it("schedules another provider-quota monitor after a prior quota monitor fired", async () => {
     const { companyId, coderId, sourceIssueId } = await seedCompany();
     await db.update(issues).set({ monitorAttemptCount: 1 }).where(eq(issues.id, sourceIssueId));

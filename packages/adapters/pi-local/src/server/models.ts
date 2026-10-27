@@ -117,7 +117,9 @@ export async function discoverPiModels(input: {
     {
       cwd,
       env: runtimeEnv,
-      timeoutSec: 20,
+      // Concurrent `pi --list-models` calls slow down sharply on a busy host
+      // (4s alone, 12s for two at once), so 20s produced spurious failures.
+      timeoutSec: 60,
       graceSec: 3,
       onLog: async () => {},
     },

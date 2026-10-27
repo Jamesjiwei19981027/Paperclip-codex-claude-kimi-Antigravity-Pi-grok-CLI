@@ -44,6 +44,16 @@ import type { createHeartbeatRunState, getAdapterSessionCodec } from "./run-stat
 import type { EffectiveRunSessionConfigMetadata } from "./workspaces.js";
 import type { Db, agents } from "@paperclipai/db";
 
+/**
+ * Windows reports NTSTATUS exit codes as unsigned 32-bit values (a crashed
+ * CLI exits with 3221226505 = 0xC0000409), which overflow the int4 exit_code
+ * column and fail the whole finalization write. Store the signed equivalent.
+ */
+export function toPostgresIntegerExitCode(exitCode: number | null | undefined): number | null {
+  if (typeof exitCode !== "number" || !Number.isInteger(exitCode)) return exitCode ?? null;
+  return exitCode > 0x7fffffff && exitCode <= 0xffffffff ? exitCode - 0x100000000 : exitCode;
+}
+
 type Run = typeof heartbeatRuns.$inferSelect;
 type Agent = typeof agents.$inferSelect;
 type RunState = ReturnType<typeof createHeartbeatRunState>;
@@ -563,7 +573,7 @@ export function createHeartbeatRunCompletion(db: Db, dependencies: HeartbeatRunC
       finishedAt: new Date(),
       error: runErrorMessage,
       errorCode: runErrorCode,
-      exitCode: adapterResult.exitCode,
+      exitCode: toPostgresIntegerExitCode(adapterResult.exitCode),
       signal: adapterResult.signal,
       usageJson: { ...usageJson, ledgerScope },
       resultJson: persistedResultJson,

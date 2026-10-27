@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { hasRequiredWorkspaceRecovery } from "./workspace-restore-recovery-state.js";
 import { and, desc, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { environmentLeases, heartbeatRunEvents, heartbeatRuns, issueRecoveryActions, type Db } from "@paperclipai/db";
@@ -88,12 +89,38 @@ export function conversationRecoveryActionPredicate() {
 }
 
 /** OS liveness probes do not signal or stop the process. Unknown ownership holds. */
-function processMayBeAlive(pid: number): boolean {
+/** Whether tasklist lists the PID; null when tasklist itself cannot run. */
+export function windowsProcessListed(pid: number): boolean | null {
   try {
-    process.kill(pid, 0);
+    const out = execFileSync("tasklist", ["/FI", `PID eq ${pid}`, "/NH", "/FO", "CSV"], {
+      encoding: "utf8", timeout: 5000, windowsHide: true,
+    });
+    return out.split(/\r?\n/).some((line) => line.split('","')[1] === String(pid));
+  } catch {
+    return null;
+  }
+}
+
+export function processMayBeAlive(
+  pid: number,
+  deps: {
+    platform?: NodeJS.Platform;
+    kill?: (pid: number, signal: number) => void;
+    processListed?: (pid: number) => boolean | null;
+  } = {},
+): boolean {
+  try {
+    (deps.kill ?? ((p, s) => process.kill(p, s)))(pid, 0);
     return true;
   } catch (error) {
-    return (error as NodeJS.ErrnoException).code !== "ESRCH";
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "ESRCH") return false;
+    // Windows reports EPERM for a reused PID whose exited process object is
+    // still referenced elsewhere. Only an unlisted PID counts as gone.
+    if (code === "EPERM" && (deps.platform ?? process.platform) === "win32") {
+      return (deps.processListed ?? windowsProcessListed)(pid) !== false;
+    }
+    return true;
   }
 }
 

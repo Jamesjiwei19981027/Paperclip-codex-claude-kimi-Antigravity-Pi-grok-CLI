@@ -535,6 +535,7 @@ const CONTINUATION_RECOVERY_TRANSIENT_MAX_ATTEMPTS = 3;
 const CONTINUATION_RECOVERY_DEFAULT_MAX_ATTEMPTS = 1;
 const CONTINUATION_RECOVERY_TRANSIENT_BASE_BACKOFF_MS = 60_000;
 export const PROVIDER_QUOTA_RECOVERY_DEFAULT_BACKOFF_MS = 60 * 60 * 1000;
+const PROVIDER_QUOTA_MONITOR_DISPATCH_GRACE_MS = 10 * 60 * 1000;
 
 const PROVIDER_QUOTA_ERROR_RE =
   /(?:you(?:'|’)ve hit your (?:\w+ )?limit|usage limit(?: reached| exceeded)?|provider quota|quota (?:limit )?exceeded|model (?:is )?at capacity)/i;
@@ -4341,10 +4342,14 @@ export function recoveryService(
     latestRun: LatestIssueRun,
     now: Date,
   ) {
+    // The monitor tick runs in the same scheduler pass as this sweep. A monitor
+    // that just came due belongs to that tick; rescheduling it here pushed the
+    // check an hour out every pass, so the owner was never woken. Take it back
+    // only once it has stayed undispatched for a grace period.
     if (
       !latestRun ||
       !issue.monitorNextCheckAt ||
-      issue.monitorNextCheckAt.getTime() <= now.getTime()
+      issue.monitorNextCheckAt.getTime() + PROVIDER_QUOTA_MONITOR_DISPATCH_GRACE_MS <= now.getTime()
     )
       return false;
     const monitor = parseObject(parseObject(issue.executionPolicy).monitor);

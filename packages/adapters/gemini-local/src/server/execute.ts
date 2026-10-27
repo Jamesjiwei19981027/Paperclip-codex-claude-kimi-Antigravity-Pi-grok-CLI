@@ -72,6 +72,7 @@ import {
 } from "./acp.js";
 import { resolveGeminiSkillsHome } from "./skills.js";
 import { buildGeminiCliArgs, resolveGeminiCliFlavor } from "./cli-args.js";
+import { GEMINI_INLINE_PROMPT_MAX_CHARS, prepareGeminiPromptFile } from "./prompt-file.js";
 
 const __moduleDir = path.dirname(fileURLToPath(import.meta.url));
 const executeGeminiAcp = createGeminiAcpExecutor();
@@ -603,7 +604,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
     };
   };
 
-  const buildArgs = (resumeSessionId: string | null, prompt: string) =>
+  const buildArgs = (resumeSessionId: string | null, prompt: string, promptFileDir: string | null) =>
     buildGeminiCliArgs({
       flavor: cliFlavor,
       model,
@@ -612,6 +613,7 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       resumeSessionId,
       prompt,
       cwd: effectiveExecutionCwd,
+      promptFileDir,
     });
 
   const runAttempt = async (resumeSessionId: string | null) => {
@@ -621,52 +623,62 @@ export async function execute(ctx: AdapterExecutionContext): Promise<AdapterExec
       selectInitialCommunicationGuidance(context, { resumedSession: Boolean(resumeSessionId) }),
       basePrompt,
     ]);
-    const args = buildArgs(resumeSessionId, prompt);
-    const invocationEnv = buildGeminiHeadlessEnv(env);
-    const invocationRuntimeEnv = buildGeminiRuntimeEnv(env);
-    const loggedEnv = buildInvocationEnvForLogs(invocationEnv, {
-      runtimeEnv: invocationRuntimeEnv,
-      includeRuntimeKeys: ["HOME"],
-      resolvedCommand,
-    });
-    if (onMeta) {
-      await onMeta({
-        adapterType: "gemini_local",
-        command: resolvedCommand,
-        cwd: effectiveExecutionCwd,
-        commandNotes,
-        commandArgs: args.map((value, index) => (
-          index === args.length - 1 ? `<prompt ${prompt.length} chars>` : value
-        )),
-        env: loggedEnv,
-        prompt,
-        promptMetrics: { ...promptMetrics, promptChars: prompt.length },
-        context,
+    const promptFile = process.platform === "win32" && !executionTargetIsRemote &&
+      prompt.length > GEMINI_INLINE_PROMPT_MAX_CHARS
+      ? await prepareGeminiPromptFile(os.tmpdir(), prompt)
+      : null;
+    try {
+      const args = buildArgs(resumeSessionId, promptFile?.inlinePrompt ?? prompt, promptFile?.directory ?? null);
+      const invocationEnv = buildGeminiHeadlessEnv(env);
+      const invocationRuntimeEnv = buildGeminiRuntimeEnv(env);
+      const loggedEnv = buildInvocationEnvForLogs(invocationEnv, {
+        runtimeEnv: invocationRuntimeEnv,
+        includeRuntimeKeys: ["HOME"],
+        resolvedCommand,
       });
-    }
+      if (onMeta) {
+        await onMeta({
+          adapterType: "gemini_local",
+          command: resolvedCommand,
+          cwd: effectiveExecutionCwd,
+          commandNotes: promptFile
+            ? [...commandNotes, `Prompt exceeded ${GEMINI_INLINE_PROMPT_MAX_CHARS} chars; saved to ${promptFile.filename} and --prompt asks Gemini to read it.`]
+            : commandNotes,
+          commandArgs: args.map((value, index) => (
+            index === args.length - 1 ? `<prompt ${prompt.length} chars>` : value
+          )),
+          env: loggedEnv,
+          prompt,
+          promptMetrics: { ...promptMetrics, promptChars: prompt.length },
+          context,
+        });
+      }
 
-    const consumeAccounting = createGeminiJsonlParser();
-    const accountingLog = createUsageCheckpointLog(onLog, ctx.onUsage, stdout => {
-      const parsed = consumeAccounting(stdout);
-      return { usage: parsed.usage, costUsd: parsed.costUsd, usageBasis: "per_run", provider: "google", biller: "google", billingType, model, complete: parsed.resultEvent !== null };
-    });
-    const proc = await runAdapterExecutionTargetProcess(runId, runtimeExecutionTarget, command, args, {
-      onProcessStopped: providerStop.beginInvocation(),
-      cwd,
-      env: invocationEnv,
-      timeoutSec,
-      graceSec,
-      onSpawn,
-      onRuntimeProgress: ctx.onRuntimeProgress,
-      onLog: accountingLog,
-      runLogTail: paperclipBridge?.runLogTail,
-      settleRunDisposition: paperclipBridge?.settleRunDisposition,
-    });
-    await accountingLog.flush();
-    return {
-      proc,
-      parsed: parseGeminiJsonl(proc.stdout),
-    };
+      const consumeAccounting = createGeminiJsonlParser();
+      const accountingLog = createUsageCheckpointLog(onLog, ctx.onUsage, stdout => {
+        const parsed = consumeAccounting(stdout);
+        return { usage: parsed.usage, costUsd: parsed.costUsd, usageBasis: "per_run", provider: "google", biller: "google", billingType, model, complete: parsed.resultEvent !== null };
+      });
+      const proc = await runAdapterExecutionTargetProcess(runId, runtimeExecutionTarget, command, args, {
+        onProcessStopped: providerStop.beginInvocation(),
+        cwd,
+        env: invocationEnv,
+        timeoutSec,
+        graceSec,
+        onSpawn,
+        onRuntimeProgress: ctx.onRuntimeProgress,
+        onLog: accountingLog,
+        runLogTail: paperclipBridge?.runLogTail,
+        settleRunDisposition: paperclipBridge?.settleRunDisposition,
+      });
+      await accountingLog.flush();
+      return {
+        proc,
+        parsed: parseGeminiJsonl(proc.stdout),
+      };
+    } finally {
+      await promptFile?.cleanup();
+    }
   };
 
   const toResult = (

@@ -1,10 +1,10 @@
-import { createHash } from "node:crypto";
 import type { IncomingMessage, Server as HttpServer } from "node:http";
 import { createRequire } from "node:module";
 import type { Duplex } from "node:stream";
 import { and, eq, isNull } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import { agentApiKeys, companyMemberships, instanceUserRoles, heartbeatRuns, issues, projects } from "@paperclipai/db";
+import { authenticateAgentKey } from "./agent-key-auth.js";
 import type { DeploymentMode, LiveEvent } from "@paperclipai/shared";
 import type { BetterAuthSessionResult } from "../auth/better-auth.js";
 import { logger } from "../middleware/logger.js";
@@ -63,10 +63,6 @@ export interface CloudUpgradeActor {
 interface IncomingMessageWithContext extends IncomingMessage {
   paperclipWebSocketHandled?: boolean;
   paperclipUpgradeContext?: UpgradeContext;
-}
-
-function hashToken(token: string) {
-  return createHash("sha256").update(token).digest("hex");
 }
 
 function isWritableUpgradeSocket(socket: Duplex) {
@@ -211,21 +207,8 @@ async function authorizeUpgrade(
     };
   }
 
-  const tokenHash = hashToken(token);
-  const key = await db
-    .select()
-    .from(agentApiKeys)
-    .where(and(eq(agentApiKeys.keyHash, tokenHash), isNull(agentApiKeys.revokedAt)))
-    .then((rows) => rows[0] ?? null);
-
-  if (!key || key.companyId !== companyId || key.scopeConfig) {
-    return null;
-  }
-
-  await db
-    .update(agentApiKeys)
-    .set({ lastUsedAt: new Date() })
-    .where(eq(agentApiKeys.id, key.id));
+  const key = await authenticateAgentKey(db, { authorization: `Bearer ${token}` }, companyId);
+  if (!key) return null;
 
   return {
     companyId,

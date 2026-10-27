@@ -14,6 +14,8 @@ export function buildGeminiCliArgs(input: {
   resumeSessionId: string | null;
   prompt: string;
   cwd: string;
+  /** Directory holding a prompt too long for argv; the CLI must be allowed to read it. */
+  promptFileDir?: string | null;
 }): string[] {
   const args = ["--output-format", "stream-json"];
   if (input.resumeSessionId) {
@@ -32,6 +34,9 @@ export function buildGeminiCliArgs(input: {
     args.push(input.sandbox ? "--sandbox" : "--sandbox=none");
   }
 
+  if (input.promptFileDir) {
+    args.push(input.flavor === "antigravity" ? "--add-dir" : "--include-directories", input.promptFileDir);
+  }
   if (input.extraArgs.length > 0) args.push(...input.extraArgs);
   args.push("--prompt", input.prompt);
   return args;

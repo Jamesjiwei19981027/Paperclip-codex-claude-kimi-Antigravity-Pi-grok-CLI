@@ -211,6 +211,7 @@ async function executeCodex(hooks: ExecutorHooks, config: CodexRuntimeConfig, de
   }
 
   const localized = localizeContext(hooks.job.context, cwd, path.join(config.configDir, "agents", hooks.job.agent.id, "home"));
+  localized.context.runtimeToolDelivery = "environment";
   if (localized.suspectedServerPaths > 0) warn(`任务文本中检测到 ${localized.suspectedServerPaths} 处疑似服务器路径；未改写任务文本。`);
   addPaperclipRestGuidance(localized.context, home);
   prepareProcessEnvironment(env, hooks.serverUrl, home);

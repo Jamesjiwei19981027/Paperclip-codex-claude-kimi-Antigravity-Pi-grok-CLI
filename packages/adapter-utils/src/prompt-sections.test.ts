@@ -3,6 +3,30 @@ import { selectPaperclipPromptSections as selectSections } from "./server-utils.
 import { createPromptContextFixture } from "./test-fixtures/prompt-context.js";
 
 describe("task and event section ownership", () => {
+  const recoveryWake = {
+    reason: "source_scoped_recovery_action",
+    issue: { id: "issue-recovery", title: "Recover", status: "blocked" },
+    recovery: { cause: "workspace_validation_failed", originalAssignee: { id: "agent-1", name: "Coder" } },
+  };
+
+  it("gives environment recovery runs real REST operations instead of native calls", () => {
+    const { wakePrompt } = selectSections({ runtimeToolDelivery: "environment", paperclipWake: recoveryWake });
+    expect(wakePrompt).not.toContain("resolve call");
+    expect(wakePrompt).not.toContain("`resolve`");
+    expect(wakePrompt).toContain("GET /api/issues/{id}/recovery-actions");
+    expect(wakePrompt).toContain("POST /api/issues/{id}/recovery-actions/resolve");
+    for (const field of ["actionId", "outcome", "sourceIssueStatus", "resolutionNote"]) expect(wakePrompt).toContain(field);
+    expect(wakePrompt).toContain("X-Paperclip-Run-Id");
+    expect(wakePrompt).toContain("POST /api/issues/{id}/comments");
+  });
+
+  it("keeps native recovery wording byte-for-byte unchanged", () => {
+    const original = selectSections({ paperclipWake: recoveryWake }).wakePrompt;
+    const native = selectSections({ runtimeToolDelivery: "native_mcp", paperclipWake: recoveryWake }).wakePrompt;
+    expect(native).toBe(original);
+    expect(native).toContain("Record the outcome in the resolve call's `resolutionNote`.");
+  });
+
   it("preserves resumed wake data without reintroducing generic procedures", () => {
     const context = createPromptContextFixture();
     for (const includeExecutionContract of [undefined, false, true]) {

@@ -1,10 +1,13 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { fork } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { JobRunner } from "../src/job-runner.ts";
 import { Logger } from "../src/logger.ts";
-import { terminateProcessTree } from "../src/process-tree.ts";
+import { ProcessTreeTracker, terminateProcessTree, terminateRecordedProcess } from "../src/process-tree.ts";
+import type { ProcessRow } from "../src/process-tree.ts";
 import type { JobStart } from "../src/protocol.ts";
 
 const dirs: string[] = [];
@@ -29,7 +32,7 @@ function job(id: string, mode: "normal" | "wait" | "block", pids: number[] = [],
     runtimeTools: null, handoffMarkdown: "", codeSyncDir: "",
   };
 }
-function setup(options: { terminateTree?: (pid: number) => Promise<void>; mode?: "normal" | "wait" | "block"; pids?: number[]; invalidMetadata?: boolean; maxRunSec?: number; spawnTree?: boolean } = {}) {
+function setup(options: { terminateTree?: (pid: number) => Promise<void>; mode?: "normal" | "wait" | "block"; pids?: number[]; invalidMetadata?: boolean; maxRunSec?: number; spawnTree?: boolean; queryProcesses?: () => Promise<ProcessRow[]>; processSnapshotIntervalMs?: number } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "member-codex-lifecycle-")); dirs.push(dir);
   const frames: Record<string, unknown>[] = [];
   const visible: string[] = [];
@@ -38,6 +41,8 @@ function setup(options: { terminateTree?: (pid: number) => Promise<void>; mode?:
     serverUrl: "http://127.0.0.1:1", logger, send: (frame) => frames.push(frame),
     executorUrl: new URL("./fixtures/lifecycle-executor.ts", import.meta.url),
     ...(options.terminateTree ? { terminateTree: options.terminateTree } : {}),
+    ...(options.queryProcesses ? { queryProcesses: options.queryProcesses } : options.terminateTree ? { queryProcesses: async () => [] } : {}),
+    processSnapshotIntervalMs: options.processSnapshotIntervalMs,
   });
   runners.push(runner);
   runner.start(job("lifecycle-job", options.mode ?? "normal", options.pids ?? [], options.invalidMetadata ?? false, options.maxRunSec ?? 5, options.spawnTree ?? false));
@@ -56,6 +61,88 @@ function processExists(pid: number): boolean {
 }
 
 describe("阶段3 job-runner 钩子与进程树收尾", () => {
+  it.skipIf(process.platform !== "win32")("still completes a successful task after the sampler exhausts three restarts", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "member-sampler-exhaustion-")); dirs.push(dir);
+    const completion = join(dir, "finish");
+    const frames: Record<string, unknown>[] = [];
+    const visible: string[] = [];
+    const runner = new JobRunner({ serverUrl: "http://127.0.0.1:1", logger: new Logger(dir, [], message => visible.push(message)), send: frame => frames.push(frame),
+      executorUrl: new URL("./fixtures/lifecycle-executor.ts", import.meta.url), processSnapshotIntervalMs: 100, processSnapshotRestartDelayMs: 10,
+    });
+    runners.push(runner);
+    const task = job("sampler-exhaustion", "normal", [], false, 20, true);
+    (task.context.lifecycleFixture as Record<string, unknown>).completionPath = completion;
+    runner.start(task);
+    await until(() => treePids(frames) !== null);
+    const tracker = (runner as any).active.processTracker as ProcessTreeTracker;
+    for (let launch = 0; launch < 4; launch++) {
+      await until(() => tracker.queryProcessPid !== null && tracker.identities().length > 0);
+      const pid = tracker.queryProcessPid!;
+      process.kill(pid);
+      await until(() => tracker.queryProcessPid !== pid);
+    }
+    expect(tracker.queryProcessPid).toBeNull();
+    writeFileSync(completion, "finish");
+    await until(() => framesOf(frames, "job.result").length === 1);
+    expect(framesOf(frames, "job.result")[0]).toMatchObject({ exitCode: 0 });
+    expect(localLog(dir).match(/快照查询失败/g)).toHaveLength(1);
+  });
+
+  it("snapshot query failures only warn and do not fail a successful task", async () => {
+    const { frames, dir } = setup({ pids: [45123], terminateTree: async () => {}, queryProcesses: async () => { throw new Error("FAKE snapshot failure"); } });
+    await until(() => framesOf(frames, "job.result").length === 1);
+    expect(framesOf(frames, "job.result")[0]).toMatchObject({ exitCode: 0 });
+    expect(localLog(dir)).toContain("快照查询失败");
+  });
+
+  it.skipIf(process.platform !== "win32")("does not terminate a live PID whose creation time differs from the snapshot", async () => {
+    const child = fork(fileURLToPath(new URL("./fixtures/process-tree.mjs", import.meta.url)), ["grandchild"], { stdio: ["ignore", "ignore", "ignore", "ipc"] });
+    const tracker = new ProcessTreeTracker({ warn: () => {} });
+    try {
+      await new Promise<void>((resolve, reject) => { child.once("message", () => resolve()); child.once("error", reject); });
+      tracker.track(child.pid!);
+      await until(() => tracker.identities().some(identity => identity.pid === child.pid));
+      const identity = (await tracker.stop()).find(identity => identity.pid === child.pid)!;
+      const mismatch = { ...identity, creationTime: (BigInt(identity.creationTime) + 10n).toString() };
+      expect(await terminateRecordedProcess(mismatch)).toBe(false);
+      expect(processExists(child.pid!)).toBe(true);
+      expect(await terminateRecordedProcess(identity)).toBe(true);
+      expect(processExists(child.pid!)).toBe(false);
+    } finally {
+      await tracker.stop();
+      if (child.pid && processExists(child.pid)) await terminateProcessTree(child.pid);
+    }
+  });
+
+  it.skipIf(process.platform !== "win32")("cleans a recorded grandchild after its parent exits first", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "member-orphan-lifecycle-")); dirs.push(dir);
+    const release = join(dir, "release-parent");
+    const frames: Record<string, unknown>[] = [];
+    const runner = new JobRunner({
+      serverUrl: "http://127.0.0.1:1", logger: new Logger(dir, [], () => {}), send: frame => frames.push(frame),
+      executorUrl: new URL("./fixtures/lifecycle-executor.ts", import.meta.url), processSnapshotIntervalMs: 50,
+    });
+    runners.push(runner);
+    const task = job("orphan-job", "wait", [], false, 20, true);
+    (task.context.lifecycleFixture as Record<string, unknown>).orphanReleasePath = release;
+    runner.start(task);
+    let pids: [number, number] | null = null;
+    try {
+      await until(() => (pids = treePids(frames)) !== null);
+      // Release the parent only once a real Windows snapshot has recorded its grandchild.
+      await until(() => (runner as any).active?.processTracker.identities().some((identity: { pid: number }) => identity.pid === pids![1]));
+      writeFileSync(release, "release");
+      await until(() => !processExists(pids![0]));
+      expect(processExists(pids![1])).toBe(true);
+      await runner.cancel("orphan-job", 0.1);
+      expect(processExists(pids![1])).toBe(false);
+      expect(framesOf(frames, "job.result")[0]).toMatchObject({ errorCode: "cancelled" });
+    } finally {
+      await runner.force();
+      for (const pid of pids ?? []) if (processExists(pid)) await terminateProcessTree(pid).catch(() => {});
+    }
+  });
+
   it("把有效 meta 和 usage 分别转成严格协议帧", async () => {
     const { frames } = setup();
     await until(() => framesOf(frames, "job.result").length === 1);

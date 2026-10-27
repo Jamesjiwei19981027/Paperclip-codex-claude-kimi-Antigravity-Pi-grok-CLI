@@ -7132,6 +7132,7 @@ export function heartbeatService(
             });
             const runtimeToolDelivery =
               adapter.runtimeToolDelivery ?? "invocation_context";
+            adapterContext.runtimeToolDelivery = runtimeToolDelivery;
             if (runtimeTools && runtimeToolDelivery === "native_mcp") {
               runtimeMcpServers.unshift({
                 name: "Paperclip connections",

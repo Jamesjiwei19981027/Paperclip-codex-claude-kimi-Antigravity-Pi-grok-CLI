@@ -71,6 +71,7 @@ describe("Codex executor context and privacy boundary", () => {
     const task = job({ context, ...(mode === "fresh" ? { runtime: {} } : {}) });
     await createCodexExecutor(config, dependencies(value => { delivered = value; }, fixture.env)).execute(hooks(task));
     const actual = delivered?.context as Record<string, unknown>;
+    expect(actual.runtimeToolDelivery).toBe("environment");
     for (const field of ["paperclipTaskMarkdown", "paperclipTaskMarkdownAssignment", "paperclipTaskMarkdownCompact", "paperclipTaskMarkdownAssignmentCompact"]) {
       const text = String(actual[field] ?? "");
       expect(text, field).toContain("没有 Paperclip 原生工具");

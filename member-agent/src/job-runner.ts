@@ -4,7 +4,8 @@ import type { Logger } from './logger.ts';
 import { chunkUtf8, validateEvent, validateMeta, validateResult, validateUsage } from './protocol.ts';
 import type { Frame, JobStart } from './protocol.ts';
 import type { ExecutorResult } from './executors/types.ts';
-import { terminateProcessTree } from './process-tree.ts';
+import { ProcessTreeTracker, terminateProcessTree, terminateRecordedProcess } from './process-tree.ts';
+import type { ProcessRow } from './process-tree.ts';
 
 interface ActiveJob {
  job: JobStart;
@@ -26,6 +27,7 @@ interface ActiveJob {
  discardedMetaUsage: number;
  cleanupFailureMessage: string | null;
  cleanupPromise: Promise<void> | null;
+ processTracker: ProcessTreeTracker;
 }
 
 type TreeTerminator = (pid: number) => Promise<void>;
@@ -38,6 +40,9 @@ interface RunnerOptions {
  executorData?: unknown;
  echoHoldSec?: number;
  terminateTree?: TreeTerminator;
+ processSnapshotIntervalMs?: number;
+ processSnapshotRestartDelayMs?: number;
+ queryProcesses?: () => Promise<ProcessRow[]>;
 }
 
 export class JobRunner {
@@ -71,6 +76,12 @@ export class JobRunner {
    result: null, timer: null, stopTimer: null, done, resolve, finishing: false, finishPromise: null,
    childPids: new Set(), childPidOverflowLogged: false, discardedMetaUsage: 0,
    cleanupFailureMessage: null, cleanupPromise: null,
+   processTracker: new ProcessTreeTracker({
+    intervalMs: this.options.processSnapshotIntervalMs,
+    restartDelayMs: this.options.processSnapshotRestartDelayMs,
+    query: this.options.queryProcesses,
+    warn: message => this.options.logger.write('warn', message),
+   }),
   };
   this.active = active;
   // Confirm receipt before module loading, worker creation, or any executor preparation.
@@ -150,6 +161,7 @@ export class JobRunner {
    return;
   }
   active.childPids.add(value);
+  active.processTracker.track(value);
  }
 
  private log(active: ActiveJob, stream: 'stdout' | 'stderr', text: string) {
@@ -163,7 +175,13 @@ export class JobRunner {
  private terminateChildren(active: ActiveJob): Promise<void> {
   if (active.cleanupPromise) return active.cleanupPromise;
   active.cleanupPromise = (async () => {
-   const terminate = this.options.terminateTree ?? terminateProcessTree;
+   const records = await active.processTracker.stop();
+   const identities = new Map(records.map(identity => [identity.pid, identity]));
+   const terminate = this.options.terminateTree ?? (async (pid: number) => {
+    const identity = identities.get(pid);
+    if (identity) await terminateRecordedProcess(identity, true);
+    else await terminateProcessTree(pid);
+   });
    // Clean every registered tree concurrently: up to 64 PIDs are allowed,
    // and serial taskkill timeouts could exceed the server's cancellation window.
    const outcomes = await Promise.all([...active.childPids].map(async pid => {
@@ -173,7 +191,15 @@ export class JobRunner {
      return pid;
     }
    }));
-   const failures = outcomes.filter((pid): pid is number => pid !== null);
+   // Roots may already be gone: finish every retained descendant using its exact creation time.
+   const recordedOutcomes = await Promise.all(records.map(async identity => {
+    try { await terminateRecordedProcess(identity); return null; }
+    catch {
+     this.options.logger.write('error', `无法终止快照进程 ${identity.pid}，请手动检查该进程`, true);
+     return identity.pid;
+    }
+   }));
+   const failures = [...new Set([...outcomes, ...recordedOutcomes].filter((pid): pid is number => pid !== null))];
    if (failures.length) {
     active.cleanupFailureMessage = `本机进程可能未完全结束，请手动检查进程 ${failures.join(', ')}`;
    }

@@ -2249,6 +2249,7 @@ export function selectPaperclipPromptSections(
       resumedSession: options.resumedSession,
       includeExecutionContract: options.includeExecutionContract,
       nativeWakeReaderAvailable: options.nativeWakeReaderAvailable,
+      runtimeToolDelivery: context?.runtimeToolDelivery === "environment" ? "environment" : undefined,
       conversationMode: context?.conversationMode === true,
       suppressIssueDescription: taskContextNote.length > 0,
     }),
@@ -2280,6 +2281,7 @@ function renderPaperclipWakePromptBody(
     // task disposition and child-delegation instructions conflict with it.
     conversationMode?: boolean;
     nativeWakeReaderAvailable?: boolean;
+    runtimeToolDelivery?: "environment";
     // Set by adapters whose prompt already carries the task-context markdown
     // (the authoritative, uncapped brief) so the description is not delivered
     // twice in one prompt.
@@ -2436,7 +2438,13 @@ function renderPaperclipWakePromptBody(
           recovery?.cause === "successful_run_missing_issue_disposition"
             ? []
             : [
-                "Record the outcome in the resolve call's `resolutionNote`. Any comment you post on the source issue must be ≤3 lines (cause → what you did → hand-back). No headings, no run-by-run narrative.",
+                ...(options.runtimeToolDelivery === "environment"
+                  ? [
+                      "This runtime has no native Paperclip control tools. Use ordinary HTTP requests against PAPERCLIP_API_URL, with Authorization: Bearer from PAPERCLIP_API_KEY and X-Paperclip-Run-Id from PAPERCLIP_RUN_ID; never print or persist credentials. Read the paperclip skill for the API contract and permissions.",
+                      "GET /api/issues/{id}/recovery-actions returns the current action in `active` and available `actions`. For an authorized, verified restoration, POST /api/issues/{id}/recovery-actions/resolve with JSON fields `actionId` (the current action id), `outcome`: `restored`, `sourceIssueStatus` (`todo`, `done`, or `in_review`, matching the actual disposition), and `resolutionNote` (evidence of the outcome). Preserve approval gates; do not claim restoration or change status without evidence.",
+                      "If no applicable action exists or the endpoint is not permitted, record the conclusion on the source issue using POST /api/issues/{id}/comments with JSON field `body` and hand back the remaining blocker. Any comment must be ≤3 lines (cause → what you did → hand-back). No headings, no run-by-run narrative.",
+                    ]
+                  : ["Record the outcome in the resolve call's `resolutionNote`. Any comment you post on the source issue must be ≤3 lines (cause → what you did → hand-back). No headings, no run-by-run narrative."]),
               ]),
           `Fallback preference order: (1) send back to ${originalAssigneeLabel} with a retry instruction; (2) fix the runtime/adapter/workspace problem, then send it back; (3) reassign to another agent with the right specialty; (4) convert to an explicit manual-review state for the board.`,
           "",

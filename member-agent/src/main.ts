@@ -11,6 +11,7 @@ import { connectLoop } from './connection.ts';
 import { JobRunner } from './job-runner.ts';
 import { createInstallControl } from './install-control.ts';
 import { AGENT_VERSION } from './executors/echo.ts';
+import { resolveCodexProxy } from './executors/codex-proxy.ts';
 import type { JobStart } from './protocol.ts';
 import { CODE_MODE_HOST_RECOVERY, hasCodexLogin, inspectCodexInstallation, isCodexExecutableReady, missingRuntimeFiles, readCodexVersion, runCodexLogin } from './codex-cli.ts';
 
@@ -22,6 +23,8 @@ export function installInterrupts(signals:Pick<EventEmitter,'on'|'off'>,runner:{
 }
 const usage='用法：node member-agent/src/main.ts run|check|login [--config <文件>]，或 version';
 async function checkCodex(config:Awaited<ReturnType<typeof loadConfig>>,print:(line:string)=>void):Promise<{ok:boolean;version:string|null}>{
+ const proxy=await resolveCodexProxy({env:process.env,serverUrl:config.serverUrl,warn:message=>print(`警告：${message}`)});
+ print(`Codex 代理：${proxy.message}`);
  const result=await inspectCodexInstallation({executable:config.codexExecutable??'',codexHome:config.codexHome??'',runtimeDir:config.runtimeDir??''});
  print(`${result.executable?'通过':'失败'}：Codex 可执行文件${result.executable?'存在':'不存在或不是 .exe'}`);
  print(`${result.codeModeHost?'通过':'失败'}：Codex 工具宿主 ${result.codeModeHost?'codex-code-mode-host.exe 存在':CODE_MODE_HOST_RECOVERY}`);
@@ -74,7 +77,7 @@ export async function main(args=process.argv.slice(2)):Promise<number>{
   let sendControl:(frame:import('./protocol.ts').Frame)=>void=()=>{};
   let drain:()=>Promise<boolean>=async()=>true;
   const runner=new JobRunner({serverUrl:config.serverUrl,logger,send:()=>{},echoHoldSec:config.echoHoldSec,
-   ...(config.executor==='codex'?{executorUrl:new URL('./executors/codex.ts',import.meta.url),executorData:{codexExecutable:config.codexExecutable,codexHome:config.codexHome,runtimeDir:config.runtimeDir,projectDirs:config.projectDirs,defaultCwd:config.defaultCwd,configDir:stateDir}}:{})});
+   ...(config.executor==='codex'?{executorUrl:new URL('./executors/codex.ts',import.meta.url),executorData:{codexExecutable:config.codexExecutable,codexHome:config.codexHome,runtimeDir:config.runtimeDir,projectDirs:config.projectDirs,defaultCwd:config.defaultCwd,configDir:stateDir,proxyWarningState:new SharedArrayBuffer(4)}}:{})});
   const installControl=command==='run'?await createInstallControl({stateDir,busy:()=>runner.busy,
    onDrain:()=>{installDraining=true;logger!.write('info','安装程序请求停止：等待当前任务完成',true);},
    onStop:async force=>{try{if(force)await runner.shutdown();if(!await drain())logger!.write('warn','升级停止前结果未送达，请在看板核对',true);}finally{stop.abort();}},

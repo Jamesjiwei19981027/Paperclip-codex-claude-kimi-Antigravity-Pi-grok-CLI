@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { createCodexExecutor, type CodexExecutorDependencies, type CodexRuntimeConfig } from "../src/executors/codex.ts";
 import type { ExecutorHooks, JobStart } from "../src/executors/types.ts";
 
@@ -53,11 +54,64 @@ function dependencies(capture: (context: Record<string, unknown>) => void, env: 
     materializeSkills: async () => undefined,
     loadRuntime: async () => ({ execute: async (context) => { capture(context); return { exitCode: 0, signal: null, timedOut: false, unexpected: "drop me" }; } }),
     warn: vi.fn(),
+    queryRegistry: async () => "",
     ...overrides,
   };
 }
 
 describe("Codex executor context and privacy boundary", () => {
+  it("preserves inherited proxies only in the Codex child environment", async () => {
+    const fixture = await setup();
+    fixture.env.https_proxy = "http://member:private@127.0.0.1:7897";
+    fixture.env.NO_PROXY = "existing.internal";
+    let context: Record<string, unknown> | undefined;
+    const taskHooks = hooks(job(), "http://192.168.0.213:3100");
+    const result = await createCodexExecutor(fixture.config, dependencies(value => { context = value; }, fixture.env)).execute(taskHooks);
+    expect(result.exitCode).toBe(0);
+    expect((context?.config as any).env.https_proxy).toBe("http://member:private@127.0.0.1:7897");
+    expect((context?.config as any).env.NO_PROXY).toBe("existing.internal,localhost,127.0.0.1,::1,192.168.0.213");
+    expect(fixture.env.HTTPS_PROXY).toBeUndefined();
+    expect(JSON.stringify(vi.mocked(taskHooks.log).mock.calls)).not.toContain("private");
+  });
+  it("re-reads system proxy for every task and passes it into a real child without changing the agent environment", async () => {
+    const fixture = await setup();
+    const before = { ...process.env };
+    const childEnvs: NodeJS.ProcessEnv[] = [];
+    let port = 7897;
+    const deps = dependencies(() => {}, fixture.env, {
+      queryRegistry: async () => `    ProxyEnable    REG_DWORD    0x1\n    ProxyServer    REG_SZ    127.0.0.1:${port}`,
+      loadRuntime: async () => ({ execute: async context => {
+        const childEnv = (context.config as any).env;
+        childEnvs.push(JSON.parse(execFileSync(process.execPath, ["-e", "console.log(JSON.stringify(process.env))"], { env: childEnv, encoding: "utf8", windowsHide: true })));
+        return { exitCode: 0, signal: null, timedOut: false };
+      } }),
+    });
+    const executor = createCodexExecutor(fixture.config, deps);
+    expect((await executor.execute(hooks(job()))).exitCode).toBe(0);
+    port = 7898;
+    expect((await executor.execute(hooks(job()))).exitCode).toBe(0);
+    expect(childEnvs.map(env => env.HTTPS_PROXY)).toEqual(["http://127.0.0.1:7897", "http://127.0.0.1:7898"]);
+    expect(childEnvs[0].NO_PROXY).toContain("10.0.0.5");
+    expect(fixture.env.HTTPS_PROXY).toBeUndefined();
+    expect(process.env).toEqual(before);
+  });
+  it("redacts proxy credentials echoed by adapter logs, metadata and error results", async () => {
+    const fixture = await setup();
+    const proxyUrl = "http://private-user:private-password@127.0.0.1:7897";
+    fixture.env.HTTPS_PROXY = proxyUrl;
+    const metadata: unknown[] = [];
+    const taskHooks = { ...hooks(job()), meta: (value: unknown) => metadata.push(value) };
+    const result = await createCodexExecutor(fixture.config, dependencies(() => {}, fixture.env, {
+      loadRuntime: async () => ({ execute: async context => {
+        (context.onLog as any)("stderr", `connecting via ${proxyUrl}\n`);
+        (context.onMeta as any)({ env: { HTTPS_PROXY: proxyUrl } });
+        return { exitCode: 1, signal: null, timedOut: false, errorMessage: `failed ${proxyUrl}` };
+      } }),
+    })).execute(taskHooks);
+    const output = JSON.stringify({ logs: vi.mocked(taskHooks.log).mock.calls, metadata, result });
+    expect(output).not.toMatch(/private-user|private-password/);
+    expect(output).toContain("http://***@127.0.0.1:7897");
+  });
   it.each(["fresh", "resume", "recovery", "unscoped"])("injects credential-free REST instructions on every %s run and every selected task carrier", async (mode) => {
     const fixture = await setup();
     let delivered: Record<string, unknown> | undefined;
@@ -129,7 +183,7 @@ describe("Codex executor context and privacy boundary", () => {
     expect(contextConfig.model).toBeUndefined();
     expect(contextConfig.extraArgs).toEqual([]);
     expect(contextConfig.managedAiConnection).toBe(true);
-    expect(contextConfig.env).toEqual({ CODEX_HOME: fixture.codexHome });
+    expect(contextConfig.env).toEqual({ CODEX_HOME: fixture.codexHome, NO_PROXY: "localhost,127.0.0.1,::1,10.0.0.5" });
     const runtime = context?.runtime as Record<string, unknown>;
     expect((runtime.sessionParams as Record<string, unknown>).cwd).toBe(fixture.project);
     expect((runtime.sessionParams as Record<string, unknown>).sessionId).toBe("session-1");
@@ -162,6 +216,7 @@ describe("Codex executor context and privacy boundary", () => {
     await createCodexExecutor(fixture.config, dependencies((value) => { context = value; }, fixture.env)).execute(hooks(task, "https://board.example"));
     expect((context?.config as Record<string, any>).env).toEqual({
       CODEX_HOME: fixture.codexHome,
+      NO_PROXY: "localhost,127.0.0.1,::1,board.example",
       PAPERCLIP_RUNTIME_TOOLS_MCP_URL: "https://board.example/api/mcp/run",
       PAPERCLIP_RUNTIME_TOOLS_TOKEN: "FAKE-RUNTIME-TOOL-TOKEN-ONLY-FOR-TEST",
       PAPERCLIP_RUNTIME_TOOLS_EXPIRES_AT: "2030-01-01T00:00:00.000Z",

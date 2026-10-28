@@ -176,7 +176,7 @@ try {
             if (!(Confirm-Member '现有配置无法通过校验，是否重新填写？' $TestMode $TestReplaceConfig)) { throw '现有配置无效或引用的目录不存在；已保留当前安装，请修复配置后重试。' }
         } else {
             Write-Host ('已有服务器：' + $existing.serverUrl + '；工作目录：' + $existing.defaultCwd)
-            if ($Rollback -or (Confirm-Member '沿用现有配置吗？' $TestMode $true)) { $config = $existing }
+            if ($Rollback -or (Confirm-Member '沿用现有配置吗？' $TestMode $true -DefaultYes)) { $config = $existing }
         }
     }
     if (!$config) {

@@ -55,8 +55,12 @@ function Remove-PlainTree([string]$Path) {
     [void](Assert-PlainPath $Path)
     if (Test-Path -LiteralPath $Path) { [void]@(Get-PlainTree $Path); Remove-Item -LiteralPath $Path -Recurse -Force }
 }
-function Confirm-Member([string]$Question, [bool]$Testing, [bool]$TestAnswer = $false) {
+function Confirm-Member([string]$Question, [bool]$Testing, [bool]$TestAnswer = $false, [switch]$DefaultYes) {
     if ($Testing) { return $TestAnswer }
+    if ($DefaultYes) {
+        $answer = Read-Host ($Question + ' [Y/n]')
+        return [string]::IsNullOrWhiteSpace($answer) -or $answer -match '^(y|yes|是)$'
+    }
     return (Read-Host ($Question + ' [y/N]')) -match '^(y|yes|是)$'
 }
 function Write-MemberText([string]$Path, [string]$Text) {

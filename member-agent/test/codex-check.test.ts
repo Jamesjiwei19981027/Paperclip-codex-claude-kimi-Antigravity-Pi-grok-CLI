@@ -46,6 +46,8 @@ describe("check code-mode host preflight", () => {
     }));
     vi.stubEnv("APPDATA", root);
     vi.stubEnv("PAPERCLIP_AGENT_KEY", "FAKE-agent-key-host-check");
+    vi.stubEnv("HTTPS_PROXY", "http://check-user:check-password@127.0.0.1:7897");
+    vi.stubEnv("HTTP_PROXY", "");vi.stubEnv("ALL_PROXY", "");
     const lines: string[] = [];
     vi.spyOn(console, "log").mockImplementation(line => { lines.push(String(line)); });
     vi.spyOn(console, "error").mockImplementation(line => { lines.push(String(line)); });
@@ -54,6 +56,8 @@ describe("check code-mode host preflight", () => {
     expect(code, output).toBe(present ? 0 : 2);
     expect(output).toContain(present ? "通过：Codex 工具宿主" : "失败：Codex 工具宿主");
     expect(output).toContain("codex-code-mode-host.exe");
+    expect(output).toContain("Codex 代理：使用环境变量代理 http://***@127.0.0.1:7897");
+    expect(output).not.toMatch(/check-user|check-password/);
     if (!present) {
       expect(output).toContain("同一版本");
       expect(output).toContain("同一目录");

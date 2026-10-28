@@ -18,7 +18,7 @@ export interface ConnectionSocket {
   on(event: 'pong', callback: () => void): void;
 }
 const { WebSocket } = createRequire(import.meta.url)('ws') as {
-  WebSocket: new (url: string, options: { headers: { Authorization: string }; maxPayload: number }) => ConnectionSocket;
+  WebSocket: new (url: string, options: { headers: { Authorization: string }; maxPayload: number; agent: false }) => ConnectionSocket;
 };
 
 export interface Clock {
@@ -39,7 +39,7 @@ export interface ConnectionOptions {
   onSession?: (send: (frame: Frame) => void, drain: () => Promise<boolean>) => void;
   onDisconnect?: () => Promise<void>;
   clock?: Clock;
-  socketFactory?: (url: string, options: { headers: { Authorization: string }; maxPayload: number }) => ConnectionSocket;
+  socketFactory?: (url: string, options: { headers: { Authorization: string }; maxPayload: number; agent: false }) => ConnectionSocket;
 }
 interface Outcome { exit?: number; delay?: number; ready: boolean }
 const nativeClock: Clock = { setTimeout, clearTimeout, random: Math.random };
@@ -137,7 +137,7 @@ function connectOnce(options: ConnectionOptions, clock: Clock): Promise<Outcome>
     const url = new URL('/api/member-agent/v1/connect', options.serverUrl);
     url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
     const socket = (options.socketFactory ?? ((address, config) => new WebSocket(address, config)))(url.href, {
-      headers: { Authorization: `Bearer ${options.agentKey}` }, maxPayload: 256 * 1024,
+      headers: { Authorization: `Bearer ${options.agentKey}` }, maxPayload: 256 * 1024, agent: false,
     });
     // terminate() on a CONNECTING socket emits an asynchronous error as well.
     // Install this handler before checking an already-aborted signal.

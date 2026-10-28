@@ -1,7 +1,7 @@
 import { hostname } from "node:os";
 import type { Executor, ExecutorHooks, ExecutorResult } from "./types.ts";
 
-export const AGENT_VERSION = "0.2.1";
+export const AGENT_VERSION = "0.2.2";
 
 function cancelled(): ExecutorResult {
   return { exitCode: 1, signal: null, timedOut: false, errorCode: "cancelled", errorMessage: "echo 执行器已取消" };

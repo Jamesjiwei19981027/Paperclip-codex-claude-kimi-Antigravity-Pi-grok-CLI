@@ -12,7 +12,7 @@ describe('成员命令与退出',()=>{
   const signals=new EventEmitter();const order:string[]=[];const dispose=installInterrupts(signals,{shutdown:async()=>{order.push('cancelled');},force:()=>{order.push('force');}},()=>{order.push('closed');},()=>{});signals.emit('SIGINT');await Promise.resolve();await Promise.resolve();expect(order).toEqual(['cancelled','closed']);dispose();
  });
  it('native Node runs version and rejects unknown arguments without a build',()=>{
-  const version=spawnSync(process.execPath,['src/main.ts','version'],{cwd:process.cwd(),encoding:'utf8'});expect(version.status,version.stderr).toBe(0);expect(version.stdout).toContain('0.2.1');
+  const version=spawnSync(process.execPath,['src/main.ts','version'],{cwd:process.cwd(),encoding:'utf8'});expect(version.status,version.stderr).toBe(0);expect(version.stdout).toContain('0.2.2');
   for(const args of [['unknown'],['version','--unknown'],['check','--config']]){const r=spawnSync(process.execPath,['src/main.ts',...args],{cwd:process.cwd(),encoding:'utf8'});expect(r.status,r.stderr).toBe(2);expect(r.stderr).toContain('用法');}
  });
 });

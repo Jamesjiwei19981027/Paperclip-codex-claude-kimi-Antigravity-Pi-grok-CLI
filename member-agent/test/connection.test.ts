@@ -4,7 +4,8 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { WebSocketServer } from 'ws';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { WebSocket } from 'ws';
 import { connectLoop, type Clock } from '../src/connection.ts';
 import { OutboundQueue } from '../src/outbound-queue.ts';
 import { JobRunner } from '../src/job-runner.ts';
@@ -37,6 +38,16 @@ function opts(serverUrl:string,extra:Record<string,unknown>={}) {
 }
 
 describe('连接和重连',()=>{
+  it('成员代理的 HTTP WebSocket 握手显式直连，不继承 Codex 代理',async()=>{
+    vi.stubEnv('HTTP_PROXY','http://127.0.0.1:1');vi.stubEnv('HTTPS_PROXY','http://127.0.0.1:1');vi.stubEnv('ALL_PROXY','socks5://127.0.0.1:1');
+    try {
+      const endpoint=await server(ws=>ws.on('message',()=>ws.send(JSON.stringify({v:1,type:'hello.ack'}))));
+      let received:any;
+      const result=await connectLoop({...opts(endpoint,{check:true}),socketFactory:(url,options)=>{received=options;return new WebSocket(url,options);}});
+      expect(result).toBe(0);expect(received.agent).toBe(false);
+      expect(received).not.toHaveProperty('proxy');expect(received).not.toHaveProperty('env');
+    } finally {vi.unstubAllEnvs();}
+  });
   it('发送有效 hello 和认证头，check 在 ack 后读取服务器参数并正常退出',async()=>{
     let hello:any,headers:any,url:any;const endpoint=await server((ws,req)=>{headers=req.headers;url=req.url;ws.on('message',(raw:any)=>{hello=JSON.parse(raw.toString());ws.send(JSON.stringify({v:1,type:'hello.ack',heartbeatSec:9,maxRunSec:77,pinnedCodexVersion:'固定版本'}));});});
     const options=opts(endpoint,{check:true});let ack:any;const code=await connectLoop({...options,onReady:value=>{ack=value;}});

@@ -4,6 +4,7 @@ import { pathToFileURL } from "node:url";
 import type { Executor, ExecutorHooks, ExecutorResult, JobStart } from "./types.ts";
 import { isRecord, localizeContext, materializeSkills, rebaseEndpoint, resolveLocalCwd } from "./codex-support.ts";
 import { CODE_MODE_HOST_RECOVERY, isCodexCodeModeHostReady } from "../codex-cli.ts";
+import { redactProxyAddress, resolveCodexProxy } from "./codex-proxy.ts";
 
 export interface CodexRuntimeConfig {
   codexExecutable: string;
@@ -12,6 +13,7 @@ export interface CodexRuntimeConfig {
   projectDirs: Record<string, unknown>;
   defaultCwd: string;
   configDir: string;
+  proxyWarningState?: SharedArrayBuffer;
 }
 
 export interface CodexModule {
@@ -26,6 +28,7 @@ export interface CodexExecutorDependencies {
   materializeSkills?: typeof materializeSkills;
   processEnv?: NodeJS.ProcessEnv;
   warn?: (message: string) => void;
+  queryRegistry?: () => Promise<string>;
 }
 
 const REQUIRED_ASSETS = [
@@ -214,6 +217,16 @@ async function executeCodex(hooks: ExecutorHooks, config: CodexRuntimeConfig, de
   localized.context.runtimeToolDelivery = "environment";
   if (localized.suspectedServerPaths > 0) warn(`任务文本中检测到 ${localized.suspectedServerPaths} 处疑似服务器路径；未改写任务文本。`);
   addPaperclipRestGuidance(localized.context, home);
+  const proxy = await resolveCodexProxy({ env, serverUrl: hooks.serverUrl, queryRegistry: dependencies.queryRegistry, registryWarningState: config.proxyWarningState, warn });
+  hooks.log("stdout", `${proxy.message}\n`);
+  const proxyAddresses = Object.entries(proxy.env).filter(([key, value]) => /^(https?|all)_proxy$/i.test(key) && value.includes("@")).map(([, value]) => value);
+  const redactText = (text: string) => proxyAddresses.reduce((safe, value) => safe.replaceAll(value, redactProxyAddress(value)), text);
+  const redactOutput = (value: unknown): unknown => {
+    if (typeof value === "string") return redactText(value);
+    if (Array.isArray(value)) return value.map(redactOutput);
+    if (isRecord(value)) return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, redactOutput(item)]));
+    return value;
+  };
   prepareProcessEnvironment(env, hooks.serverUrl, home);
 
   let module: CodexModule;
@@ -236,7 +249,7 @@ async function executeCodex(hooks: ExecutorHooks, config: CodexRuntimeConfig, de
       cwd,
       timeoutSec: hooks.job.config.maxRunSec ?? 3600,
       graceSec: 20,
-      env: { CODEX_HOME: home, ...buildRuntimeToolEnv(hooks.job, hooks.serverUrl) },
+      env: { CODEX_HOME: home, ...proxy.env, ...buildRuntimeToolEnv(hooks.job, hooks.serverUrl) },
       extraArgs: [],
       managedAiConnection: true,
     },
@@ -244,9 +257,9 @@ async function executeCodex(hooks: ExecutorHooks, config: CodexRuntimeConfig, de
     executionTarget: { kind: "local" },
     authToken: hooks.job.authToken,
     getFreshSessionHandoff: async () => hooks.job.handoffMarkdown.trim() ? hooks.job.handoffMarkdown : null,
-    onLog: hooks.log,
-    onMeta: (value: Record<string, unknown>) => extendedHooks.meta?.(value),
-    onEvent: hooks.event,
+    onLog: (stream: "stdout" | "stderr", text: string) => hooks.log(stream, redactText(text)),
+    onMeta: (value: Record<string, unknown>) => extendedHooks.meta?.(redactOutput(value) as Record<string, unknown>),
+    onEvent: (value: Record<string, unknown>) => hooks.event(redactOutput(value) as Record<string, unknown>),
     onUsage: (value: Record<string, unknown>) => extendedHooks.usage?.(value),
     onSpawn: (metadata: unknown) => {
       if (isRecord(metadata) && Number.isSafeInteger(metadata.pid) && (metadata.pid as number) > 0) extendedHooks.childSpawned?.(metadata.pid as number);
@@ -256,7 +269,7 @@ async function executeCodex(hooks: ExecutorHooks, config: CodexRuntimeConfig, de
   };
 
   try {
-    const result = safeResult(await module.execute(ctx), warn);
+    const result = safeResult(redactOutput(await module.execute(ctx)), warn);
     return result;
   } catch {
     return resultError("member_agent_executor_error", "Codex 执行器发生错误，请检查本机日志。");

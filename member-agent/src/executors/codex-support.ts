@@ -34,39 +34,48 @@ export async function resolveLocalCwd(
     : typeof context.projectId === "string" && context.projectId.trim() ? context.projectId : "";
   const mapped = projectId ? config.projectDirs[projectId] : undefined;
   const rawPath = typeof mapped === "string" && mapped.trim() ? mapped : config.defaultCwd;
+  const directory = rawPath?.trim() ? rawPath : "（未配置）";
+  const subject = projectId ? `项目 ${projectId} 的本机目录 ${directory}` : `默认工作目录 ${directory}（安装时填写）`;
   if (!rawPath || !rawPath.trim()) {
-    throw Object.assign(new Error(`项目 ${projectId || "（未提供编号）"} 没有配置本机目录，请在 projectDirs 中添加映射或填写 defaultCwd。`), { code: "member_agent_cwd_unresolved" });
+    throw Object.assign(new Error(`${subject} 没有配置，请在 projectDirs 中添加映射或填写 defaultCwd。`), { code: "member_agent_cwd_unresolved" });
   }
   if (hasParentSegment(rawPath)) {
-    throw Object.assign(new Error(`项目 ${projectId || "（未提供编号）"} 的本机目录含有 .. 路径段，请改为规范的绝对路径。`), { code: "member_agent_cwd_unresolved" });
+    throw Object.assign(new Error(`${subject} 含有 .. 路径段，请改为规范的绝对路径。`), { code: "member_agent_cwd_unresolved" });
   }
   if (looksUnc(rawPath)) {
-    throw Object.assign(new Error(`项目 ${projectId || "（未提供编号）"} 的本机目录不能使用 UNC 路径，请配置本机磁盘上的绝对目录。`), { code: "member_agent_cwd_unresolved" });
+    throw Object.assign(new Error(`${subject} 不能使用 UNC 路径，请配置本机磁盘上的绝对目录。`), { code: "member_agent_cwd_unresolved" });
   }
   if (!path.isAbsolute(rawPath)) {
-    throw Object.assign(new Error(`项目 ${projectId || "（未提供编号）"} 的本机目录必须是绝对路径，请修改 projectDirs 或 defaultCwd。`), { code: "member_agent_cwd_unresolved" });
+    throw Object.assign(new Error(`${subject} 必须是绝对路径，请修改 projectDirs 或 defaultCwd。`), { code: "member_agent_cwd_unresolved" });
   }
   const cwd = path.resolve(rawPath);
   const userProfile = process.env.USERPROFILE;
   const defaultCodexHome = userProfile ? path.join(userProfile, ".codex") : "";
   const forbidden = [config.configDir, config.codexHome, config.runtimeDir, defaultCodexHome].filter(Boolean);
   if (forbidden.some((directory) => pathInside(directory, cwd))) {
-    throw Object.assign(new Error(`项目 ${projectId || "（未提供编号）"} 的本机目录位于代理配置、Codex Home 或运行时目录内，请选择独立项目目录。`), { code: "member_agent_cwd_unresolved" });
+    throw Object.assign(new Error(`${subject} 位于代理配置、Codex Home 或运行时目录内，请选择独立项目目录。`), { code: "member_agent_cwd_unresolved" });
+  }
+  function inspectionError(error: unknown): Error {
+    const code = (error as NodeJS.ErrnoException)?.code;
+    const reason = code === "EACCES" || code === "EPERM" ? "无权限访问，请检查目录访问权限"
+      : code === "ENOENT" || code === "ENOTDIR" ? "不存在，请先创建目录并更新 projectDirs 或 defaultCwd"
+      : "无法访问，请检查目录状态和访问权限";
+    return Object.assign(new Error(`${subject} ${reason}。`), { code: "member_agent_cwd_missing" });
   }
   let stats;
   try { stats = await fileSystem.stat(cwd); }
-  catch {
-    throw Object.assign(new Error(`项目 ${projectId || "（未提供编号）"} 的本机目录不存在，请先创建目录并更新 projectDirs 或 defaultCwd。`), { code: "member_agent_cwd_missing" });
-  }
+  catch (error) { throw inspectionError(error); }
   if (!stats.isDirectory()) {
-    throw Object.assign(new Error(`项目 ${projectId || "（未提供编号）"} 的本机路径不是目录，请更新 projectDirs 或 defaultCwd。`), { code: "member_agent_cwd_missing" });
+    throw Object.assign(new Error(`${subject} 不是目录，请更新 projectDirs 或 defaultCwd。`), { code: "member_agent_cwd_missing" });
   }
-  const actualCwd = await (fileSystem.realpath ?? fsRealpath)(cwd);
+  let actualCwd: string;
+  try { actualCwd = await (fileSystem.realpath ?? fsRealpath)(cwd); }
+  catch (error) { throw inspectionError(error); }
   for (const directory of forbidden) {
     let actualProtected = path.resolve(directory);
     try { actualProtected = await (fileSystem.realpath ?? fsRealpath)(directory); } catch { /* A not-yet-created CODEX_HOME is still guarded lexically. */ }
     if (pathInside(actualProtected, actualCwd)) {
-      throw Object.assign(new Error(`项目 ${projectId || "（未提供编号）"} 的本机目录位于代理配置、Codex Home 或运行时目录内，请选择独立项目目录。`), { code: "member_agent_cwd_unresolved" });
+      throw Object.assign(new Error(`${subject}（实际路径 ${actualCwd}）位于代理配置、Codex Home 或运行时目录内，请选择独立项目目录。`), { code: "member_agent_cwd_unresolved" });
     }
   }
   return { projectId, cwd: actualCwd };

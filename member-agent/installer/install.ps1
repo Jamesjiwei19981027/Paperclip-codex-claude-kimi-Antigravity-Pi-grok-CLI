@@ -59,6 +59,7 @@ function Test-MemberConfiguration($Config, [string]$VersionPath, [string]$Valida
     [void](Assert-PlainPath $Config.defaultCwd)
     if ($TestMode) { $node = $TestNode } else { $node = Join-Path $ValidationRoot 'node\node.exe' }
     $oldRoot = $env:PAPERCLIP_INSTALL_VALIDATE_ROOT; $oldKey = $env:PAPERCLIP_AGENT_KEY
+    $oldEncoding = [Console]::OutputEncoding
     $oldConfig = $env:PAPERCLIP_INSTALL_VALIDATE_CONFIG
     $validationId = [Guid]::NewGuid().ToString('N')
     $validatorPath = Join-Path $ConfigDir ('.validate-' + $validationId + '.mjs')
@@ -72,6 +73,7 @@ function Test-MemberConfiguration($Config, [string]$VersionPath, [string]$Valida
         $validator = 'import {readFile} from "node:fs/promises";import {pathToFileURL} from "node:url";import path from "node:path";const base=process.env.PAPERCLIP_INSTALL_VALIDATE_ROOT;const {validateConfig}=await import(pathToFileURL(path.join(base,"member-agent/src/config.ts")));const {assertTransportAllowed}=await import(pathToFileURL(path.join(base,"member-agent/src/transport-check.ts")));try{let text=await readFile(process.env.PAPERCLIP_INSTALL_VALIDATE_CONFIG,"utf8");if(text.charCodeAt(0)===0xFEFF)text=text.slice(1);const config=validateConfig(JSON.parse(text),{},{requireAgentKey:false});assertTransportAllowed(config.serverUrl)}catch{console.error("配置校验失败：请检查服务器纯源地址、内网明文限制和目录设置。");process.exitCode=2}'
         [IO.File]::WriteAllText($inputPath, ($Config | ConvertTo-Json -Depth 30 -Compress), (New-Object Text.UTF8Encoding($false)))
         Write-MemberText $validatorPath $validator
+        [Console]::OutputEncoding = New-Object Text.UTF8Encoding($false)
         & $node $validatorPath
         if ($LASTEXITCODE -ne 0) { throw '配置未通过代理校验，尚未保存。服务器须为纯 HTTP(S) 源地址；公网地址必须使用 HTTPS。' }
     } finally {
@@ -81,6 +83,7 @@ function Test-MemberConfiguration($Config, [string]$VersionPath, [string]$Valida
             $env:PAPERCLIP_INSTALL_VALIDATE_ROOT = $oldRoot
             $env:PAPERCLIP_INSTALL_VALIDATE_CONFIG = $oldConfig
             $env:PAPERCLIP_AGENT_KEY = $oldKey
+            [Console]::OutputEncoding = $oldEncoding
         }
     }
 }
@@ -88,16 +91,18 @@ function Register-MemberTask([string]$VersionPath) {
     if ($TestMode) { return $true }
     try {
         $user = [Security.Principal.WindowsIdentity]::GetCurrent().Name
-        $start = Join-Path $VersionPath 'start.ps1'
-        $arguments = '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $start + '"'
+        # The stable launcher retains watchdog guards even when rolling back old code.
+        $start = Join-Path $InstallRoot 'start.ps1'
+        $arguments = '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "' + $start + '" -LaunchReason Scheduled'
         $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $arguments
         $trigger = New-ScheduledTaskTrigger -AtLogOn -User $user
+        $watchdog = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(5) -RepetitionInterval (New-TimeSpan -Minutes 5)
         $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew
         $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive -RunLevel Limited
-        Register-ScheduledTask -TaskName 'PaperclipMemberAgent' -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Force | Out-Null
+        Register-ScheduledTask -TaskName 'PaperclipMemberAgent' -Action $action -Trigger @($trigger, $watchdog) -Settings $settings -Principal $principal -Force | Out-Null
         return $true
     } catch {
-        Write-Warning ('开机自启注册失败，可能被公司策略禁止。请联系管理员确认任务计划权限；也可手动执行：powershell -NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $VersionPath 'start.ps1') + '"')
+        Write-Warning ('开机自启注册失败，可能被公司策略禁止。请联系管理员确认任务计划权限；也可手动执行：powershell -NoProfile -ExecutionPolicy Bypass -File "' + (Join-Path $InstallRoot 'start.ps1') + '"')
         return $false
     }
 }
@@ -106,10 +111,14 @@ function Invoke-MemberCommand([string]$VersionPath, [string]$Command) {
     if ($TestMode) { $params.TestMode = $true; $params.InstallRoot = $InstallRoot; $params.ConfigDir = $ConfigDir; $params.TestExecutor = $TestExecutor }
     # Run the launcher in a child shell: its exit must not end installation.
     $shell = (Get-Process -Id $PID).Path
-    $args = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $VersionPath 'start.ps1'), '-Mode', $Command)
+    $args = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $InstallRoot 'start.ps1'), '-Mode', $Command)
     if ($TestMode) { $args += @('-TestMode', '-InstallRoot', $InstallRoot, '-ConfigDir', $ConfigDir, '-TestExecutor', $TestExecutor) }
-    & $shell @args | Out-Host
-    return $LASTEXITCODE
+    $oldEncoding = [Console]::OutputEncoding
+    try {
+        [Console]::OutputEncoding = New-Object Text.UTF8Encoding($false)
+        & $shell @args | Out-Host
+        return $LASTEXITCODE
+    } finally { [Console]::OutputEncoding = $oldEncoding }
 }
 try {
     if (!$TestMode -and ($TestExecutor -or $TestNode -or $TestDefaultCwd -or $TestOverwrite -or $TestReplaceConfig -or $PSBoundParameters.ContainsKey('TestServerUrl'))) { throw 'Test 参数仅限显式测试模式。' }
@@ -203,6 +212,7 @@ try {
     if ($current -and $current -ne $version) { Write-MemberText $previousPath $current }
     Write-MemberText $currentPath $version
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'uninstall.ps1') -Destination (Join-Path $InstallRoot 'uninstall.ps1') -Force
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'app\start.ps1') -Destination (Join-Path $InstallRoot 'start.ps1') -Force
     # The package/config pointer swap is committed only after all persisted
     # files are written. Keep the old same-version directory until this point.
     $transactionCommitted = $true
@@ -214,6 +224,12 @@ try {
     $checkCode = Invoke-MemberCommand $versionPath 'check'
     if ($checkCode -ne 0) { Write-Warning '自检未通过，文件已保留。请根据上方原因修复配置、Key、网络或 Codex 登录，再执行 start.ps1 -Mode check。' }
     $registered = Register-MemberTask $versionPath
+    $maintenance = Join-Path $InstallRoot 'maintenance.flag'
+    if ($registered -and (Test-Path -LiteralPath $maintenance)) { Remove-Item -LiteralPath $maintenance -Force }
+    # Draining for install/rollback ends the agent with exit 0; that stop record must not block the restart below.
+    $launcherStop = Join-Path $ConfigDir 'launcher-stopped.json'; [void](Assert-PlainPath $launcherStop)
+    if ($registered -and (Test-Path -LiteralPath $launcherStop)) { Remove-Item -LiteralPath $launcherStop -Force }
+    if (!$registered -and (Test-Path -LiteralPath $maintenance)) { Write-Warning '升级后的自启任务未注册成功，已保留维护锁以防旧版本重启。请修复任务计划权限后重新运行安装程序。' }
     if (!$TestMode -and $registered -and ($current -or (Confirm-Member '现在启动吗？' $false))) { Start-ScheduledTask -TaskName 'PaperclipMemberAgent' }
     $keep = @($version)
     if (Test-Path -LiteralPath $previousPath) { $previous = (Get-Content -LiteralPath $previousPath -Raw).Trim(); Assert-Version $previous; $keep += $previous }

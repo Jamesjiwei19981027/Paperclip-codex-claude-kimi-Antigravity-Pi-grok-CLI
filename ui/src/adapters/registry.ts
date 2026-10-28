@@ -1,6 +1,7 @@
 import type { UIAdapterModule } from "./types";
 import { claudeLocalUIAdapter } from "./claude-local";
 import { codexLocalUIAdapter } from "./codex-local";
+import { memberAgentUIAdapter } from "./member-agent";
 import { paperclipRunnerUIAdapter } from "./paperclip-runner";
 import { cursorCloudUIAdapter } from "./cursor-cloud";
 import { cursorLocalUIAdapter } from "./cursor";
@@ -56,6 +57,7 @@ function registerBuiltInUIAdapters() {
   for (const adapter of [
     claudeLocalUIAdapter,
     codexLocalUIAdapter,
+    memberAgentUIAdapter,
     paperclipRunnerUIAdapter,
     cursorCloudUIAdapter,
     geminiLocalUIAdapter,

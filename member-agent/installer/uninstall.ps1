@@ -73,6 +73,11 @@ function Read-MemberJson([string]$Path) {
     if ($convert.Parameters.ContainsKey('DateKind')) { return ConvertFrom-Json -InputObject $text -DateKind String }
     return ConvertFrom-Json -InputObject $text
 }
+function Set-MemberAcl($Item, $Acl) {
+    # Set-Acl also rewrites the SACL on a protected path and needs SeSecurityPrivilege.
+    if ($Item.PSObject.Methods.Name -contains 'SetAccessControl') { $Item.SetAccessControl($Acl) }
+    else { [IO.FileSystemAclExtensions]::SetAccessControl($Item, $Acl) }
+}
 function Protect-MemberPath([string]$Path, [bool]$Directory = $false) {
     $sid = [Security.Principal.WindowsIdentity]::GetCurrent().User
     if ($Directory) {
@@ -83,7 +88,7 @@ function Protect-MemberPath([string]$Path, [bool]$Directory = $false) {
         $rule = New-Object Security.AccessControl.FileSystemAccessRule($sid, 'FullControl', 'Allow')
     }
     $acl.SetOwner($sid); $acl.SetAccessRuleProtection($true, $false); $acl.AddAccessRule($rule)
-    Set-Acl -LiteralPath $Path -AclObject $acl
+    Set-MemberAcl (Get-Item -LiteralPath $Path -Force) $acl
 }
 function Get-OwnedAgent($Identity, [string]$RootPath, [string]$ConfigPath) {
     if (!$Identity -or !$Identity.pid -or !$Identity.startedAt) { return $null }
@@ -102,10 +107,14 @@ function Get-OwnedAgent($Identity, [string]$RootPath, [string]$ConfigPath) {
     return $process
 }
 function Stop-MemberAgent([string]$RootPath, [string]$ConfigPath, [bool]$Testing) {
-    # Stop the supervisor first. A drained agent returning 0 must stay stopped.
+    # Fence queued watchdog launches before disabling/stopping the supervisor.
+    if (Test-Path -LiteralPath $RootPath -PathType Container) { Write-MemberText (Join-Path $RootPath 'maintenance.flag') 'maintenance' }
     if (!$Testing) {
         $task = Get-ScheduledTask -TaskName 'PaperclipMemberAgent' -ErrorAction SilentlyContinue
-        if ($task) { Stop-ScheduledTask -TaskName 'PaperclipMemberAgent' -ErrorAction Stop }
+        if ($task) {
+            Disable-ScheduledTask -TaskName 'PaperclipMemberAgent' -ErrorAction Stop | Out-Null
+            Stop-ScheduledTask -TaskName 'PaperclipMemberAgent' -ErrorAction Stop
+        }
     }
     $controlFile = Join-Path $ConfigPath 'agent-control.json'
     [void](Assert-PlainPath $controlFile)

@@ -73,29 +73,33 @@ describe.skipIf(process.platform !== "win32")("isolated Windows installer script
       const s = await sandbox();
       try {
         for (const version of ["0.2.0", "0.2.1", "0.2.2"]) {
-          const pkg = await pack(s.dir, version); await writeFile(path.join(s.config, "codes.json"), "[0]");
+          const pkg = await pack(s.dir, version); await writeFile(path.join(s.config, "codes.json"), "[0]"); await writeFile(path.join(s.config, "launcher-stopped.json"), JSON.stringify({ exitCode: 0, logonId: "test-session" }));
           const result = execute(shell, path.join(pkg, "install.ps1"), [...s.args, "-TestDefaultCwd", s.cwd, "-TestExecutor", s.executor, "-TestNode", process.execPath]);
           expect(result.code, result.output).toBe(0);
           expect((await readFile(path.join(s.install, "current.txt"), "utf8")).trim()).toBe(version);
           const config = await json(path.join(s.config, "config.json"));
           expect(config.codexExecutable).toBe(path.join(s.install, "versions", version, "codex", "codex.exe"));
           expect(config.defaultCwd).toBe(s.cwd);
+          expect(await exists(path.join(s.install, 'start.ps1'))).toBe(true);
+          expect(await exists(path.join(s.install, 'maintenance.flag'))).toBe(false);
+          // A drain-time normal stop must not suppress the installer restart.
+          expect(await exists(path.join(s.config, "launcher-stopped.json"))).toBe(false);
           expect((await readdir(s.config)).filter(name => name.startsWith(".validate-"))).toEqual([]);
           expect(config.codexHome).toBe(path.join(s.config, "codex-home")); expect(config).not.toHaveProperty("agentKey");
           if (version === "0.2.0") { await mkdir(path.join(s.config, "codex-home")); await writeFile(path.join(s.config, "codex-home/auth.json"), "FAKE-AUTH-FIXTURE"); await mkdir(path.join(s.config, "logs"), { recursive: true }); await writeFile(path.join(s.config, "logs/keep.log"), "preserve"); }
           if (version === "0.2.0") {
             const same = execute(shell, path.join(pkg, "install.ps1"), [...s.args, "-TestDefaultCwd", s.cwd, "-TestExecutor", s.executor, "-TestNode", process.execPath]);
             expect(same.code, same.output).not.toBe(0);
-            await writeFile(path.join(s.config, "codes.json"), "[0]");
+            await writeFile(path.join(s.config, "codes.json"), "[0]"); await writeFile(path.join(s.config, "launcher-stopped.json"), JSON.stringify({ exitCode: 0, logonId: "test-session" }));
             const overwrite = execute(shell, path.join(pkg, "install.ps1"), [...s.args, "-TestDefaultCwd", s.cwd, "-TestExecutor", s.executor, "-TestNode", process.execPath, "-TestOverwrite"]);
-            expect(overwrite.code, overwrite.output).toBe(0);
+            expect(overwrite.code, overwrite.output).toBe(0); expect(await exists(path.join(s.config, "launcher-stopped.json"))).toBe(false);
           }
         }
         expect((await readdir(path.join(s.install, "versions"))).sort()).toEqual(["0.2.1", "0.2.2"]);
-        await writeFile(path.join(s.config, "codes.json"), "[0]");
+        await writeFile(path.join(s.config, "codes.json"), "[0]"); await writeFile(path.join(s.config, "launcher-stopped.json"), JSON.stringify({ exitCode: 0, logonId: "test-session" }));
         const pkg = path.join(s.dir, "package-0.2.2");
         const rollback = execute(shell, path.join(pkg, "install.ps1"), [...s.args, "-Rollback", "-TestExecutor", s.executor, "-TestNode", process.execPath]);
-        expect(rollback.code, rollback.output).toBe(0);
+        expect(rollback.code, rollback.output).toBe(0); expect(await exists(path.join(s.config, "launcher-stopped.json"))).toBe(false);
         expect((await readFile(path.join(s.install, "current.txt"), "utf8")).trim()).toBe("0.2.1");
         expect((await json(path.join(s.config, "config.json"))).runtimeDir).toBe(path.join(s.install, "versions/0.2.1/member-agent/runtime"));
         const uninstall = execute(shell, path.join(s.install, "uninstall.ps1"), s.args);
@@ -214,7 +218,8 @@ fsFixture.writeFileSync(inputFixture,'\\uFEFF'+bytesFixture.toString('utf8'));
         const versionRoot = path.join(s.install, "versions/0.2.0"); await mkdir(versionRoot, { recursive: true }); await writeFile(path.join(s.install, "current.txt"), "0.2.0");
         await writeFile(path.join(s.config, "config.json"), "{}"); await writeFile(path.join(s.config, "agent-key.dpapi"), "FAKE-DPAPI-TEST-NOT-A-CREDENTIAL");
         const run = (mode: string) => execute(shell, path.join(root, "start.ps1"), [...s.args, "-Mode", mode, "-TestExecutor", s.executor, "-TestWait", s.wait]);
-        for (const code of [0, 2, 3, 4, 5]) { await writeFile(path.join(s.config, "codes.json"), JSON.stringify([code])); const result = run("run"); expect(result.code, result.output).toBe(code); expect(await json(path.join(s.config, "codes.json"))).toEqual([]); }
+        for (const code of [0, 2, 3, 4, 5]) { await writeFile(path.join(s.config, "config.json"), JSON.stringify({ attempt: code })); await writeFile(path.join(s.config, "codes.json"), JSON.stringify([code])); const result = run("run"); expect(result.code, result.output).toBe(code); expect(await json(path.join(s.config, "codes.json"))).toEqual([]); }
+        await writeFile(path.join(s.config, "config.json"), '{"attempt":"retry"}');
         await writeFile(path.join(s.config, "codes.json"), '[1,99,"crash",1,1,0]'); const retry = run("run"); expect(retry.code, retry.output).toBe(0);
         expect((await readFile(path.join(s.config, "waits.txt"), "utf8")).trim().split(/\r?\n/).map(Number)).toEqual([10,30,60,300,300]);
         await writeFile(path.join(s.config, "codes.json"), "[1,0]"); const check = run("check"); expect(check.code, check.output).toBe(1); expect(await json(path.join(s.config, "codes.json"))).toEqual([0]);

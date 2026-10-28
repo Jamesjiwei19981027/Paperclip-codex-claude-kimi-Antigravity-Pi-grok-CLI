@@ -4,7 +4,7 @@
 
 ## 安装
 
-将压缩包解压到普通目录，不要直接在压缩包中运行。用可信渠道拿到压缩包，并将 `Get-FileHash .\PaperclipMemberAgent-0.2.0.zip -Algorithm SHA256` 的结果与负责人单独提供的 SHA-256 核对。包内清单检查只能发现损坏或修改，不能证明来源。
+将压缩包解压到普通目录，不要直接在压缩包中运行。用可信渠道拿到压缩包，并将 `Get-FileHash .\PaperclipMemberAgent-0.2.1.zip -Algorithm SHA256` 的结果与负责人单独提供的 SHA-256 核对。包内清单检查只能发现损坏或修改，不能证明来源。
 
 在解压目录打开 PowerShell，运行：
 
@@ -14,14 +14,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 
 按提示输入服务器地址、已有的工作目录、Key，选择登录 Codex。Key 输入隐藏并由当前 Windows 用户加密保存，不会进入命令参数。服务器地址只填源地址，例如 `http://192.168.0.213:3100`；不带路径、查询参数或账号密码。公网必须用 HTTPS。此处的 Bypass 只影响这次脚本进程。
 
-程序装在 `%LOCALAPPDATA%\Programs\PaperclipMemberAgent`；配置、加密 Key、独立 Codex 登录和日志放在 `%APPDATA%\paperclip-member-agent`。不要手动移动版本目录。安装器会注册你本人登录时启动的计划任务，不提升权限；公司策略禁止时会提示手动启动命令。
+程序装在 `%LOCALAPPDATA%\Programs\PaperclipMemberAgent`；配置、加密 Key、独立 Codex 登录和日志放在 `%APPDATA%\paperclip-member-agent`。不要手动移动版本目录。安装器会注册你本人登录时启动、每 5 分钟检查一次的计划任务，不提升权限；已运行时不会重复启动。公司策略禁止时会提示手动启动命令。
 
 ## 登录、自检与状态
 
 ```powershell
 $install = Join-Path $env:LOCALAPPDATA 'Programs\PaperclipMemberAgent'
-$version = (Get-Content (Join-Path $install 'current.txt') -Raw).Trim()
-$start = Join-Path $install ('versions\' + $version + '\start.ps1')
+$start = Join-Path $install 'start.ps1'
 powershell -NoProfile -ExecutionPolicy Bypass -File $start -Mode login
 powershell -NoProfile -ExecutionPolicy Bypass -File $start -Mode check
 # 手动运行（关闭这个终端会影响代理）：
@@ -35,11 +34,13 @@ $logs = Join-Path $env:APPDATA 'paperclip-member-agent\logs'
 Get-ChildItem $logs -File | Sort-Object LastWriteTime -Descending | Select-Object -First 3 | ForEach-Object { Get-Content -LiteralPath $_.FullName -Tail 15 }
 ```
 
-启动器日志保留 7 天。配置错误、Key 无效或权限不允许时不会反复重试；修复后在任务计划程序启动 `PaperclipMemberAgent`，或运行上面的手动启动命令。意外崩溃会依次等待 10、30、60 秒，之后每次 5 分钟重试；正常停止不会自动重启。
+启动器日志保留 7 天。启动器本身被关闭后，看门狗在下一次 5 分钟检查时恢复。配置错误、Key 无效或权限不允许（退出码 2/3/4/5）时会保存停止标记；配置和加密 Key 都未改变时，重复启动只记一行日志，不会重试。修复配置或通过安装器替换 Key 后，下次看门狗检查自动恢复，也可手动启动。`-Mode check/login` 不受此停止标记限制。
+
+代理正常停止（退出码 0）后，本次 Windows 登录期间看门狗不再拉起它，即使修改配置也不拉起；下次重新登录或执行上面的手动启动命令才恢复。在任务计划程序里点击运行仍属于计划任务启动，不等于手动执行脚本。意外崩溃仍依次等待 10、30、60 秒，之后每次 5 分钟重试。交互命令会临时使用 UTF-8 解码 Node 输出，结束后恢复控制台编码；日志始终为 UTF-8。
 
 ## 升级和回滚
 
-拿到新压缩包，核对哈希后解压，运行新包里的 `install.ps1`。现有配置、Key 和 Codex 登录可以沿用。安装器先停止启动器，再等当前任务结束，最多等待 60 秒；仍未结束会询问是否强制停止，选择否会取消升级。最多保留两个版本。
+拿到新压缩包，核对哈希后解压，运行新包里的 `install.ps1`。现有配置、Key 和 Codex 登录可以沿用。安装器先写维护锁、禁用计划任务并停止启动器，再等当前任务结束，最多等待 60 秒；仍未结束会询问是否强制停止，选择否会取消升级。维护期间不会启动任务执行，但仍可登录或自检；操作成功且自启任务重新注册后才解除维护锁。取消或失败后保持禁用，修复原因并重新运行安装器恢复。最多保留两个版本。
 
 回滚时在解压目录运行：
 
@@ -47,7 +48,7 @@ Get-ChildItem $logs -File | Sort-Object LastWriteTime -Descending | Select-Objec
 powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Rollback
 ```
 
-回滚会切回上一个版本，更新程序路径并重新启动。如果服务器要求更高版本，旧版会保持连接但拒绝任务，并明确提示升级。
+回滚会切回上一个版本，更新程序路径并重新启动；稳定的安装根目录 `start.ps1` 保留新看门狗保护，不应直接运行旧版本目录下的启动器。如果服务器要求更高版本，旧版会保持连接但拒绝任务，并明确提示升级。
 
 ## 卸载
 

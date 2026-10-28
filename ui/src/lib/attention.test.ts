@@ -67,6 +67,13 @@ function buildItem(overrides: Partial<AttentionItem> = {}): AttentionItem {
 }
 
 describe("attention group preference persistence", () => {
+  it("renders member time alerts as blocking items that open the affected task", () => {
+    const item = buildItem({ sourceKind: "member_agent_time_alert", inlineResolvable: false });
+    expect(attentionKind(item)).toBe("blocking");
+    expect(attentionStatus(item)).toBe("blocked");
+    expect(isInlineResolvable(item)).toBe(false);
+    expect(sourceMeta(item.sourceKind).label).toBe("成员时间提醒");
+  });
   beforeEach(() => {
     localStorage.clear();
   });

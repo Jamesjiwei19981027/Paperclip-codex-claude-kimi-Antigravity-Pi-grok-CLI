@@ -9,6 +9,7 @@ import {
 } from "./application/use-cases.js";
 
 export type ActiveRunWatchdogConfig = {
+  stopSilentMemberRun?: (run: import("./application/types.js").RunSnapshot, now: Date) => Promise<boolean>;
   suspicionThresholdMs: number;
   criticalThresholdMs: number;
   continueRearmMs: number;
@@ -35,6 +36,7 @@ export function createActiveRunWatchdog(db: Db, config: ActiveRunWatchdogConfig)
       criticalThresholdMs: config.criticalThresholdMs,
     }),
     scanSilentActiveRuns: createScanSilentActiveRuns({
+      stopSilentMemberRun: config.stopSilentMemberRun,
       reader: postgresAdapter,
       foldSourceResolvedRun,
       suspicionThresholdMs: config.suspicionThresholdMs,
@@ -56,3 +58,4 @@ export type {
   WatchdogDecisionRecord,
 } from "./application/types.js";
 export { WatchdogDecisionApplicationError } from "./application/types.js";
+export { silenceAgeMs } from "./domain/policy.js";

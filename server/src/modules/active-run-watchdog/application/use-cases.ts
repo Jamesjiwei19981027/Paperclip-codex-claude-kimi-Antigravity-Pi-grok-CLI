@@ -219,6 +219,7 @@ export type ScanSilentActiveRunsDeps = {
   reader: WatchdogRunReader;
   foldSourceResolvedRun: ReturnType<typeof createFoldSourceResolvedRun>;
   suspicionThresholdMs: number;
+  stopSilentMemberRun?: (run: RunSnapshot, now: Date) => Promise<boolean>;
 };
 
 export type ScanSilentActiveRunsOptions = {
@@ -245,6 +246,9 @@ export function createScanSilentActiveRuns(deps: ScanSilentActiveRunsDeps) {
   }): Promise<InspectOutcome> {
     const runningAgent = await deps.reader.findRunningAgent(input.run.companyId, input.run.agentId);
     if (!runningAgent || runningAgent.companyId !== input.run.companyId) return { kind: "skipped" };
+    // Remote member work must finish or follow the acknowledged cancellation
+    // path above. Local-process folding cannot prove a remote process stopped.
+    if (runningAgent.adapterType === "member_agent") return { kind: "skipped" };
 
     const sourceIssue = await resolveSourceIssue(input.run);
     const existing = await deps.reader.findOpenStaleRunEvaluation(input.run.companyId, input.run.id);
@@ -311,12 +315,19 @@ export function createScanSilentActiveRuns(deps: ScanSilentActiveRunsDeps) {
       existing: 0,
       escalated: 0,
       folded: 0,
+      stopped: 0,
       snoozed: 0,
       skipped: 0,
       evaluationIssueIds: [],
     };
 
     for (const run of candidates) {
+      // The fixed member safety policy is independent of generic snooze,
+      // blocked-source and recovery-origin review suppression.
+      if (await deps.stopSilentMemberRun?.(run, now)) {
+        result.stopped += 1;
+        continue;
+      }
       const decisionState = await deps.reader.findLatestDecision(run.companyId, run.id, now);
       if (evaluateSuppression({ snoozedOrContinued: Boolean(decisionState.quietUntilDecision) }).suppressed) {
         result.snoozed += 1;

@@ -1,4 +1,5 @@
 import { AgentIdentity } from "@/components/AgentIdentity";
+import { MemberAgentOverdueBadge } from "./MemberAgentOverdueBadge";
 import { useMemo, useState } from "react";
 import { Link } from "@/lib/router";
 import {
@@ -361,6 +362,7 @@ function KanbanCard({
             </Badge>
           )}
         </div>
+        <MemberAgentOverdueBadge issue={issue} />
         <p className={`${compact ? "mb-1.5 text-xs" : "mb-2 text-sm"} leading-snug line-clamp-2`}>{issue.title}</p>
         <div className="flex items-center gap-2 min-w-0">
           {/* PAP-411: priority UI hidden behind SHOW_TASK_PRIORITY_UI. */}

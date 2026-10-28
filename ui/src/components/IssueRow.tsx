@@ -1,4 +1,5 @@
 import { requiresExecutionReconciliation } from "@paperclipai/shared";
+import { MemberAgentOverdueBadge } from "./MemberAgentOverdueBadge";
 import type { ReactNode } from "react";
 import type { ExternalObjectSummary, Issue, IssueRecoveryAction } from "@paperclipai/shared";
 import { Link } from "@/lib/router";
@@ -307,6 +308,7 @@ export function IssueRow({
               {issue.title}{titleSuffix}
             </span>
             {recoveryIndicator}
+            <MemberAgentOverdueBadge issue={issue} />
             {mobileTitleMeta ? (
               <span className="ml-auto shrink-0 whitespace-nowrap text-right text-xs text-muted-foreground sm:hidden">
                 {mobileTitleMeta}
@@ -397,6 +399,7 @@ export function IssueRow({
             {issue.title}{titleSuffix}
           </span>
           {recoveryIndicator}
+          <MemberAgentOverdueBadge issue={issue} />
         </span>
         {checklistDependencyChips ? (
           <span className="flex flex-wrap gap-1 sm:order-3 sm:ml-(--sz-calc-13)">

@@ -86,6 +86,17 @@ function createIssue(overrides: Partial<Issue> = {}): Issue {
 }
 
 describe("IssueRow", () => {
+  it.each(["legacy", "task"] as const)("shows the overdue member marker in %s rows and hides it after completion", presentation => {
+    const target = document.createElement("div");
+    const root = createRoot(target);
+    const issue = createIssue({ assigneeAgentId: "member-1", labels: [{ id: "late", companyId: "company-1", name: "成员任务超期", color: "red", createdAt: new Date(), updatedAt: new Date() }] });
+    act(() => root.render(<IssueRow issue={issue} presentation={presentation} />));
+    expect(target.textContent).toContain("成员任务超期");
+    expect(target.querySelector('[data-variant="destructive"]')).not.toBeNull();
+    act(() => root.render(<IssueRow issue={{ ...issue, status: "done" }} presentation={presentation} />));
+    expect(target.textContent).not.toContain("成员任务超期");
+    act(() => root.unmount());
+  });
   let container: HTMLDivElement;
 
   beforeEach(() => {

@@ -1,3 +1,4 @@
+import { MEMBER_AGENT_TIME_THRESHOLDS } from "../member-agent-time-policy.js";
 import { isAgentAwaitingSetup } from "../../modules/agent-lifecycle/index.js";
 import { isAiAuthenticationBlocked } from "../ai-auth-failure.js";
 import { hasCommittedNativePlanWait } from "../native-runtime/native-plan-wait.js";
@@ -170,7 +171,7 @@ const UNSUCCESSFUL_HEARTBEAT_RUN_TERMINAL_STATUSES = [
   "timed_out",
 ] as const;
 export const ACTIVE_RUN_OUTPUT_SUSPICION_THRESHOLD_MS = 5 * 60 * 1000;
-export const ACTIVE_RUN_OUTPUT_CRITICAL_THRESHOLD_MS = 15 * 60 * 1000;
+export const ACTIVE_RUN_OUTPUT_CRITICAL_THRESHOLD_MS = MEMBER_AGENT_TIME_THRESHOLDS.silenceMs;
 export const ACTIVE_RUN_OUTPUT_CONTINUE_REARM_MS = 30 * 60 * 1000;
 const STRANDED_ISSUE_RECOVERY_ORIGIN_KIND =
   RECOVERY_ORIGIN_KINDS.strandedIssueRecovery;
@@ -916,6 +917,7 @@ function isRepeatedProductiveContinuationRecovery(
 export function recoveryService(
   db: Db,
   deps: {
+    stopSilentMemberRun?: (companyId: string, runId: string, now: Date) => Promise<boolean>;
     enqueueWakeup: RecoveryWakeup;
     scheduleRecoveryRetry?: (
       runId: string,
@@ -2263,6 +2265,9 @@ export function recoveryService(
   }
 
   const watchdog = createActiveRunWatchdog(db, {
+    stopSilentMemberRun: deps.stopSilentMemberRun
+      ? (run, now) => deps.stopSilentMemberRun!(run.companyId, run.id, now)
+      : undefined,
     suspicionThresholdMs: ACTIVE_RUN_OUTPUT_SUSPICION_THRESHOLD_MS,
     criticalThresholdMs: ACTIVE_RUN_OUTPUT_CRITICAL_THRESHOLD_MS,
     continueRearmMs: ACTIVE_RUN_OUTPUT_CONTINUE_REARM_MS,

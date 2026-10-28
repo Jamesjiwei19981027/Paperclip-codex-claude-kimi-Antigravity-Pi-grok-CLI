@@ -87,7 +87,15 @@ export function createPostgresWatchdogAdapter(db: Db): WatchdogRunReader & Watch
       .orderBy(asc(heartbeatRuns.createdAt))
       .limit(100);
 
-    let candidates = rows.map(toRunSnapshot);
+    // The historical 100-row review window must not starve member safety when
+    // older non-member runs remain silent. Keep that review window unchanged,
+    // and include every silent member in the same watchdog scan.
+    const members = await db.select({ run: heartbeatRuns }).from(heartbeatRuns).innerJoin(agents, and(
+      eq(agents.companyId, heartbeatRuns.companyId), eq(agents.id, heartbeatRuns.agentId), eq(agents.adapterType, "member_agent"),
+    )).where(and(input.companyId ? eq(heartbeatRuns.companyId, input.companyId) : undefined,
+      eq(heartbeatRuns.status, "running"),
+      sql`coalesce(${heartbeatRuns.lastOutputAt}, ${heartbeatRuns.processStartedAt}, ${heartbeatRuns.startedAt}, ${heartbeatRuns.createdAt}) <= ${input.suspicionBefore.toISOString()}::timestamptz`));
+    let candidates = [...new Map([...rows, ...members.map(row => row.run)].map(row => [row.id, toRunSnapshot(row)])).values()];
 
     if (input.issueCreatedAtGte) {
       const issueCreatedAtGte = input.issueCreatedAtGte;

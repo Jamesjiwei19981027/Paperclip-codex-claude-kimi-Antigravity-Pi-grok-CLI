@@ -2,6 +2,7 @@ import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Db } from "@paperclipai/db";
 import {
   agents,
+  activityLog,
   approvals,
   budgetIncidents,
   decisionQueueItems,
@@ -204,6 +205,12 @@ async function sourceIssueId(
   sourceId: string,
 ): Promise<{ exists: boolean; issueId: string | null; ownerAgentId?: string | null; agentId?: string | null }> {
   switch (sourceKind) {
+    case "member_agent_time_alert": {
+      const [row] = await db.select({ details: activityLog.details }).from(activityLog).where(and(
+        eq(activityLog.companyId, companyId), eq(activityLog.id, sourceId), eq(activityLog.action, "member_agent.time_alert"),
+      ));
+      return { exists: Boolean(row), issueId: typeof row?.details?.issueId === "string" ? row.details.issueId : null };
+    }
     case "approval": {
       const row = await db.select({ id: approvals.id, issueId: issueApprovals.issueId })
         .from(approvals)

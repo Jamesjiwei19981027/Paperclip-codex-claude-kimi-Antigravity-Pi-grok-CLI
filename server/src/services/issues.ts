@@ -1,3 +1,4 @@
+import { recordMemberAssignment } from "./member-agent-time-control.js";
 import { recordChatHandoff, recordChatCompletion, existingChatCompletionReply, acknowledgeChatCompletionReply } from "./chat-completion-delivery.js";
 import { mirrorSlackBoardComment, slackBoardReplyBindings } from "./slack-board-messages.js";
 import { assertAgentRunWriteAllowed } from "../agent-run-cancellation.js";
@@ -10447,6 +10448,7 @@ export function issueService(db: Db) {
         );
 
         const [issue] = await tx.insert(issues).values(values).returning();
+        await recordMemberAssignment(tx, null, issue, issue.createdAt, []);
         await attachOwnedDraftImages(tx, issue, issue.description, { userId: issueData.createdByUserId, agentId: issueData.createdByAgentId });
         if (issue.visibility === "private" && !inheritedPrivateSubtree && issueData.createdByAgentId) {
           await tx.insert(issueAccessGrants).values({
@@ -11314,6 +11316,7 @@ export function issueService(db: Db) {
           userId: actorUserId ?? null,
         });
         await recordChatCompletion(tx, receiptExisting, updated);
+        await recordMemberAssignment(tx, receiptExisting, updated, new Date(), activityPublications);
         // An operator explicitly choosing a disposition owns that decision,
         // including choosing In Review while the conversation is Idle.
         if (actorUserId && issueData.status !== undefined) {
@@ -11800,7 +11803,12 @@ export function issueService(db: Db) {
             eq(issues.executionRunId, checkoutRunId),
           )
         : isNull(issues.executionRunId);
-      const updated = await db
+      const checkoutPublications: ActivityPublication[] = [];
+      const updated = await db.transaction(async (tx) => {
+        const [before] = await tx.select().from(issues).where(and(
+          eq(issues.id, id), eq(issues.companyId, issueCompany.companyId),
+        )).for("update");
+        const updated = await tx
         .update(issues)
         .set({
           assigneeAgentId: agentId,
@@ -11821,6 +11829,10 @@ export function issueService(db: Db) {
         )
         .returning()
         .then((rows) => rows[0] ?? null);
+        if (updated && before) await recordMemberAssignment(tx, before, updated, now, checkoutPublications);
+        return updated;
+      });
+      checkoutPublications.forEach(publishActivity);
 
       if (updated) {
         const [enriched] = await withIssueLabels(db, [updated]);
@@ -11911,6 +11923,7 @@ export function issueService(db: Db) {
           .where(eq(heartbeatRuns.id, current.executionRunId)).then(rows => rows[0] ?? null);
         const stale = !executionRun || TERMINAL_HEARTBEAT_RUN_STATUSES.has(executionRun.status);
         if (stale && !isExplicitContinuationRetryClaim({ ...current, companyId: issueCompany.companyId }, executionRun)) {
+          const previousExecutionRunId = current.executionRunId;
           const now = new Date();
           const adoptionSet: Record<string, unknown> = {
             assigneeAgentId: agentId,
@@ -11924,14 +11937,19 @@ export function issueService(db: Db) {
           if (current.status !== "in_progress") {
             adoptionSet.startedAt = now;
           }
-          const adopted = await db
+          const adoptionPublications: ActivityPublication[] = [];
+          const adopted = await db.transaction(async (tx) => {
+            const [before] = await tx.select().from(issues).where(and(
+              eq(issues.id, id), eq(issues.companyId, issueCompany.companyId),
+            )).for("update");
+            const adopted = await tx
             .update(issues)
             .set(adoptionSet)
             .where(
               and(
                 eq(issues.id, id),
                 inArray(issues.status, expectedStatuses),
-                eq(issues.executionRunId, current.executionRunId),
+                eq(issues.executionRunId, previousExecutionRunId),
                 or(
                   isNull(issues.assigneeAgentId),
                   eq(issues.assigneeAgentId, agentId),
@@ -11940,6 +11958,10 @@ export function issueService(db: Db) {
             )
             .returning()
             .then((rows) => rows[0] ?? null);
+            if (adopted && before) await recordMemberAssignment(tx, before, adopted, now, adoptionPublications);
+            return adopted;
+          });
+          adoptionPublications.forEach(publishActivity);
           if (adopted) {
             const [enriched] = await withIssueLabels(db, [adopted]);
             return enriched;
@@ -12189,6 +12211,7 @@ export function issueService(db: Db) {
           .returning()
           .then((rows) => rows[0] ?? null);
         if (!updated) return null;
+        await recordMemberAssignment(tx, existing, updated, new Date(), []);
         const [enriched] = await withIssueLabels(tx, [updated]);
         return enriched;
       }),
@@ -12202,11 +12225,7 @@ export function issueService(db: Db) {
           sql`select ${issues.id} from ${issues} where ${issues.id} = ${id} for update`,
         );
         const existing = await tx
-          .select({
-            id: issues.id,
-            checkoutRunId: issues.checkoutRunId,
-            executionRunId: issues.executionRunId,
-          })
+          .select()
           .from(issues)
           .where(eq(issues.id, id))
           .then((rows) => rows[0] ?? null);
@@ -12230,6 +12249,7 @@ export function issueService(db: Db) {
           .returning()
           .then((rows) => rows[0] ?? null);
         if (!updated) return null;
+        await recordMemberAssignment(tx, existing, updated, new Date(), []);
 
         const [enriched] = await withIssueLabels(tx, [updated]);
         return {

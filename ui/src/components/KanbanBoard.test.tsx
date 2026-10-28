@@ -106,6 +106,14 @@ function renderBoard(
 }
 
 describe("KanbanBoard", () => {
+  it("shows a visible member overdue badge on cards and removes it on cancellation", () => {
+    const issue = { ...createIssue(1, "todo"), labels: [{ id: "late", companyId: "company-1", name: "成员任务超期", color: "red", createdAt: new Date(), updatedAt: new Date() }] };
+    const { container, render } = renderBoard({ issues: [issue] });
+    expect(container.textContent).toContain("成员任务超期");
+    expect(container.querySelector('[data-variant="destructive"]')).not.toBeNull();
+    render({ issues: [{ ...issue, status: "cancelled" }] });
+    expect(container.textContent).not.toContain("成员任务超期");
+  });
   beforeEach(() => {
     document.body.innerHTML = "";
   });

@@ -60,6 +60,7 @@ export type RunOutputSilenceSummary = {
 };
 
 export type ScanSilentActiveRunsResult = {
+  stopped: number;
   scanned: number;
   created: number;
   existing: number;

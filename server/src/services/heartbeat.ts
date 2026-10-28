@@ -1,3 +1,4 @@
+import { memberAgentTimeControlService, recordMemberRunOutput } from "./member-agent-time-control.js";
 import { createHeartbeatRunCompletion } from "./heartbeat/run-completion.js";
 export {
   MAX_TURN_CONTINUATION_WAKE_REASON,
@@ -1310,7 +1311,9 @@ export function heartbeatService(
     cancelWorkForScope: cancelBudgetScopeWork,
   };
   const budgets = budgetService(db, budgetHooks);
+  const memberTimeControl = memberAgentTimeControlService(db, { cancelRun: cancelRunInternal });
   const recovery = recoveryService(db, {
+    stopSilentMemberRun: memberTimeControl.stopSilentRun,
     enqueueWakeup,
     liveRunExecutions,
     settleExplicitContinuationRetry: releaseIssueExecutionAndPromote,
@@ -5376,7 +5379,9 @@ export function heartbeatService(
         await db
           .update(heartbeatRuns)
           .set({
-            lastOutputAt: pendingOutputProgress.at,
+            lastOutputAt: agent.adapterType === "member_agent"
+              ? sql`greatest(${heartbeatRuns.lastOutputAt}, ${pendingOutputProgress.at.toISOString()}::timestamptz)`
+              : pendingOutputProgress.at,
             lastOutputSeq: pendingOutputProgress.seq,
             lastOutputStream: pendingOutputProgress.stream,
             lastOutputBytes: pendingOutputProgress.bytes,
@@ -5646,6 +5651,7 @@ export function heartbeatService(
           }
         }
         const onAdapterMeta = async (meta: AdapterInvocationMeta) => {
+          if (agent.adapterType === "member_agent") await recordMemberRunOutput(db, run);
           meta = identityRedactor.redact(meta);
           if (meta.env && secretKeys.size > 0) {
             for (const key of secretKeys) {
@@ -5665,6 +5671,7 @@ export function heartbeatService(
           event = identityRedactor.redact(event);
           const eventType = event.eventType.trim();
           if (!eventType) return;
+          if (agent.adapterType === "member_agent") await recordMemberRunOutput(db, run);
           await appendRunEvent(currentRun, {
             eventType: eventType.slice(0, 120),
             stream: event.stream,
@@ -6990,7 +6997,10 @@ export function heartbeatService(
                     onEvent: onAdapterEvent,
                     instructionWorkingCopy: nativeInstructionWorkingCopy(),
 
-                    onUsage: async receipt => { await usageRecorder.capture(receipt); },
+                    onUsage: async receipt => {
+                      if (agent.adapterType === "member_agent") await recordMemberRunOutput(db, run);
+                      await usageRecorder.capture(receipt);
+                    },
                     preparationSpans: nativeRunnerPreparationSpans,
                     // Bootstrap with executable/home discovery while keeping
                     // configured provider values and the server-selected
@@ -7189,7 +7199,10 @@ export function heartbeatService(
                     onLog,
                     onMeta: onAdapterMeta,
                     onEvent: onAdapterEvent,
-                    onUsage: async receipt => { await usageRecorder.capture(receipt); },
+                    onUsage: async receipt => {
+                      if (agent.adapterType === "member_agent") await recordMemberRunOutput(db, run);
+                      await usageRecorder.capture(receipt);
+                    },
                     onExecutionPhase: executionControl.phases.enter,
                     startupTraceContext: getStartupTraceContext(),
                     onRuntimeProgress: async (progress) => {
@@ -8204,6 +8217,7 @@ export function heartbeatService(
     reconcileResolvedDependencyWakes,
 
     scanSilentActiveRuns,
+    scanMemberAgentTimeControls: memberTimeControl.scanWaitingAndOverdue,
 
     reconcileTaskWatchdogs,
     reconcileCostAccounting: async () => {

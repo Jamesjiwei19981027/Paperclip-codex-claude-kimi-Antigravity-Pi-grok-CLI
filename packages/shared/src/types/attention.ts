@@ -18,11 +18,13 @@ export const ATTENTION_SOURCE_KINDS = [
   "failed_run",
   "budget_alert",
   "agent_error_alert",
+  "member_agent_time_alert",
 ] as const;
 
 export type AttentionSourceKind = (typeof ATTENTION_SOURCE_KINDS)[number];
 
 export type AttentionSubjectKind =
+  | "member_agent_time_alert"
   | "approval"
   | "decision"
   | "issue"

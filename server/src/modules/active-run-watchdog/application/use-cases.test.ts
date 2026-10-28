@@ -400,6 +400,21 @@ describe("application", () => {
   }
 
   describe("createScanSilentActiveRuns", () => {
+    it("runs member silence protection before snooze and recovery suppression", async () => {
+      const run = makeRun();
+      let stopped = false;
+      const scan = createScanSilentActiveRuns({
+        reader: makeReader({ findCandidateSilentRuns: async () => [run], findLatestDecision: async () => {
+          throw new Error("member safety must run before generic snooze");
+        } }),
+        foldSourceResolvedRun: makeScanFoldUseCase(),
+        suspicionThresholdMs: SUSPICION_THRESHOLD_MS,
+        stopSilentMemberRun: async candidate => { stopped = candidate.id === run.id; return stopped; },
+      });
+      const result = await scan();
+      expect(stopped).toBe(true);
+      expect(result).toMatchObject({ stopped: 1, skipped: 0 });
+    });
     it("skips suppressed runs and keeps the created and escalated counters at zero", async () => {
       const run = makeRun({ sourceIssueId: "issue-1" });
       const reader = makeReader({

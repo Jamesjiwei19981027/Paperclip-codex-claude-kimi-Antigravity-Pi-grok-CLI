@@ -3,8 +3,8 @@ import { createRequire } from "node:module";
 import { createServer, type Server } from "node:http";
 import { once } from "node:events";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { agents, agentApiKeys, companies, createDb, issues } from "@paperclipai/db";
-import { eq } from "drizzle-orm";
+import { activityLog, agents, agentApiKeys, companies, createDb, heartbeatRuns, issues } from "@paperclipai/db";
+import { and, eq } from "drizzle-orm";
 import type { AdapterExecutionContext } from "@paperclipai/adapter-utils";
 import { startEmbeddedPostgresTestDatabase } from "../../__tests__/helpers/embedded-postgres.js";
 import { execute } from "./execute.js";
@@ -94,6 +94,27 @@ describe("member-agent cancellation stop acknowledgement", () => {
     expect(result.resultJson?.executionCancellation).toMatchObject({ state: "acknowledged", proof: "member_agent_stop_result", runId: job.jobId, agentId: f.agentId });
     expect(Number.isNaN(Date.parse((result.resultJson?.executionCancellation as any).acknowledgedAt))).toBe(false);
   });
+
+  it("watchdog A sends job.cancel and persists the member stop acknowledgement once", async () => {
+    const f = await fixture(), issueId = randomUUID();
+    await db.insert(issues).values({ id: issueId, companyId: f.companyId, title: "静默运行保护", status: "in_progress", assigneeAgentId: f.agentId });
+    await heartbeat.invoke(f.agentId, "on_demand", { issueId, taskId: issueId }, "manual");
+    const job = await f.wait("job.start");
+    f.send("job.accepted", { jobId: job.jobId });
+    await db.update(issues).set({ status: "blocked" }).where(eq(issues.id, issueId));
+    await db.update(heartbeatRuns).set({ lastOutputAt: new Date(Date.now() - 900000) }).where(eq(heartbeatRuns.id, job.jobId));
+    const stopping = heartbeat.scanSilentActiveRuns({ companyId: f.companyId });
+    await f.wait("job.cancel");
+    f.send("job.result", { jobId: job.jobId, exitCode: 1, signal: null, timedOut: false, errorCode: "cancelled" });
+    expect(await stopping).toMatchObject({ stopped: 1 });
+    expect(await heartbeat.getRun(job.jobId)).toMatchObject({
+      status: "cancelled", resultJson: { executionCancellation: { state: "acknowledged", proof: "member_agent_stop_result" } },
+    });
+    await heartbeat.scanSilentActiveRuns({ companyId: f.companyId });
+    const alerts = await db.select().from(activityLog).where(and(eq(activityLog.companyId, f.companyId), eq(activityLog.action, "member_agent.time_alert")));
+    expect(alerts).toHaveLength(1);
+    expect((await db.select().from(issues).where(eq(issues.id, issueId)))[0].status).toBe("blocked");
+  }, 25000);
 
   it.each([
     ["member_agent_process_tree_termination_failed", "本机进程可能未完全结束，请手动检查进程 12345"],

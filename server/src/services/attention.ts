@@ -2,6 +2,7 @@ import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, notInArray, sql, ty
 import type { Db } from "@paperclipai/db";
 import {
   agents,
+  activityLog,
   approvals,
   assets,
   companies,
@@ -48,6 +49,7 @@ import type {
   IssueReviewPolicy,
 } from "@paperclipai/shared";
 import { badRequest } from "../errors.js";
+import { MEMBER_AGENT_TIME_ALERT_ACTION } from "./member-agent-time-policy.js";
 import { listAttentionExhaustedRuns } from "./attention-exhausted-runs.js";
 import { budgetService } from "./budgets.js";
 import {
@@ -79,6 +81,7 @@ const ATTENTION_SOURCE_KINDS: AttentionSourceKind[] = [
   "failed_run",
   "budget_alert",
   "agent_error_alert",
+  "member_agent_time_alert",
 ];
 
 const SEVERITY_RANK: Record<AttentionSeverity, number> = {
@@ -89,6 +92,7 @@ const SEVERITY_RANK: Record<AttentionSeverity, number> = {
 };
 
 const SOURCE_RANK: Record<AttentionSourceKind, number> = {
+  member_agent_time_alert: 0,
   failed_run: 0,
   recovery_action: 1,
   blocker_attention: 2,
@@ -1915,6 +1919,34 @@ export function attentionService(db: Db, serviceOptions: AttentionServiceOptions
             failureReasonExcerpt: excerpt(agent.errorReason),
             images: [],
           },
+        }));
+      }
+
+      const timeAlerts = await db.select().from(activityLog).where(and(
+        eq(activityLog.companyId, companyId), eq(activityLog.action, MEMBER_AGENT_TIME_ALERT_ACTION),
+      )).orderBy(desc(activityLog.createdAt));
+      const timeAlertIssues = await issueSummaryMap(db, companyId,
+        timeAlerts.flatMap(row => typeof row.details?.issueId === "string" ? [row.details.issueId] : []), readCondition);
+      for (const alert of timeAlerts) {
+        const issueId = typeof alert.details?.issueId === "string" ? alert.details.issueId : null;
+        const issue = issueId ? timeAlertIssues.get(issueId) : null;
+        // Preserve private-task read boundaries. Agent-only runs are board data.
+        if (issueId && !issue) continue;
+        if (!issueId && options.actor && options.actor.type !== "board") continue;
+        const message = String(alert.details?.message ?? "成员智能体需要关注");
+        add(createItem({
+          companyId, sourceKind: "member_agent_time_alert",
+          subject: { kind: "member_agent_time_alert", id: alert.id, companyId, title: message,
+            identifier: issue?.identifier ?? null, status: "needs_attention",
+            href: issue ? issueHref(prefix, issue) : `/${prefix}/agents/${alert.details?.agentId}`,
+            metadata: { ...alert.details } },
+          whyNow: "成员运行或任务已达到时间提醒阈值，请负责人处理。",
+          decisionVerbs: decisionVerbs({ id: "inspect", label: "查看并处理", description: "确认成员状态，按需重试或改派。" }),
+          inlineResolvable: false, entryRule: "持久化成员时间提醒", exitRule: "负责人归档或忽略此提醒",
+          dedupKey: `member-time:${alert.id}`, severity: alert.details?.rule === "A" ? "critical" : "high",
+          activityAt: toIso(alert.createdAt), createdAt: toIso(alert.createdAt), updatedAt: toIso(alert.createdAt),
+          relatedIssue: issue ? issueSubject(prefix, issue) : null, ...issueContext(issue ?? null),
+          detail: genericDetail(message, []),
         }));
       }
 

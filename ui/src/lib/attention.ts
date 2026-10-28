@@ -60,6 +60,7 @@ const SOURCE_META: Record<AttentionSourceKind, SourceMeta> = {
   failed_run: { label: "Failed run" },
   budget_alert: { label: "Budget" },
   agent_error_alert: { label: "Agent error" },
+  member_agent_time_alert: { label: "成员时间提醒" },
 };
 
 export function sourceMeta(kind: AttentionSourceKind): SourceMeta {
@@ -123,6 +124,7 @@ export function attentionKind(item: AttentionItem): AttentionKind {
     case "decision":
       return "review";
     case "failed_run":
+    case "member_agent_time_alert":
     case "agent_error_alert":
     case "blocker_attention":
     case "recovery_action":

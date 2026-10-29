@@ -149,7 +149,13 @@ export async function prepareClaudePromptBundle(input: {
   for (const entry of skills) {
     const target = path.join(skillsHome, entry.runtimeName);
     try {
-      await ensurePaperclipSkillSymlink(entry.source, target);
+      await ensurePaperclipSkillSymlink(entry.source, target, async (source, destination) => {
+        if (process.platform === "win32") {
+          // Materialize nested links too: Windows caches must contain no reparse points.
+          return fs.cp(source, destination, { recursive: true, dereference: true });
+        }
+        return fs.symlink(source, destination);
+      });
     } catch (err) {
       await onLog(
         "stderr",

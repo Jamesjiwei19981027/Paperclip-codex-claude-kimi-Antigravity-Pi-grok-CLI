@@ -1,0 +1,1 @@
+PASS: report placeholders resolved, test counts and eight installer results present, archive sizes and hashes match, evidence links resolve, identity scan clean.

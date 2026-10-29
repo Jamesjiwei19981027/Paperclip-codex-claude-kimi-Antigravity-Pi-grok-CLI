@@ -1,0 +1,553 @@
+cwd=member-agent
+command=node ../node_modules/vitest/vitest.mjs run --cache=false --reporter=verbose
+
+ RUN  v5.0.3 D:/paperclip/.claude/worktrees/codebuddy-executor-6332a5/member-agent
+
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > every executable script has UTF-8 BOM and parses in both engines 1901ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 65001 > install → upgrade → rollback → uninstall preserves separate user data and keeps two versions 11860ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 65001 > validates via a BOM-free temporary config file, tolerates a defensive BOM and removes validation files on success and failure 2824ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 65001 > rejects manifest corruption, missing entries, traversal, public plaintext URL and incomplete test isolation 5409ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 65001 > keeps an installed same version intact on validation failure and can replace an invalid saved configuration 4241ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 65001 > refuses reparse-point traversal before uninstalling and refuses an unowned process control record before overwrite 4411ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 65001 > cleans legacy CodeBuddy runtime junctions on overwrite and default uninstall while preserving targets 6231ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 65001 > cleans >260-character junctions and ordinary files before overwrite and uninstall config scanning 8900ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 65001 > cleans >260-character copied ordinary files before overwrite and uninstall config scanning 7486ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 65001 > rejects junctions outside the regenerable cache on install and default uninstall 5436ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 65001 > drains only the owned temporary installed agent before upgrading and ignores an exited stale owner 8780ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 65001 > returns terminal run/check exit codes and retries crashes/unexpected codes at 10,30,60,300,300 seconds 4873ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 65001 > install → upgrade → rollback → uninstall preserves separate user data and keeps two versions 21465ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 65001 > validates via a BOM-free temporary config file, tolerates a defensive BOM and removes validation files on success and failure 4744ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 65001 > rejects manifest corruption, missing entries, traversal, public plaintext URL and incomplete test isolation 9998ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 65001 > keeps an installed same version intact on validation failure and can replace an invalid saved configuration 7871ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 65001 > refuses reparse-point traversal before uninstalling and refuses an unowned process control record before overwrite 6818ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 65001 > cleans legacy CodeBuddy runtime junctions on overwrite and default uninstall while preserving targets 11914ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 65001 > cleans >260-character junctions and ordinary files before overwrite and uninstall config scanning 14356ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 65001 > cleans >260-character copied ordinary files before overwrite and uninstall config scanning 12797ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 65001 > rejects junctions outside the regenerable cache on install and default uninstall 9628ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 65001 > drains only the owned temporary installed agent before upgrading and ignores an exited stale owner 11097ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 65001 > returns terminal run/check exit codes and retries crashes/unexpected codes at 10,30,60,300,300 seconds 7533ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 936 > install → upgrade → rollback → uninstall preserves separate user data and keeps two versions 10564ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 936 > validates via a BOM-free temporary config file, tolerates a defensive BOM and removes validation files on success and failure 2659ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 936 > rejects manifest corruption, missing entries, traversal, public plaintext URL and incomplete test isolation 4705ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 936 > keeps an installed same version intact on validation failure and can replace an invalid saved configuration 3925ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 936 > refuses reparse-point traversal before uninstalling and refuses an unowned process control record before overwrite 4052ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 936 > cleans legacy CodeBuddy runtime junctions on overwrite and default uninstall while preserving targets 5827ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 936 > cleans >260-character junctions and ordinary files before overwrite and uninstall config scanning 8359ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 936 > cleans >260-character copied ordinary files before overwrite and uninstall config scanning 7134ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 936 > rejects junctions outside the regenerable cache on install and default uninstall 5059ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 936 > drains only the owned temporary installed agent before upgrading and ignores an exited stale owner 7678ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 936 > returns terminal run/check exit codes and retries crashes/unexpected codes at 10,30,60,300,300 seconds 4180ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 936 > install → upgrade → rollback → uninstall preserves separate user data and keeps two versions 18533ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 936 > validates via a BOM-free temporary config file, tolerates a defensive BOM and removes validation files on success and failure 4201ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 936 > rejects manifest corruption, missing entries, traversal, public plaintext URL and incomplete test isolation 8981ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 936 > keeps an installed same version intact on validation failure and can replace an invalid saved configuration 6995ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 936 > refuses reparse-point traversal before uninstalling and refuses an unowned process control record before overwrite 6025ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 936 > cleans legacy CodeBuddy runtime junctions on overwrite and default uninstall while preserving targets 10928ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 936 > cleans >260-character junctions and ordinary files before overwrite and uninstall config scanning 14551ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 936 > cleans >260-character copied ordinary files before overwrite and uninstall config scanning 13001ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 936 > rejects junctions outside the regenerable cache on install and default uninstall 9722ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 936 > drains only the owned temporary installed agent before upgrading and ignores an exited stale owner 11453ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 936 > returns terminal run/check exit codes and retries crashes/unexpected codes at 10,30,60,300,300 seconds 7841ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > preserves inherited proxies only in the Codex child environment 28ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > re-reads system proxy for every task and passes it into a real child without changing the agent environment 236ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > redacts proxy credentials echoed by adapter logs, metadata and error results 13ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > injects credential-free REST instructions on every fresh run and every selected task carrier 13ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > injects credential-free REST instructions on every resume run and every selected task carrier 13ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > injects credential-free REST instructions on every recovery run and every selected task carrier 11ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > injects credential-free REST instructions on every unscoped run and every selected task carrier 10ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > fails before loading or running Codex when the sibling code-mode host is missing 9ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > runs the adapter when the sibling code-mode host exists 10ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > constructs the cli context, localizes both cwd fields, and strips secrets from process.env 12ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > passes runtime tool access with endpoints rebased to the agent server origin 11ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > returns prior handoff text and removes legacy server handoff copies 12ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > returns null for an empty handoff 10ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > uses the default directory when the project id is absent 12ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > keeps two project mappings isolated across consecutive Codex tasks 13ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > fails closed for missing project mapping 8ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > fails closed for missing mapped directory 7ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > fails closed for path under agent config 9ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > fails closed for parent segment 8ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > fails closed for UNC path 7ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > fails closed for no project id and no default 7ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > rejects non-exe command paths 9ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > reports a missing bundled runtime with the prescribed recovery guidance 9ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > fails the task when bundled skills cannot be installed 11ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > maps a failing adapter exit without an error code to the Codex failure code 11ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > converts adapter exceptions to a short safe result without stack text 10ms
+ ✓ test/codex-executor.test.ts > Codex executor context and privacy boundary > maps spawn, meta, event, and usage callbacks 10ms
+ ✓ test/connection.test.ts > 连接和重连 > 成员代理的 HTTP WebSocket 握手显式直连，不继承 Codex 代理 33ms
+ ✓ test/connection.test.ts > 连接和重连 > 发送有效 hello 和认证头，check 在 ack 后读取服务器参数并正常退出 7ms
+ ✓ test/connection.test.ts > 连接和重连 > HTTP 401 退出码 3 且不重试 5ms
+ ✓ test/connection.test.ts > 连接和重连 > HTTP 403 退出码 4 且不重试 5ms
+ ✓ test/connection.test.ts > 连接和重连 > 10 秒未收到 hello 响应就关闭，1 秒退避后重连 117ms
+ ✓ test/connection.test.ts > 连接和重连 > HTTP 429 至少等 60 秒才重试 93ms
+ ✓ test/connection.test.ts > 连接和重连 > already_connected 每次等 30 秒无限重试，not_allowed 不重试 157ms
+ ✓ test/connection.test.ts > 连接和重连 > 失败指数退避到 30 秒上限，ack 后重置 375ms
+ ✓ test/connection.test.ts > 连接和重连 > 随机抖动在 0–20%，独立心跳按 ack 周期发送 108ms
+ ✓ test/connection.test.ts > 连接和重连 > 未知 type 记录日志，未知版本断开，重连等待任务清理且旧 sender 失效 125ms
+ ✓ test/connection.test.ts > 连接和重连 > 6 执行器在独立 Worker 中同步忙等时，真实 WebSocket 心跳持续发送 2116ms
+ ✓ test/connection.test.ts > 连接和重连 > 原生 pong 无响应满 45 秒中止任务并退避重连，不依赖应用心跳 ack 172ms
+ ✓ test/connection.test.ts > 连接和重连 > 原生自动 pong 保持连接，不要求服务器回复 JSON heartbeat 139ms
+ ✓ test/connection.test.ts > 有界发送队列 > 超过1000帧只丢弃最旧日志，保留结果且发送回调继续排空 11ms
+ ✓ test/connection.test.ts > 有界发送队列 > 8MiB 字节上限生效，停止后丢弃后续输出 44ms
+ ✓ test/connection.test.ts > 有界发送队列 > ws 缓冲区积压时暂缓发送，并在缓冲释放后恢复 1ms
+ ✓ test/connection.test.ts > 有界发送队列 > drain 等待积压日志和结果的发送回调后才成功，结果不丢失 1ms
+ ✓ test/connection.test.ts > 有界发送队列 > drain 发送超时或队列关闭时返回 false，无积压时立即返回 true 0ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe > protects a real directory and file three times without SeSecurityPrivilege or ACL drift 457ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe > suppresses unchanged terminal exit 2, then recovers after config and Key edits 3042ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe > suppresses unchanged terminal exit 3, then recovers after config and Key edits 2910ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe > suppresses unchanged terminal exit 4, then recovers after config and Key edits 2964ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe > suppresses unchanged terminal exit 5, then recovers after config and Key edits 3021ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe > keeps normal stops stopped for watchdog ticks but allows a new logon or manual launch 3018ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe > recovers if config.json is repaired while a terminal attempt is still exiting 1203ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe > recovers if agent-key.dpapi is repaired while a terminal attempt is still exiting 1258ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe > does not launch during maintenance, or after the installation was removed 2087ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe > disables the real task boundary before stopping the supervisor 397ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe > registers logon plus five-minute watchdog with limited interactive rights and IgnoreNew 334ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe > unregisters the disabled task before uninstall removes program files 677ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe > restores encoding after the installer native validator reports Chinese errors at code page 936 601ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe > decodes native Chinese in login at code page 936 and restores console encoding 935ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe > decodes native Chinese in check at code page 936 and restores console encoding 915ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > pwsh.exe > protects a real directory and file three times without SeSecurityPrivilege or ACL drift 859ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > pwsh.exe > suppresses unchanged terminal exit 2, then recovers after config and Key edits 4687ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > pwsh.exe > suppresses unchanged terminal exit 3, then recovers after config and Key edits 4709ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > pwsh.exe > suppresses unchanged terminal exit 4, then recovers after config and Key edits 4248ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > pwsh.exe > suppresses unchanged terminal exit 5, then recovers after config and Key edits 4246ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > pwsh.exe > keeps normal stops stopped for watchdog ticks but allows a new logon or manual launch 4104ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > pwsh.exe > recovers if config.json is repaired while a terminal attempt is still exiting 1694ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > pwsh.exe > recovers if agent-key.dpapi is repaired while a terminal attempt is still exiting 1793ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > pwsh.exe > does not launch during maintenance, or after the installation was removed 3198ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > pwsh.exe > disables the real task boundary before stopping the supervisor 642ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > pwsh.exe > registers logon plus five-minute watchdog with limited interactive rights and IgnoreNew 534ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > pwsh.exe > unregisters the disabled task before uninstall removes program files 1607ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > pwsh.exe > restores encoding after the installer native validator reports Chinese errors at code page 936 807ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > pwsh.exe > decodes native Chinese in login at code page 936 and restores console encoding 1326ms
+ ✓ test/installer-lan-fixes.test.ts > LAN installer regressions > pwsh.exe > decodes native Chinese in check at code page 936 and restores console encoding 1373ms
+stdout | test/codebuddy-executor.test.ts > replays a Read tool result containing unauthorized recipients through the real claude_local runtime and normalization
+REPLAY raw={"exitCode":0,"errorCode":"claude_auth_required","terminal":{"type":"result","subtype":"success","is_error":false,"session_id":"fixture-session","result":"任务已完成","usage":{"input_tokens":100,"output_tokens":10}}}
+REPLAY normalized={"exitCode":0,"signal":null,"timedOut":false,"usageComplete":true,"usage":{"inputTokens":100,"cachedInputTokens":0,"outputTokens":10},"usageBasis":"per_run","sessionId":"fixture-session","sessionParams":{"sessionId":"fixture-session","cwd":"C:\\Users\\[redacted]\\AppData\\Local\\Temp\\member-cb-executor-j7m8YE\\project","promptBundleKey":"aa562348ae83a293791fc461ea6c8eed947164bcfcf930900f9960be6ef20960","mcpServerIdentity":"[]"},"sessionDisplayId":"fixture-session","provider":"tencent","biller":"tencent","model":"fixture-model","billingType":"subscription","costUsd":null,"resultJson":{"type":"result","subtype":"success","is_error":false,"session_id":"fixture-session","result":"任务已完成","usage":{"input_tokens":100,"output_tokens":10}},"summary":"任务已完成","clearSession":false}
+
+ ✓ test/codebuddy-executor.test.ts > replays a Read tool result containing unauthorized recipients through the real claude_local runtime and normalization 2838ms
+ ✓ test/codebuddy-executor.test.ts > clears only heuristic Claude auth fields after an explicit successful terminal result 1ms
+ ✓ test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"exitCode":1} 0ms
+ ✓ test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"exitCode":null} 0ms
+ ✓ test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"timedOut":true} 0ms
+ ✓ test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"signal":"SIGTERM"} 0ms
+ ✓ test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"resultJson":{"type":"result","subtype":"error_during_execution","is_error":true,"result":"Please log in"}} 0ms
+ ✓ test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"resultJson":{"type":"result","subtype":"success","is_error":true}} 0ms
+ ✓ test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"resultJson":{"type":"result","result":"完成"}} 0ms
+ ✓ test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"resultJson":{"type":"assistant","subtype":"success"}} 0ms
+ ✓ test/codebuddy-executor.test.ts > preserves other real failure codes after a success terminal: provider_quota 0ms
+ ✓ test/codebuddy-executor.test.ts > preserves other real failure codes after a success terminal: duplex_channel_lost 0ms
+ ✓ test/codebuddy-executor.test.ts > preserves other real failure codes after a success terminal: member_agent_process_tree_termination_failed 0ms
+ ✓ test/codebuddy-executor.test.ts > rejects the zero-token empty terminal run 0ms
+ ✓ test/codebuddy-executor.test.ts > preserves a short normal reply: 你好 0ms
+ ✓ test/codebuddy-executor.test.ts > preserves a short normal reply: 好 0ms
+ ✓ test/codebuddy-executor.test.ts > preserves an assistant message even with an empty terminal result and zero usage 30ms
+ ✓ test/codebuddy-executor.test.ts > uses CLI with isolated config, shared login identity, REST guidance and child-only proxy 59ms
+ ✓ test/codebuddy-executor.test.ts > prepends UTF-8 guidance to all four existing non-empty Markdown carriers 20ms
+ ✓ test/codebuddy-executor.test.ts > fills all four Markdown carriers with UTF-8 guidance, REST guidance and fallback task text 22ms
+ ✓ test/codebuddy-executor.test.ts > fills empty or non-string Markdown carriers with UTF-8 and REST guidance: "" 19ms
+ ✓ test/codebuddy-executor.test.ts > fills empty or non-string Markdown carriers with UTF-8 and REST guidance: "   " 16ms
+ ✓ test/codebuddy-executor.test.ts > fills empty or non-string Markdown carriers with UTF-8 and REST guidance: null 15ms
+ ✓ test/codebuddy-executor.test.ts > fills empty or non-string Markdown carriers with UTF-8 and REST guidance: undefined 15ms
+ ✓ test/codebuddy-executor.test.ts > fills empty or non-string Markdown carriers with UTF-8 and REST guidance: 0 19ms
+ ✓ test/codebuddy-executor.test.ts > fills empty or non-string Markdown carriers with UTF-8 and REST guidance: false 16ms
+ ✓ test/codebuddy-executor.test.ts > fills empty or non-string Markdown carriers with UTF-8 and REST guidance: {} 15ms
+ ✓ test/codebuddy-executor.test.ts > fails a zero-exit terminal error: Authentication required. Please use /login command to sign in to your account 0ms
+ ✓ test/codebuddy-executor.test.ts > fails a zero-exit terminal error: 400 model [missing-model] service info not found 0ms
+ ✓ test/codebuddy-executor.test.ts > fails a zero-exit terminal error: some other failure 0ms
+ ✓ test/codebuddy-executor.test.ts > pins final result session over a duplicate init and preserves existing Claude failure classes 0ms
+ ✓ test/codebuddy-executor.test.ts > returns a promise from the spawn hook required by the real runtime 827ms
+ ✓ test/codebuddy-executor.test.ts > refuses to use the member's personal CodeBuddy settings directory as a project cwd 10ms
+ ✓ test/codebuddy-executor.test.ts > stops after 15 minutes without output and resets the watchdog on output 23ms
+ ✓ test/codebuddy-executor.test.ts > returns one normal-stop result when server cancellation and idle timeout overlap (server first=false) 23ms
+ ✓ test/codebuddy-executor.test.ts > returns one normal-stop result when server cancellation and idle timeout overlap (server first=true) 16ms
+ ✓ test/foundation.test.ts > #1 配置校验 > 缺字段、类型、未知字段的多个错误一次列全且不输出字段值 3ms
+ ✓ test/foundation.test.ts > #1 配置校验 > 环境 Key 优先并允许配置不含 Key；空环境 Key 仍须报错 1ms
+ ✓ test/foundation.test.ts > #1 配置校验 > 配置诊断中与 Key 相同的字段名也脱敏 1ms
+ ✓ test/foundation.test.ts > #1 配置校验 > 拒绝非纯 HTTP(S) 源地址 192.168.0.213:3100 1ms
+ ✓ test/foundation.test.ts > #1 配置校验 > 拒绝非纯 HTTP(S) 源地址 http://host/path 1ms
+ ✓ test/foundation.test.ts > #1 配置校验 > 拒绝非纯 HTTP(S) 源地址 http://host/path/.. 0ms
+ ✓ test/foundation.test.ts > #1 配置校验 > 拒绝非纯 HTTP(S) 源地址 http://host/. 0ms
+ ✓ test/foundation.test.ts > #1 配置校验 > 拒绝非纯 HTTP(S) 源地址 http://host?key=x 0ms
+ ✓ test/foundation.test.ts > #1 配置校验 > 拒绝非纯 HTTP(S) 源地址 http://host/#x 0ms
+ ✓ test/foundation.test.ts > #1 配置校验 > 拒绝非纯 HTTP(S) 源地址 http://user:pass@host 0ms
+ ✓ test/foundation.test.ts > #1 配置校验 > 拒绝非纯 HTTP(S) 源地址 ws://host 1ms
+ ✓ test/foundation.test.ts > #1 配置校验 > 拒绝非纯 HTTP(S) 源地址 http://host/? 0ms
+ ✓ test/foundation.test.ts > #1 配置校验 > 拒绝非纯 HTTP(S) 源地址 http://host/# 0ms
+ ✓ test/foundation.test.ts > #1 配置校验 > 拒绝非纯 HTTP(S) 源地址  http://host 0ms
+ ✓ test/foundation.test.ts > #1 配置校验 > 拒绝非纯 HTTP(S) 源地址 http://host\path 0ms
+ ✓ test/foundation.test.ts > #1 配置校验 > 读取 UTF-8 JSON；拒绝 BOM 和非法 JSON，错误不回显内容 420ms
+ ✓ test/foundation.test.ts > #1 配置校验 > 缺少 USERDOMAIN 且配置路径含中文空格时正确判断 ACL 879ms
+ ✓ test/foundation.test.ts > #1 配置校验 > 权限检查程序失败时仅警告一次，不阻止读取配置或泄露内容 76ms
+ ✓ test/foundation.test.ts > #1 配置校验 > 真实 Windows ACL：仅当前用户可读不警告，Everyone 可读时警告且给出命令 848ms
+ ✓ test/foundation.test.ts > #2 明文传输自检 > 允许服务器规则中的内网主机 127.0.0.1 1ms
+ ✓ test/foundation.test.ts > #2 明文传输自检 > 允许服务器规则中的内网主机 127.255.255.254 0ms
+ ✓ test/foundation.test.ts > #2 明文传输自检 > 允许服务器规则中的内网主机 10.0.0.1 0ms
+ ✓ test/foundation.test.ts > #2 明文传输自检 > 允许服务器规则中的内网主机 172.16.0.1 0ms
+ ✓ test/foundation.test.ts > #2 明文传输自检 > 允许服务器规则中的内网主机 172.31.255.254 0ms
+ ✓ test/foundation.test.ts > #2 明文传输自检 > 允许服务器规则中的内网主机 192.168.1.1 0ms
+ ✓ test/foundation.test.ts > #2 明文传输自检 > 允许服务器规则中的内网主机 100.64.0.1 0ms
+ ✓ test/foundation.test.ts > #2 明文传输自检 > 允许服务器规则中的内网主机 100.127.255.254 0ms
+ ✓ test/foundation.test.ts > #2 明文传输自检 > 允许服务器规则中的内网主机 169.254.1.1 0ms
+ ✓ test/foundation.test.ts > #2 明文传输自检 > 允许服务器规则中的内网主机 localhost 6ms
+ ✓ test/foundation.test.ts > #2 明文传输自检 > 允许服务器规则中的内网主机 MEMBER-PC 1ms
+ ✓ test/foundation.test.ts > #2 明文传输自检 > 允许服务器规则中的内网主机 [::1] 0ms
+ ✓ test/foundation.test.ts > #2 明文传输自检 > 允许服务器规则中的内网主机 [fd12::1] 0ms
+ ✓ test/foundation.test.ts > #2 明文传输自检 > 允许服务器规则中的内网主机 [fe80::1] 0ms
+ ✓ test/foundation.test.ts > #2 明文传输自检 > 允许服务器规则中的内网主机 [::ffff:192.168.1.1] 0ms
+ ✓ test/foundation.test.ts > #2 明文传输自检 > 拒绝明文公网或有点号的主机 8.8.8.8 0ms
+ ✓ test/foundation.test.ts > #2 明文传输自检 > 拒绝明文公网或有点号的主机 172.32.0.1 0ms
+ ✓ test/foundation.test.ts > #2 明文传输自检 > 拒绝明文公网或有点号的主机 100.63.255.255 0ms
+ ✓ test/foundation.test.ts > #2 明文传输自检 > 拒绝明文公网或有点号的主机 100.128.0.0 0ms
+ ✓ test/foundation.test.ts > #2 明文传输自检 > 拒绝明文公网或有点号的主机 example.com 0ms
+ ✓ test/foundation.test.ts > #2 明文传输自检 > 拒绝明文公网或有点号的主机 localhost.example.com 0ms
+ ✓ test/foundation.test.ts > #2 明文传输自检 > 拒绝明文公网或有点号的主机 localhost. 0ms
+ ✓ test/foundation.test.ts > #2 明文传输自检 > 拒绝明文公网或有点号的主机 [2001:4860:4860::8888] 0ms
+ ✓ test/foundation.test.ts > #2 明文传输自检 > 拒绝明文公网或有点号的主机 [::ffff:8.8.8.8] 0ms
+ ✓ test/foundation.test.ts > #2 明文传输自检 > 允许任意有效 HTTPS 源地址但拒绝其他协议 0ms
+ ✓ test/foundation.test.ts > #14 同一脱敏器保护控制台和日志 > 文本、JSON 键和值、URL 编码均脱敏 1ms
+ ✓ test/foundation.test.ts > #14 同一脱敏器保护控制台和日志 > 每个流保留可能匹配的尾部，跨任意边界拆分均无泄露 14ms
+ ✓ test/foundation.test.ts > #14 同一脱敏器保护控制台和日志 > 结束不泄露未确认的令牌前缀；短密钥不完整显示 0ms
+ ✓ test/foundation.test.ts > #14 同一脱敏器保护控制台和日志 > 日志一行一条并在文件及控制台脱敏，清理七天前日志而保留其他文件 14ms
+ ✓ test/foundation.test.ts > #14 同一脱敏器保护控制台和日志 > Logger.write 连续消息拆开的密钥不会进入文件或控制台 3ms
+ ✓ test/foundation.test.ts > #16 单实例锁 > 活进程锁拒绝且退出码 5；释放后可以重新获取 11ms
+ ✓ test/foundation.test.ts > #16 单实例锁 > 陈旧锁被覆盖；并发申请只允许一个成功 11ms
+ ✓ test/foundation.test.ts > #16 单实例锁 > 崩溃留下的陈旧获取锁也可恢复，活进程获取锁不会被删除 9ms
+ ✓ test/foundation.test.ts > #15 进程树终止 > 无效或自身 PID 不会调用终止工具 1ms
+ ✓ test/foundation.test.ts > #15 进程树终止 > taskkill 确实终止测试子进程及孙进程 832ms
+ ✓ test/codebuddy-installer.test.ts > CodeBuddy installer variant > parses executor separately from paths and rejects unsupported variants 3ms
+ ✓ test/codebuddy-installer.test.ts > CodeBuddy installer variant > rejects a forged npm integrity before granting third party scan provenance 0ms
+ ✓ test/codebuddy-installer.test.ts > CodeBuddy installer variant > rejects an untrusted CodeBuddy home even when its contents look harmless 4ms
+ ✓ test/codebuddy-installer.test.ts > CodeBuddy installer variant > archives a source file past the Windows legacy 260-character limit 632ms
+ ✓ test/codebuddy-installer.test.ts > CodeBuddy installer variant > powershell.exe changes executor configuration to match staged files and rollback files with BOM-free Chinese paths 446ms
+ ✓ test/codebuddy-installer.test.ts > CodeBuddy installer variant > pwsh.exe changes executor configuration to match staged files and rollback files with BOM-free Chinese paths 578ms
+ ✓ test/codebuddy-installer.test.ts > CodeBuddy installer variant > powershell.exe installs CodeBuddy and preserves same-version Codex rollback and package manifest 2898ms
+ ✓ test/codebuddy-installer.test.ts > CodeBuddy installer variant > pwsh.exe installs CodeBuddy and preserves same-version Codex rollback and package manifest 5330ms
+ ✓ test/codebuddy-installer.test.ts > verified CodeBuddy packaging > rejects reuse when the independently approved manifest digest does not match 3ms
+ ✓ test/codebuddy-installer.test.ts > verified CodeBuddy packaging > rejects tampered files even when the approved manifest and npm integrity match 3ms
+ ✓ test/codebuddy-installer.test.ts > verified CodeBuddy packaging > ships a complete CodeBuddy variant without Codex binaries and hashes every vendor file 26968ms
+ ✓ test/codebuddy-installer.test.ts > verified CodeBuddy packaging > rejects user files added under the trusted third party tree 25033ms
+ ✓ test/codebuddy-installer.test.ts > verified CodeBuddy packaging > filters CodeBuddy sources and Claude bundle from the default Codex variant with a synchronized manifest 2323ms
+ ✓ test/build-installer.test.ts > installer builder > pins official Node URLs and validates even a supplied archive against SHA256 23ms
+ ✓ test/build-installer.test.ts > installer builder > stages only the specified layout, complete hashes and a verbatim runtime manifest 3358ms
+ ✓ test/build-installer.test.ts > installer builder > writes only forward-slash ZIP entries including Chinese names 697ms
+ ✓ test/build-installer.test.ts > installer builder > compares two builds excluding precisely the two builtAt fields 8504ms
+ ✓ test/build-installer.test.ts > installer builder > rejects forbidden artifact name auth.json 800ms
+ ✓ test/build-installer.test.ts > installer builder > rejects forbidden artifact name config.json 727ms
+ ✓ test/build-installer.test.ts > installer builder > rejects forbidden artifact name unexpected.json 765ms
+ ✓ test/build-installer.test.ts > installer builder > rejects forbidden artifact name test/fixture.ts 752ms
+ ✓ test/build-installer.test.ts > installer builder > rejects forbidden artifact name codex-home/file 714ms
+ ✓ test/build-installer.test.ts > installer builder > rejects forbidden artifact name agent.log 707ms
+ ✓ test/build-installer.test.ts > installer builder > scans every artifact including binary bytes: pcp_ 18ms
+ ✓ test/build-installer.test.ts > installer builder > scans every artifact including binary bytes: pcp_fake_not_a_live_secret 17ms
+ ✓ test/build-installer.test.ts > installer builder > scans every artifact including binary bytes: sk-abcdefghijklmnopqrstuvwxyz012345 17ms
+ ✓ test/build-installer.test.ts > installer builder > scans every artifact including binary bytes: prefixsk-abcdefghijklmnopqrstuvwxyz012345 18ms
+ ✓ test/build-installer.test.ts > installer builder > scans every artifact including binary bytes: -----BEGIN RSA PRIVATE KEY----- 17ms
+ ✓ test/build-installer.test.ts > installer builder > also scans UTF16LE secrets and the completed manifest 1897ms
+ ✓ test/build-installer.test.ts > installer builder > removes a failed staging directory so rejected content cannot be distributed 723ms
+ ✓ test/build-installer.test.ts > installer builder > rejects public binary text imitated in source or unverified binaries: OPENAI_BASE_URLsk-proj-sk-svcacct-sk-admin-sk-  713ms
+ ✓ test/build-installer.test.ts > installer builder > rejects public binary text imitated in source or unverified binaries: ask-for-approvalWEB_SEARCHEnable live web search. 699ms
+ ✓ test/build-installer.test.ts > installer builder > rejects public binary text imitated in source or unverified binaries: sk-proj-sk-svcacct-sk-admin-sk-abcdefgh012345 822ms
+ ✓ test/build-installer.test.ts > installer builder > rejects public binary text imitated in source or unverified binaries: Petropavlovsk-Kamtsjatski-zomertijd  718ms
+ ✓ test/build-installer.test.ts > installer builder > rejects a changed binary at pinned path app/node/node.exe even with safe text 20ms
+ ✓ test/build-installer.test.ts > installer builder > rejects a changed binary at pinned path app/codex/codex.exe even with safe text 22ms
+ ✓ test/build-installer.test.ts > installer builder > rejects a changed binary at pinned path app/codex/codex-code-mode-host.exe even with safe text 21ms
+ ✓ test/build-installer.test.ts > installer builder > still scans mismatched canonical Codex bytes for pcp_fake 19ms
+ ✓ test/build-installer.test.ts > installer builder > still scans mismatched canonical Codex bytes for sk-abcdefghijklmnopqrstuvwxyz012345 20ms
+ ✓ test/build-installer.test.ts > installer builder > still scans mismatched canonical Codex bytes for prefixsk-abcdefghijklmnopqrstuvwxyz012345 19ms
+ ✓ test/build-installer.test.ts > installer builder > does not bypass scanning when official binary bytes are moved to a different path 221ms
+ ✓ test/build-installer.test.ts > installer builder > rejects a junction escape before creating the requested directory 23ms
+ ✓ test/build-installer.test.ts > installer builder > CLI rejects --out .. before any writes or runtime build 322ms
+ ✓ test/build-installer.test.ts > installer builder > CLI rejects --out D:\paperclip\.claude\worktrees\codebuddy-executor-6332a5 before any writes or runtime build 264ms
+ ✓ test/build-installer.test.ts > installer builder > CLI rejects --out member-agent/../escape before any writes or runtime build 283ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: false) > names the configured path for parent segment 7ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: false) > names the configured path for UNC path 2ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: false) > names the configured path for relative path 2ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: false) > describes a missing configuration without inventing a project number 1ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: false) > names a path protected by configDir 2ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: false) > names a path protected by codexHome 1ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: false) > names a path protected by runtimeDir 2ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: false) > names a path under the user's default Codex home 2ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: false) > names the actual missing directory 3ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: false) > names an existing file that cannot serve as the directory 5ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: false) > reports EACCES during stat as permission denied, not a missing directory 2ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: false) > reports EPERM during stat as permission denied, not a missing directory 1ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: false) > localizes ENOTDIR during stat with the configured path 1ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: false) > localizes EIO during stat with the configured path 1ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: false) > localizes EACCES during realpath with the configured path 3ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: false) > localizes EPERM during realpath with the configured path 2ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: false) > localizes ENOENT during realpath with the configured path 3ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: false) > localizes EIO during realpath with the configured path 3ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: false) > names both the configured alias and its protected real destination 2ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: true) > names the configured path for parent segment 1ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: true) > names the configured path for UNC path 1ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: true) > names the configured path for relative path 1ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: true) > describes a missing configuration without inventing a project number 1ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: true) > names a path protected by configDir 2ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: true) > names a path protected by codexHome 1ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: true) > names a path protected by runtimeDir 1ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: true) > names a path under the user's default Codex home 1ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: true) > names the actual missing directory 1ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: true) > names an existing file that cannot serve as the directory 2ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: true) > reports EACCES during stat as permission denied, not a missing directory 2ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: true) > reports EPERM during stat as permission denied, not a missing directory 1ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: true) > localizes ENOTDIR during stat with the configured path 1ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: true) > localizes EIO during stat with the configured path 1ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: true) > localizes EACCES during realpath with the configured path 2ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: true) > localizes EPERM during realpath with the configured path 3ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: true) > localizes ENOENT during realpath with the configured path 2ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: true) > localizes EIO during realpath with the configured path 2ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > actionable cwd diagnostics (project id provided: true) > names both the configured alias and its protected real destination 2ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > prefers workspace project id then context project id and uses the configured default only if unmapped 5ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > rejects directories under Codex home or runtime and rejects a file as cwd 4ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > rejects a project directory whose symlink resolves inside CODEX_HOME 3ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > rewrites only local workspace fields and counts suspicious server paths without changing task text 1ms
+ ✓ test/codex-support.test.ts > Codex workspace localization > rebases host, protocol, and port to the configured Paperclip origin 0ms
+ ✓ test/codex-support.test.ts > materialized bundled skills > copies a missing skill, skips matching content, and atomically replaces changed content 21ms
+ ✓ test/codex-support.test.ts > materialized bundled skills > replaces a symlink with a real directory and never creates links (EPERM stub) 11ms
+ ✓ test/codex-support.test.ts > materialized bundled skills > fails closed when a skill cannot be copied 6ms
+ ✓ test/codex-lifecycle.test.ts > 阶段3 job-runner 钩子与进程树收尾 > still completes a successful task after the sampler exhausts three restarts 2615ms
+ ✓ test/codex-lifecycle.test.ts > 阶段3 job-runner 钩子与进程树收尾 > snapshot query failures only warn and do not fail a successful task 71ms
+ ✓ test/codex-lifecycle.test.ts > 阶段3 job-runner 钩子与进程树收尾 > does not terminate a live PID whose creation time differs from the snapshot 3084ms
+ ✓ test/codex-lifecycle.test.ts > 阶段3 job-runner 钩子与进程树收尾 > cleans a recorded grandchild after its parent exits first 2126ms
+ ✓ test/codex-lifecycle.test.ts > 阶段3 job-runner 钩子与进程树收尾 > 把有效 meta 和 usage 分别转成严格协议帧 81ms
+ ✓ test/codex-lifecycle.test.ts > 阶段3 job-runner 钩子与进程树收尾 > 丢弃无效 meta/usage、计数并继续成功完成任务 110ms
+ ✓ test/codex-lifecycle.test.ts > 阶段3 job-runner 钩子与进程树收尾 > 正整数 PID 去重登记，最多保留 64 个，超额告警 108ms
+ ✓ test/codex-lifecycle.test.ts > 阶段3 job-runner 钩子与进程树收尾 > normal 路径清理所有已登记进程 73ms
+ ✓ test/codex-lifecycle.test.ts > 阶段3 job-runner 钩子与进程树收尾 > cancel 路径清理所有已登记进程 86ms
+ ✓ test/codex-lifecycle.test.ts > 阶段3 job-runner 钩子与进程树收尾 > timeout 路径清理所有已登记进程 71ms
+ ✓ test/codex-lifecycle.test.ts > 阶段3 job-runner 钩子与进程树收尾 > disconnect 路径清理所有已登记进程 87ms
+ ✓ test/codex-lifecycle.test.ts > 阶段3 job-runner 钩子与进程树收尾 > Ctrl+C shutdown 路径清理所有已登记进程 75ms
+ ✓ test/codex-lifecycle.test.ts > 阶段3 job-runner 钩子与进程树收尾 > force 路径清理所有已登记进程 93ms
+ ✓ test/codex-lifecycle.test.ts > 阶段3 job-runner 钩子与进程树收尾 > 并发清理登记的进程树；其中 taskkill 失败时汇总错误且不伪报成功 91ms
+ ✓ test/codex-lifecycle.test.ts > 阶段3 job-runner 钩子与进程树收尾 > Windows 实际进程树：normal 后孙进程也已退出 3413ms
+ ✓ test/codex-lifecycle.test.ts > 阶段3 job-runner 钩子与进程树收尾 > Windows 实际进程树：cancel 后孙进程也已退出 2742ms
+ ✓ test/codex-lifecycle.test.ts > 阶段3 job-runner 钩子与进程树收尾 > Windows 实际进程树：timeout 后孙进程也已退出 3627ms
+ ✓ test/codex-lifecycle.test.ts > 阶段3 job-runner 钩子与进程树收尾 > Windows 实际进程树：disconnect 后孙进程也已退出 3366ms
+ ✓ test/codex-lifecycle.test.ts > 阶段3 job-runner 钩子与进程树收尾 > Windows 实际进程树：Ctrl+C shutdown 后孙进程也已退出 3375ms
+ ✓ test/codex-lifecycle.test.ts > 阶段3 job-runner 钩子与进程树收尾 > Windows 实际进程树：force 后孙进程也已退出 3465ms
+ ✓ test/protocol-echo.test.ts > protocol frames and UTF-8 output > parses a UTF-8 text frame and preserves unknown types for caller logging 2ms
+ ✓ test/protocol-echo.test.ts > protocol frames and UTF-8 output > rejects malformed envelopes: not json 1ms
+ ✓ test/protocol-echo.test.ts > protocol frames and UTF-8 output > rejects malformed envelopes: null 1ms
+ ✓ test/protocol-echo.test.ts > protocol frames and UTF-8 output > rejects malformed envelopes: [] 0ms
+ ✓ test/protocol-echo.test.ts > protocol frames and UTF-8 output > rejects malformed envelopes: {"type":"ping"} 0ms
+ ✓ test/protocol-echo.test.ts > protocol frames and UTF-8 output > rejects malformed envelopes: {"v":2,"type":"ping"} 0ms
+ ✓ test/protocol-echo.test.ts > protocol frames and UTF-8 output > rejects malformed envelopes: {"v":1,"type":1} 0ms
+ ✓ test/protocol-echo.test.ts > protocol frames and UTF-8 output > rejects binary and oversized frames without echoing their contents 1ms
+ ✓ test/protocol-echo.test.ts > protocol frames and UTF-8 output > accepts exactly 256 KiB and rejects one byte more 1ms
+ ✓ test/protocol-echo.test.ts > protocol frames and UTF-8 output > splits over 32 KiB at Unicode code-point boundaries 8ms
+ ✓ test/protocol-echo.test.ts > protocol frames and UTF-8 output > supports a small byte limit and refuses an indivisible character 0ms
+ ✓ test/protocol-echo.test.ts > strict server result and callback whitelist > accepts the complete result whitelist including nullable fields and accounting 1ms
+ ✓ test/protocol-echo.test.ts > strict server result and callback whitelist > rejects unknown or invalid result fields: {"extra":true} 0ms
+ ✓ test/protocol-echo.test.ts > strict server result and callback whitelist > rejects unknown or invalid result fields: {"exitCode":0.5} 1ms
+ ✓ test/protocol-echo.test.ts > strict server result and callback whitelist > rejects unknown or invalid result fields: {"signal":0} 0ms
+ ✓ test/protocol-echo.test.ts > strict server result and callback whitelist > rejects unknown or invalid result fields: {"timedOut":null} 0ms
+ ✓ test/protocol-echo.test.ts > strict server result and callback whitelist > rejects unknown or invalid result fields: {"usage":{"inputTokens":1,"outputTokens":2,"unknown":true}} 0ms
+ ✓ test/protocol-echo.test.ts > strict server result and callback whitelist > rejects unknown or invalid result fields: {"usage":{"inputTokens":-1,"outputTokens":2}} 0ms
+ ✓ test/protocol-echo.test.ts > strict server result and callback whitelist > rejects unknown or invalid result fields: {"usage":{"inputTokens":null,"outputTokens":2}} 0ms
+ ✓ test/protocol-echo.test.ts > strict server result and callback whitelist > rejects unknown or invalid result fields: {"usageByModel":[{"model":"m","usage":{"inputTokens":1,"outputTokens":2},"costUsd":0,"extra":true}]} 0ms
+ ✓ test/protocol-echo.test.ts > strict server result and callback whitelist > rejects unknown or invalid result fields: {"pricingContext":{"contextTier":"medium"}} 0ms
+ ✓ test/protocol-echo.test.ts > strict server result and callback whitelist > rejects unknown or invalid result fields: {"pricingContext":{"unknown":true}} 0ms
+ ✓ test/protocol-echo.test.ts > strict server result and callback whitelist > rejects unknown or invalid result fields: {"pricingProvenance":{"source":"unknown","extra":true}} 0ms
+ ✓ test/protocol-echo.test.ts > strict server result and callback whitelist > rejects unknown or invalid result fields: {"executionRecovery":{"kind":"bootstrap","providerWorkStarted":true}} 0ms
+ ✓ test/protocol-echo.test.ts > strict server result and callback whitelist > rejects unknown or invalid result fields: {"executionRecovery":{"kind":"interrupted","providerStopped":true,"sessionPreserved":true,"actionOutcomes":"settled","extra":true}} 0ms
+ ✓ test/protocol-echo.test.ts > strict server result and callback whitelist > rejects unknown or invalid result fields: {"billingType":"free"} 0ms
+ ✓ test/protocol-echo.test.ts > strict server result and callback whitelist > rejects unknown or invalid result fields: {"costUsd":-1} 0ms
+ ✓ test/protocol-echo.test.ts > strict server result and callback whitelist > rejects unknown or invalid result fields: {"retryNotBefore":"2026-02-30T12:00:00Z"} 0ms
+ ✓ test/protocol-echo.test.ts > strict server result and callback whitelist > rejects unknown or invalid result fields: {"retryNotBefore":"2026-10-25"} 0ms
+ ✓ test/protocol-echo.test.ts > strict server result and callback whitelist > rejects unknown or invalid result fields: {"errorMeta":[]} 0ms
+ ✓ test/protocol-echo.test.ts > strict server result and callback whitelist > requires all three completion fields 0ms
+ ✓ test/protocol-echo.test.ts > strict server result and callback whitelist > rejects non-record objects and symbol record keys as the server does 0ms
+ ✓ test/protocol-echo.test.ts > strict server result and callback whitelist > validates meta, events and usage checkpoints against their own strict schemas 1ms
+ ✓ test/protocol-echo.test.ts > echo executor local HTTP writeback > posts a version/hostname comment then marks the encoded issue done with run authentication 58ms
+ ✓ test/protocol-echo.test.ts > echo executor local HTTP writeback > uses taskId when issueId is absent 12ms
+ ✓ test/protocol-echo.test.ts > echo executor local HTTP writeback > only logs for a task without an issue 1ms
+ ✓ test/protocol-echo.test.ts > echo executor local HTTP writeback > returns safe HTTP errors when POST fails without leaking response bodies 5ms
+ ✓ test/protocol-echo.test.ts > echo executor local HTTP writeback > returns safe HTTP errors when PATCH fails without leaking response bodies 6ms
+ ✓ test/protocol-echo.test.ts > echo executor local HTTP writeback > returns a safe failure when the network request fails 1ms
+ ✓ test/protocol-echo.test.ts > echo executor local HTTP writeback > does no HTTP work after cancellation before the first step 1ms
+ ✓ test/protocol-echo.test.ts > echo executor local HTTP writeback > checks cancellation between comment and status PATCH 6ms
+ ✓ test/protocol-echo.test.ts > echo executor local HTTP writeback > aborts an in-flight HTTP writeback 5ms
+ ✓ test/codex-integration.test.ts > Codex end-to-end adapter integration > uses the packaged adapter, real Codex 0.160.0 and a loopback fake model without credentials 3565ms
+stdout | test/codex-integration.test.ts > Codex end-to-end adapter integration > executes a real code-mode file read and returns its output to the loopback fake model without credentials
+CODE_MODE_TOOL_ROUNDTRIP_OK fileNonceMatched=true toolOutputs=1 modelRequests=2
+
+ ✓ test/codex-integration.test.ts > Codex end-to-end adapter integration > executes a real code-mode file read and returns its output to the loopback fake model without credentials 4226ms
+ ✓ test/agent-version.test.ts > member-agent minimum version gate > keeps package and lockfile release metadata aligned with the reported 0.3.4 agent 4ms
+ ✓ test/agent-version.test.ts > member-agent minimum version gate > reports an outdated version as a failed one-shot self-check 38ms
+ ✓ test/agent-version.test.ts > member-agent minimum version gate > refuses every outdated job before acceptance or Worker creation while keeping heartbeats online 148ms
+ ✓ test/agent-version.test.ts > member-agent minimum version gate > dispatches current 0.2.2 against compatible/legacy requirement 0.2.0 normally 127ms
+ ✓ test/agent-version.test.ts > member-agent minimum version gate > dispatches current 0.2.0 against compatible/legacy requirement 0.2.0 normally 153ms
+ ✓ test/agent-version.test.ts > member-agent minimum version gate > dispatches current 0.3.2 against compatible/legacy requirement 0.2.0 normally 160ms
+ ✓ test/agent-version.test.ts > member-agent minimum version gate > dispatches current 0.10.0 against compatible/legacy requirement 0.2.0 normally 170ms
+ ✓ test/agent-version.test.ts > member-agent minimum version gate > dispatches current 1.0.0 against compatible/legacy requirement 0.99.0 normally 157ms
+ ✓ test/agent-version.test.ts > member-agent minimum version gate > dispatches current 0.3.2-beta.1 against compatible/legacy requirement 0.2.0 normally 170ms
+ ✓ test/agent-version.test.ts > member-agent minimum version gate > dispatches current 0.2.0+build.7 against compatible/legacy requirement 0.2.0 normally 149ms
+ ✓ test/agent-version.test.ts > member-agent minimum version gate > dispatches current 0.2.0-beta.10 against compatible/legacy requirement 0.2.0-beta.2 normally 148ms
+ ✓ test/agent-version.test.ts > member-agent minimum version gate > dispatches current 0.1 against compatible/legacy requirement undefined normally 185ms
+ ✓ test/agent-version.test.ts > member-agent minimum version gate > fails closed for current 0.2.0-beta.1 and unmet or malformed requirement 0.2.0 62ms
+ ✓ test/agent-version.test.ts > member-agent minimum version gate > fails closed for current 0.2.0 and unmet or malformed requirement 0.10.0 62ms
+ ✓ test/agent-version.test.ts > member-agent minimum version gate > fails closed for current 0.2.0 and unmet or malformed requirement broken 61ms
+ ✓ test/agent-version.test.ts > member-agent minimum version gate > fails closed for current 0.2.0 and unmet or malformed requirement null 63ms
+ ✓ test/agent-version.test.ts > member-agent minimum version gate > fails closed for current 0.2.0 and unmet or malformed requirement 2 62ms
+ ✓ test/agent-version.test.ts > member-agent minimum version gate > fails closed for current 0.2.0 and unmet or malformed requirement 00.2.0 83ms
+ ✓ test/agent-version.test.ts > member-agent minimum version gate > fails closed for current 0.2.0 and unmet or malformed requirement 9007199254740992.0.0 73ms
+ ✓ test/agent-version.test.ts > member-agent minimum version gate > fails closed for current 0.2.0 and unmet or malformed requirement 0.2.0-beta.01 61ms
+ ✓ test/agent-version.test.ts > member-agent minimum version gate > fails closed for current 0.2.0 and unmet or malformed requirement 0.2.0
+ 63ms
+ ✓ test/agent-version.test.ts > member-agent minimum version gate > fails closed for current broken and unmet or malformed requirement 0.2.0 61ms
+ ✓ test/agent-version.test.ts > member-agent minimum version gate > retains the independent Codex version error when the member version is compatible 62ms
+ ✓ test/codex-proxy.test.ts > Codex per-task proxy environment > converts a simple Windows endpoint to both HTTP proxy variables 3ms
+ ✓ test/codex-proxy.test.ts > Codex per-task proxy environment > selects https before http in http=127.0.0.1:1;https=127.0.0.1:2;socks=127.0.0.1:3 0ms
+ ✓ test/codex-proxy.test.ts > Codex per-task proxy environment > selects https before http in socks=127.0.0.1:3; HTTP = http://127.0.0.1:1 0ms
+ ✓ test/codex-proxy.test.ts > Codex per-task proxy environment > selects https before http in https=https://127.0.0.1:2 0ms
+ ✓ test/codex-proxy.test.ts > Codex per-task proxy environment > uses ALL_PROXY for SOCKS only 0ms
+ ✓ test/codex-proxy.test.ts > Codex per-task proxy environment > connects directly with no enabled manual proxy: {} 0ms
+ ✓ test/codex-proxy.test.ts > Codex per-task proxy environment > connects directly with no enabled manual proxy: {"ProxyEnable":0,"ProxyServer":"127.0.0.1:7897"} 0ms
+ ✓ test/codex-proxy.test.ts > Codex per-task proxy environment > connects directly with no enabled manual proxy: {"ProxyEnable":1,"ProxyServer":""} 0ms
+ ✓ test/codex-proxy.test.ts > Codex per-task proxy environment > warns about PAC without trying to evaluate or fetch it 1ms
+ ✓ test/codex-proxy.test.ts > Codex per-task proxy environment > preserves inherited HTTPS_PROXY rather than overriding it from the registry 1ms
+ ✓ test/codex-proxy.test.ts > Codex per-task proxy environment > preserves inherited HTTP_PROXY rather than overriding it from the registry 0ms
+ ✓ test/codex-proxy.test.ts > Codex per-task proxy environment > preserves inherited ALL_PROXY rather than overriding it from the registry 0ms
+ ✓ test/codex-proxy.test.ts > Codex per-task proxy environment > preserves inherited https_proxy rather than overriding it from the registry 0ms
+ ✓ test/codex-proxy.test.ts > Codex per-task proxy environment > preserves inherited http_proxy rather than overriding it from the registry 0ms
+ ✓ test/codex-proxy.test.ts > Codex per-task proxy environment > preserves inherited all_proxy rather than overriding it from the registry 0ms
+ ✓ test/codex-proxy.test.ts > Codex per-task proxy environment > preserves inherited HtTpS_pRoXy rather than overriding it from the registry 0ms
+ ✓ test/codex-proxy.test.ts > Codex per-task proxy environment > merges both NO_PROXY cases, registry bypasses and server hostname without mutating the parent 0ms
+ ✓ test/codex-proxy.test.ts > Codex per-task proxy environment > merges registry overrides even when an inherited proxy wins 0ms
+ ✓ test/codex-proxy.test.ts > Codex per-task proxy environment > never logs credentials in http://alice:secret@proxy:7897 0ms
+ ✓ test/codex-proxy.test.ts > Codex per-task proxy environment > never logs credentials in alice:secret@proxy:7897 0ms
+ ✓ test/codex-proxy.test.ts > Codex per-task proxy environment > never logs credentials in http://alice%40corp:s%40cret@proxy:7897 0ms
+ ✓ test/codex-proxy.test.ts > Codex per-task proxy environment > never logs credentials in http://alice:secret@proxy:badport 0ms
+ ✓ test/codex-proxy.test.ts > Codex per-task proxy environment > re-reads registry changes on each invocation 0ms
+ ✓ test/codex-proxy.test.ts > Codex per-task proxy environment > ignores a failed registry read, warns once without exposing error text, and keeps inherited proxies 0ms
+ ✓ test/codex-proxy.test.ts > Codex per-task proxy environment > does not run reg.exe on other platforms 1ms
+ ✓ test/codex-proxy.test.ts > Codex per-task proxy environment > queries all Internet Settings once using absolute reg.exe, no shell, a 5-second timeout and hidden window 1ms
+ ✓ test/job-runner.test.ts > 阶段2任务执行器隔离 > logs the same outcome as the server for error-code 95ms
+ ✓ test/job-runner.test.ts > 阶段2任务执行器隔离 > logs the same outcome as the server for timed-out 108ms
+ ✓ test/job-runner.test.ts > 阶段2任务执行器隔离 > logs the same outcome as the server for nonzero 94ms
+ ✓ test/job-runner.test.ts > 阶段2任务执行器隔离 > logs the same outcome as the server for normal 110ms
+ ✓ test/job-runner.test.ts > 阶段2任务执行器隔离 > 7 accepts before preparation, numbers logs and events independently, and emits one result 87ms
+ ✓ test/job-runner.test.ts > 阶段2任务执行器隔离 > 8 refuses a second job without affecting the running task 67ms
+ ✓ test/job-runner.test.ts > 阶段2任务执行器隔离 > 9 cancellation ends within grace and ignores foreign cancellation 69ms
+ ✓ test/job-runner.test.ts > 阶段2任务执行器隔离 > 10 enforces a local maxRunSec and aborts the executor 1023ms
+ ✓ test/job-runner.test.ts > 阶段2任务执行器隔离 > 11 discards disconnected task output and never replays results through a new sender 127ms
+ ✓ test/job-runner.test.ts > 阶段2任务执行器隔离 > 13 turns an unknown executor result field into a protocol safe failure 111ms
+ ✓ test/job-runner.test.ts > 阶段2任务执行器隔离 > 14 scans console, log files and all outgoing frames for every fake credential 90ms
+ ✓ test/job-runner.test.ts > 阶段2任务执行器隔离 > 9 forcibly stops a synchronous blocked executor within grace 331ms
+ ✓ test/job-runner.test.ts > 阶段2任务执行器隔离 > 14 does not leak a credential prefix from a truncated exception 105ms
+ ✓ test/job-runner.test.ts > 阶段2任务执行器隔离 > 14 redacts structured strings safely when a credential contains JSON syntax 73ms
+ ✓ test/job-runner.test.ts > 阶段2任务执行器隔离 > 7 settles a returned result even when the executor left a live timer 84ms
+ ✓ test/job-runner.test.ts > 阶段2任务执行器隔离 > 9 releases a task when local logging fails before worker creation 2ms
+ ✓ test/codex-cli.test.ts > Codex config and local checks > parses stable and prerelease codex-cli versions and rejects other output 2ms
+ ✓ test/codex-cli.test.ts > Codex config and local checks > codex executor requires all three absolute local paths and gives actionable field errors 1ms
+ ✓ test/codex-cli.test.ts > Codex config and local checks > rejects a non-exe executable, the shared user .codex home, and unknown fields 2ms
+ ✓ test/codex-cli.test.ts > Codex config and local checks > login environment uses a dedicated CODEX_HOME and omits Paperclip/OpenAI secrets 2ms
+ ✓ test/codex-cli.test.ts > Codex config and local checks > check runs all independent probes even when the executable/version checks fail 1ms
+ ✓ test/codex-cli.test.ts > Codex config and local checks > independently checks the sibling code-mode host when it is missing 4ms
+ ✓ test/codex-cli.test.ts > Codex config and local checks > independently checks the sibling code-mode host when it is file 3ms
+ ✓ test/codex-cli.test.ts > Codex config and local checks > independently checks the sibling code-mode host when it is directory 2ms
+ ✓ test/codex-cli.test.ts > Codex config and local checks > login launches fake codex.exe with device auth, inherited stdio, and sanitized environment 1ms
+ ✓ test/codex-cli.test.ts > Codex config and local checks > checks auth.json existence without reading content and checks every runtime asset 14ms
+ ✓ test/build-runtime.test.ts > Codex runtime build > writes the required layout and complete manifest under runtime/ 3ms
+ ✓ test/build-runtime.test.ts > Codex runtime build > keeps the public SSH placeholder value while emitting no PEM marker into the scanned bundle 1ms
+ ✓ test/build-runtime.test.ts > Codex runtime build > imports execute from a temporary copy without node_modules ancestors 1683ms
+ ✓ test/build-runtime.test.ts > Codex runtime build > fails to import when required sidecar server\dist\codex-auth-merge-decision.cjs is missing 1672ms
+ ✓ test/build-runtime.test.ts > Codex runtime build > fails to import when required sidecar server\dist\codex-auth-merge-extract.sh is missing 1408ms
+ ✓ test/build-runtime.test.ts > Codex runtime build > rejects malicious --out: relative path outside runtime before writing 129ms
+ ✓ test/build-runtime.test.ts > Codex runtime build > rejects malicious --out: parent traversal before writing 115ms
+ ✓ test/build-runtime.test.ts > Codex runtime build > rejects malicious --out: repository root before writing 114ms
+ ✓ test/codebuddy-cli.test.ts > checks shared credential existence without reading it 2ms
+ ✓ test/codebuddy-cli.test.ts > login isolates configuration without overriding home or inheriting secrets 1ms
+ ✓ test/codebuddy-cli.test.ts > detects changed and unlisted CodeBuddy package files in an installed manifest 19ms
+ ✓ test/codebuddy-cli.test.ts > rejects a personal config subtree and a junction alias before writing 8ms
+ ✓ test/codebuddy-cli.test.ts > checks installed file sizes but hashes only the CLI and package entry files 36ms
+ ✓ test/codebuddy-cli.test.ts > retains full content hashing for extracted packages 12ms
+ ✓ test/echo-hold.test.ts > echoHoldSec 测试专用配置 > defaults to zero and preserves immediate echo writeback 32ms
+ ✓ test/echo-hold.test.ts > echoHoldSec 测试专用配置 > rejects invalid echoHoldSec -1 with a Chinese field diagnostic 1ms
+ ✓ test/echo-hold.test.ts > echoHoldSec 测试专用配置 > rejects invalid echoHoldSec 601 with a Chinese field diagnostic 0ms
+ ✓ test/echo-hold.test.ts > echoHoldSec 测试专用配置 > rejects invalid echoHoldSec 1.5 with a Chinese field diagnostic 0ms
+ ✓ test/echo-hold.test.ts > echoHoldSec 测试专用配置 > rejects invalid echoHoldSec abc with a Chinese field diagnostic 0ms
+ ✓ test/echo-hold.test.ts > echoHoldSec 测试专用配置 > accepts both endpoints and still rejects unknown configuration fields 0ms
+ ✓ test/echo-hold.test.ts > echoHoldSec 测试专用配置 > cancels a 30 second hold in under one second without any writeback 2ms
+ ✓ test/echo-hold.test.ts > echoHoldSec 测试专用配置 > waits two seconds before normal writeback with an injected clock 3ms
+ ✓ test/echo-hold.test.ts > echoHoldSec 测试专用配置 > passes the local hold through workerData and cancellation prevents worker writeback 96ms
+ ✓ test/process-sampler.test.ts > persistent Windows process sampler > uses one PowerShell process, samples once more at stop and confirms its exit 5307ms
+ ✓ test/process-sampler.test.ts > persistent Windows process sampler > restarts after its PowerShell is killed externally and continues sampling 2563ms
+ ✓ test/process-sampler.test.ts > persistent Windows process sampler > warns once and stops after three restarts when output cannot be parsed 53ms
+ ✓ test/process-sampler.test.ts > persistent Windows process sampler > exits when its owning Node process is killed without calling stop 1121ms
+ ✓ test/process-tree.test.ts > terminateProcessTree > treats a target that exits during taskkill as already terminated 3ms
+ ✓ test/process-tree.test.ts > terminateProcessTree > still fails when taskkill fails and the process remains 1ms
+ ✓ test/process-tree.test.ts > descendant snapshots > retains orphan identities and discovers their later descendants without adopting reused PIDs 117ms
+ ✓ test/process-tree.test.ts > descendant snapshots > logs snapshot failures and waits for an in-flight query at cleanup without overlapping it 64ms
+ ✓ test/process-tree.test.ts > descendant snapshots > rejects invalid recorded identities before invoking Windows commands 3ms
+ ✓ test/installer-long-path.test.ts > native Windows cache cleanup > powershell.exe removes an exactly 261-character junction without changing its target 1093ms
+ ✓ test/installer-long-path.test.ts > native Windows cache cleanup > powershell.exe reports the Win32 error code when a cache file is locked and succeeds after release 1021ms
+ ✓ test/installer-long-path.test.ts > native Windows cache cleanup > pwsh.exe removes an exactly 261-character junction without changing its target 1796ms
+ ✓ test/installer-long-path.test.ts > native Windows cache cleanup > pwsh.exe reports the Win32 error code when a cache file is locked and succeeds after release 1932ms
+ ✓ test/codebuddy-launcher.test.ts > waits for stdin end before launching a CLI with a short input deadline 5176ms
+ ✓ test/codebuddy-launcher.test.ts > converts multiline instruction files without cmd escaping and replaces Claude models 3ms
+ ✓ test/codebuddy-launcher.test.ts > omits all Claude models when account default is selected 2ms
+ ✓ test/codebuddy-launcher.test.ts > moves instructions longer than 20000 characters into stdin 4ms
+ ✓ test/codebuddy-launcher.test.ts > writes an npm-standard shim whose script is adjacent and uses node.exe 5ms
+ ✓ test/codex-version.test.ts > Codex version gate > same supported stable version is accepted 2ms
+ ✓ test/codex-version.test.ts > Codex version gate > different stable versions inside the supported window are accepted with warning 1ms
+ ✓ test/codex-version.test.ts > Codex version gate > unsupported or unparsable version 0.161.0 / 0.161.0 is rejected 0ms
+ ✓ test/codex-version.test.ts > Codex version gate > unsupported or unparsable version 0.160.0-beta.1 / 0.160.0 is rejected 0ms
+ ✓ test/codex-version.test.ts > Codex version gate > unsupported or unparsable version unparsed / 0.160.0 is rejected 0ms
+ ✓ test/codex-version.test.ts > Codex version gate > unsupported or unparsable version 0.160.0 / unknown is rejected 0ms
+ ✓ test/codex-version.test.ts > Codex version gate > unsupported mismatch stays connected and returns the protocol error for each task 45ms
+ ✓ test/codex-version.test.ts > Codex version gate > in-window mismatch warns and still dispatches 26ms
+ ✓ test/codex-check.test.ts > check code-mode host preflight > check returns the correct exit code and independent diagnostic with host present=false 500ms
+ ✓ test/codex-check.test.ts > check code-mode host preflight > check returns the correct exit code and independent diagnostic with host present=true 501ms
+ ✓ test/codebuddy-startup.test.ts > run goes online with login present=false 714ms
+ ✓ test/codebuddy-startup.test.ts > run goes online with login present=true 667ms
+ ✓ test/codebuddy-startup.test.ts > check still fails when login is missing 407ms
+ ✓ test/codebuddy-startup.test.ts > run rejects incomplete or incompatible installation: {"version":"2.168.0"} 490ms
+ ✓ test/codebuddy-startup.test.ts > run rejects incomplete or incompatible installation: {"packageIssues":["哈希不符"]} 431ms
+ ✓ test/codebuddy-startup.test.ts > run rejects incomplete or incompatible installation: {"runtimeIssues":["缺少运行时"]} 455ms
+ ✓ test/install-control-integration.test.ts > a real agent completes its active job before an installer drain closes the connection 3344ms
+ ✓ test/installer-login.test.ts > preserves the original Codex missing-auth prompt and login call 3ms
+ ✓ test/installer-login.test.ts > powershell.exe: codex login exists=false, accepts=true 328ms
+ ✓ test/installer-login.test.ts > powershell.exe: codex login exists=false, accepts=false 311ms
+ ✓ test/installer-login.test.ts > powershell.exe: codex login exists=true, accepts=true 308ms
+ ✓ test/installer-login.test.ts > powershell.exe: codebuddy login exists=false, accepts=true 332ms
+ ✓ test/installer-login.test.ts > powershell.exe: codebuddy login exists=false, accepts=false 312ms
+ ✓ test/installer-login.test.ts > powershell.exe: codebuddy login exists=true, accepts=true 396ms
+ ✓ test/installer-login.test.ts > pwsh.exe: codex login exists=false, accepts=true 566ms
+ ✓ test/installer-login.test.ts > pwsh.exe: codex login exists=false, accepts=false 516ms
+ ✓ test/installer-login.test.ts > pwsh.exe: codex login exists=true, accepts=true 514ms
+ ✓ test/installer-login.test.ts > pwsh.exe: codebuddy login exists=false, accepts=true 577ms
+ ✓ test/installer-login.test.ts > pwsh.exe: codebuddy login exists=false, accepts=false 570ms
+ ✓ test/installer-login.test.ts > pwsh.exe: codebuddy login exists=true, accepts=true 537ms
+ ✓ test/install-control.test.ts > drains the active job before stopping and publishes a non-secret process identity 267ms
+ ✓ test/install-control.test.ts > ignores a stale process identity and only honors a matching force request 240ms
+ ✓ test/install-control.test.ts > removes owned control files on exit and does not remove another instance identity 251ms
+ ✓ test/install-control.test.ts > uses the Windows process creation time rather than Node initialization time 540ms
+ ✓ test/installer-errors.test.ts > powershell.exe prints the manifest failure reason and relative path without the Key 715ms
+ ✓ test/installer-errors.test.ts > pwsh.exe prints the manifest failure reason and relative path without the Key 1541ms
+ ✓ test/cli.test.ts > 成员命令与退出 > 17 first Ctrl+C drains before closing, second Ctrl+C forces exit 3ms
+ ✓ test/cli.test.ts > 成员命令与退出 > 17 first Ctrl+C gracefully closes after a completed cancellation 0ms
+ ✓ test/cli.test.ts > 成员命令与退出 > native Node runs version and rejects unknown arguments without a build 738ms
+ ✓ test/installer-confirmation.test.ts > reinstallation confirmation defaults > powershell.exe: Enter reuses configuration while other confirmations still default to no 329ms
+ ✓ test/installer-confirmation.test.ts > reinstallation confirmation defaults > pwsh.exe: Enter reuses configuration while other confirmations still default to no 534ms
+ ✓ test/fake-model-server.test.ts > loopback fake model acceptance server > binds only loopback and delays the response for cancellation and timeout checks 356ms
+ ✓ test/fake-model-server.test.ts > loopback fake model acceptance server > rejects invalid delays 3ms
+ ✓ test/codebuddy-connection.test.ts > keeps mandatory codexVersion none and sends optional executor metadata without applying the Codex pin 33ms
+ ✓ test/codebuddy-config.test.ts > accepts CodeBuddy account default and a configured model 2ms
+ ✓ test/codebuddy-config.test.ts > rejects invalid or personal CodeBuddy configuration {"codebuddyEntry":"relative"} 1ms
+ ✓ test/codebuddy-config.test.ts > rejects invalid or personal CodeBuddy configuration {"codebuddyHome":"D:\\paperclip\\.claude\\worktrees\\codebuddy-executor-6332a5\\member-agent\\test-fixture\\.codebuddy"} 0ms
+ ✓ test/codebuddy-config.test.ts > rejects invalid or personal CodeBuddy configuration {"codebuddyHome":"D:\\paperclip\\.claude\\worktrees\\codebuddy-executor-6332a5\\member-agent\\test-fixture\\.codebuddy\\member"} 0ms
+ ✓ test/codebuddy-config.test.ts > rejects invalid or personal CodeBuddy configuration {"codebuddyModel":"claude-opus-5"} 0ms
+ ✓ test/codebuddy-config.test.ts > rejects invalid or personal CodeBuddy configuration {"codebuddyModel":1} 0ms
+ ✓ test/codebuddy-runtime.test.ts > ships a loadable Claude CLI bundle covered by the same runtime manifest 619ms
+
+ Test Files  36 passed (36)
+      Tests  532 passed (532)
+   Start at  17:15:16
+   Duration  629.88s (tests 100%)
+
+
+exitCode=0

@@ -1,0 +1,4 @@
+{"type":"system","subtype":"init","session_id":"fixture-session","tools":["Read"],"model":"fixture-model"}
+{"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","id":"read-skill","name":"Read","input":{"file_path":"skills/paperclip/SKILL.md"}}]}}
+{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"read-skill","content":"In Agent Chat, Paperclip addresses the question to the conversation owner automatically. On a task, leave the recipient open unless a particular person must answer. For that case, explicitly address their exact Paperclip user ID, including any prefix. The server rejects unknown or unauthorized recipients. Do not guess IDs or infer authority from a title. Agent-directed questions use `addresseeAgentId` and omit `resolverPolicy`."}]}}
+{"type":"result","subtype":"success","is_error":false,"session_id":"fixture-session","result":"任务已完成","usage":{"input_tokens":100,"output_tokens":10}}

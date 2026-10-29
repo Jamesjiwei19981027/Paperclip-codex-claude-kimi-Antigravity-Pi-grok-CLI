@@ -1,0 +1,49 @@
+
+ RUN  v5.0.3 D:/paperclip/.claude/worktrees/codebuddy-executor-6332a5/member-agent
+
+stdout | test/codebuddy-executor.test.ts > replays a Read tool result containing unauthorized recipients through the real claude_local runtime and normalization
+REPLAY raw={"exitCode":0,"errorCode":"claude_auth_required","terminal":{"type":"result","subtype":"success","is_error":false,"session_id":"fixture-session","result":"任务已完成","usage":{"input_tokens":100,"output_tokens":10}}}
+REPLAY normalized={"exitCode":0,"signal":null,"timedOut":false,"usageComplete":true,"usage":{"inputTokens":100,"cachedInputTokens":0,"outputTokens":10},"usageBasis":"per_run","sessionId":"fixture-session","sessionParams":{"sessionId":"fixture-session","cwd":"%USERPROFILE%\\AppData\\Local\\Temp\\member-cb-executor-AaqXMy\\project","promptBundleKey":"aa562348ae83a293791fc461ea6c8eed947164bcfcf930900f9960be6ef20960","mcpServerIdentity":"[]"},"sessionDisplayId":"fixture-session","provider":"tencent","biller":"tencent","model":"fixture-model","billingType":"subscription","costUsd":null,"resultJson":{"type":"result","subtype":"success","is_error":false,"session_id":"fixture-session","result":"任务已完成","usage":{"input_tokens":100,"output_tokens":10}},"summary":"任务已完成","clearSession":false}
+
+ ✓ test/codebuddy-executor.test.ts > replays a Read tool result containing unauthorized recipients through the real claude_local runtime and normalization 2637ms
+ ✓ test/codebuddy-executor.test.ts > clears only heuristic Claude auth fields after an explicit successful terminal result 1ms
+ ✓ test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"exitCode":1} 0ms
+ ✓ test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"exitCode":null} 0ms
+ ✓ test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"timedOut":true} 0ms
+ ✓ test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"signal":"SIGTERM"} 0ms
+ ✓ test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"resultJson":{"type":"result","subtype":"error_during_execution","is_error":true,"result":"Please log in"}} 0ms
+ ✓ test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"resultJson":{"type":"result","subtype":"success","is_error":true}} 0ms
+ ✓ test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"resultJson":{"type":"result","result":"完成"}} 0ms
+ ✓ test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"resultJson":{"type":"assistant","subtype":"success"}} 0ms
+ ✓ test/codebuddy-executor.test.ts > preserves other real failure codes after a success terminal: provider_quota 0ms
+ ✓ test/codebuddy-executor.test.ts > preserves other real failure codes after a success terminal: duplex_channel_lost 0ms
+ ✓ test/codebuddy-executor.test.ts > preserves other real failure codes after a success terminal: member_agent_process_tree_termination_failed 0ms
+ ✓ test/codebuddy-executor.test.ts > rejects the zero-token empty terminal run 0ms
+ ✓ test/codebuddy-executor.test.ts > preserves a short normal reply: 你好 0ms
+ ✓ test/codebuddy-executor.test.ts > preserves a short normal reply: 好 0ms
+ ✓ test/codebuddy-executor.test.ts > preserves an assistant message even with an empty terminal result and zero usage 19ms
+ ✓ test/codebuddy-executor.test.ts > uses CLI with isolated config, shared login identity, REST guidance and child-only proxy 65ms
+ ✓ test/codebuddy-executor.test.ts > prepends UTF-8 guidance to all four existing non-empty Markdown carriers 23ms
+ ✓ test/codebuddy-executor.test.ts > prepends UTF-8 guidance only to the existing task Markdown without creating absent carriers or undefined text 32ms
+ ✓ test/codebuddy-executor.test.ts > preserves empty or non-string Markdown carriers unchanged: "" 23ms
+ ✓ test/codebuddy-executor.test.ts > preserves empty or non-string Markdown carriers unchanged: "   " 19ms
+ ✓ test/codebuddy-executor.test.ts > preserves empty or non-string Markdown carriers unchanged: null 17ms
+ ✓ test/codebuddy-executor.test.ts > preserves empty or non-string Markdown carriers unchanged: undefined 24ms
+ ✓ test/codebuddy-executor.test.ts > preserves empty or non-string Markdown carriers unchanged: 0 26ms
+ ✓ test/codebuddy-executor.test.ts > preserves empty or non-string Markdown carriers unchanged: false 25ms
+ ✓ test/codebuddy-executor.test.ts > preserves empty or non-string Markdown carriers unchanged: {} 24ms
+ ✓ test/codebuddy-executor.test.ts > fails a zero-exit terminal error: Authentication required. Please use /login command to sign in to your account 1ms
+ ✓ test/codebuddy-executor.test.ts > fails a zero-exit terminal error: 400 model [missing-model] service info not found 0ms
+ ✓ test/codebuddy-executor.test.ts > fails a zero-exit terminal error: some other failure 0ms
+ ✓ test/codebuddy-executor.test.ts > pins final result session over a duplicate init and preserves existing Claude failure classes 0ms
+ ✓ test/codebuddy-executor.test.ts > returns a promise from the spawn hook required by the real runtime 855ms
+ ✓ test/codebuddy-executor.test.ts > refuses to use the member's personal CodeBuddy settings directory as a project cwd 14ms
+ ✓ test/codebuddy-executor.test.ts > stops after 15 minutes without output and resets the watchdog on output 22ms
+ ✓ test/codebuddy-executor.test.ts > returns one normal-stop result when server cancellation and idle timeout overlap (server first=false) 19ms
+ ✓ test/codebuddy-executor.test.ts > returns one normal-stop result when server cancellation and idle timeout overlap (server first=true) 18ms
+
+ Test Files  1 passed (1)
+      Tests  36 passed (36)
+   Start at  14:24:32
+   Duration  4.16s (tests 96%, transform 3%, import 1%)
+

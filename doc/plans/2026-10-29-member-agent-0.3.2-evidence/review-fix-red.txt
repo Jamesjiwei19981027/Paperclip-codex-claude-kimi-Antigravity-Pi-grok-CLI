@@ -1,0 +1,278 @@
+
+ RUN  v5.0.3 D:/paperclip/.claude/worktrees/codebuddy-executor-6332a5/member-agent
+
+stdout | test/codebuddy-executor.test.ts > replays a Read tool result containing unauthorized recipients through the real claude_local runtime and normalization
+REPLAY raw={"exitCode":0,"errorCode":"claude_auth_required","terminal":{"type":"result","subtype":"success","is_error":false,"session_id":"fixture-session","result":"任务已完成","usage":{"input_tokens":100,"output_tokens":10}}}
+REPLAY normalized={"exitCode":0,"signal":null,"timedOut":false,"usageComplete":true,"usage":{"inputTokens":100,"cachedInputTokens":0,"outputTokens":10},"usageBasis":"per_run","sessionId":"fixture-session","sessionParams":{"sessionId":"fixture-session","cwd":"%USERPROFILE%\\AppData\\Local\\Temp\\member-cb-executor-mjQJdP\\project","promptBundleKey":"aa562348ae83a293791fc461ea6c8eed947164bcfcf930900f9960be6ef20960","mcpServerIdentity":"[]"},"sessionDisplayId":"fixture-session","provider":"tencent","biller":"tencent","model":"fixture-model","billingType":"subscription","costUsd":null,"resultJson":{"type":"result","subtype":"success","is_error":false,"session_id":"fixture-session","result":"任务已完成","usage":{"input_tokens":100,"output_tokens":10}},"summary":"任务已完成","clearSession":false}
+
+ ✓ test/codebuddy-executor.test.ts > replays a Read tool result containing unauthorized recipients through the real claude_local runtime and normalization 2884ms
+ ✓ test/codebuddy-executor.test.ts > clears only heuristic Claude auth fields after an explicit successful terminal result 1ms
+ ✓ test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"exitCode":1} 0ms
+ ✓ test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"exitCode":null} 0ms
+ ✓ test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"timedOut":true} 0ms
+ ✓ test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"signal":"SIGTERM"} 0ms
+ ✓ test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"resultJson":{"type":"result","subtype":"error_during_execution","is_error":true,"result":"Please log in"}} 0ms
+ ✓ test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"resultJson":{"type":"result","subtype":"success","is_error":true}} 0ms
+ ✓ test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"resultJson":{"type":"result","result":"完成"}} 0ms
+ ✓ test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"resultJson":{"type":"assistant","subtype":"success"}} 0ms
+ ✓ test/codebuddy-executor.test.ts > preserves other real failure codes after a success terminal: provider_quota 0ms
+ ✓ test/codebuddy-executor.test.ts > preserves other real failure codes after a success terminal: duplex_channel_lost 0ms
+ ✓ test/codebuddy-executor.test.ts > preserves other real failure codes after a success terminal: member_agent_process_tree_termination_failed 0ms
+ ✓ test/codebuddy-executor.test.ts > rejects the zero-token empty terminal run 0ms
+ ✓ test/codebuddy-executor.test.ts > preserves a short normal reply: 你好 0ms
+ ✓ test/codebuddy-executor.test.ts > preserves a short normal reply: 好 0ms
+ ✓ test/codebuddy-executor.test.ts > preserves an assistant message even with an empty terminal result and zero usage 22ms
+ ✓ test/codebuddy-executor.test.ts > uses CLI with isolated config, shared login identity, REST guidance and child-only proxy 67ms
+ ✓ test/codebuddy-executor.test.ts > prepends UTF-8 guidance to all four existing non-empty Markdown carriers 25ms
+ × test/codebuddy-executor.test.ts > prepends UTF-8 guidance only to the existing task Markdown without creating absent carriers or undefined text 35ms
+   → expected { …(6) } to not have property "paperclipTaskMarkdownAssignment"
+ × test/codebuddy-executor.test.ts > preserves empty or non-string Markdown carriers unchanged: "" 26ms
+   → expected 'Windows PowerShell 5.1 调用 Paperclip A…' to be '' // Object.is equality
+ × test/codebuddy-executor.test.ts > preserves empty or non-string Markdown carriers unchanged: "   " 24ms
+   → expected 'Windows PowerShell 5.1 调用 Paperclip A…' to be '   ' // Object.is equality
+ × test/codebuddy-executor.test.ts > preserves empty or non-string Markdown carriers unchanged: null 26ms
+   → expected 'Windows PowerShell 5.1 调用 Paperclip A…' to be null // Object.is equality
+ × test/codebuddy-executor.test.ts > preserves empty or non-string Markdown carriers unchanged: undefined 26ms
+   → expected 'Windows PowerShell 5.1 调用 Paperclip A…' to be undefined // Object.is equality
+ × test/codebuddy-executor.test.ts > preserves empty or non-string Markdown carriers unchanged: 0 27ms
+   → expected 'Windows PowerShell 5.1 调用 Paperclip A…' to be +0 // Object.is equality
+ × test/codebuddy-executor.test.ts > preserves empty or non-string Markdown carriers unchanged: false 27ms
+   → expected 'Windows PowerShell 5.1 调用 Paperclip A…' to be false // Object.is equality
+ × test/codebuddy-executor.test.ts > preserves empty or non-string Markdown carriers unchanged: {} 20ms
+   → expected 'Windows PowerShell 5.1 调用 Paperclip A…' to be {} // Object.is equality
+ ✓ test/codebuddy-executor.test.ts > fails a zero-exit terminal error: Authentication required. Please use /login command to sign in to your account 1ms
+ ✓ test/codebuddy-executor.test.ts > fails a zero-exit terminal error: 400 model [missing-model] service info not found 1ms
+ ✓ test/codebuddy-executor.test.ts > fails a zero-exit terminal error: some other failure 0ms
+ ✓ test/codebuddy-executor.test.ts > pins final result session over a duplicate init and preserves existing Claude failure classes 0ms
+ ✓ test/codebuddy-executor.test.ts > returns a promise from the spawn hook required by the real runtime 682ms
+ ✓ test/codebuddy-executor.test.ts > refuses to use the member's personal CodeBuddy settings directory as a project cwd 11ms
+ ✓ test/codebuddy-executor.test.ts > stops after 15 minutes without output and resets the watchdog on output 24ms
+ ✓ test/codebuddy-executor.test.ts > returns one normal-stop result when server cancellation and idle timeout overlap (server first=false) 21ms
+ ✓ test/codebuddy-executor.test.ts > returns one normal-stop result when server cancellation and idle timeout overlap (server first=true) 30ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/codebuddy-executor.test.ts > prepends UTF-8 guidance only to the existing task Markdown without creating absent carriers or undefined text
+AssertionError: expected { …(6) } to not have property "paperclipTaskMarkdownAssignment"
+
+- Expected:
+undefined
+
++ Received:
+"Windows PowerShell 5.1 调用 Paperclip API 发送含中文的 JSON 时，用 [Text.Encoding]::UTF8.GetBytes($json) 作为 -Body，并设 -ContentType 'application/json; charset=utf-8'，避免中文变成问号。
+
+## 成员运行的 Paperclip 操作方式
+本成员运行没有 Paperclip 原生工具。评论、确认卡、报告和状态变更必须通过普通 HTTP 接口操作；不能因为缺少原生工具而声称无法操作 Paperclip。
+每次运行先读取本机技能文档：Get-Content -LiteralPath '%USERPROFILE%\\AppData\\Local\\Temp\\member-cb-executor-wTA2SC\\cb-home\\skills\\paperclip\\SKILL.md'。接口、审批和任务操作规则以该文档为准；继续遵守任务权限、审批与阻塞条件。
+使用 PowerShell Invoke-RestMethod。服务根地址取 $env:PAPERCLIP_API_URL，运行令牌只从 $env:PAPERCLIP_API_KEY 读取，当前运行编号取 $env:PAPERCLIP_RUN_ID。
+$headers = @{ Authorization = ('Bearer ' + $env:PAPERCLIP_API_KEY); 'X-Paperclip-Run-Id' = $env:PAPERCLIP_RUN_ID }
+例如读取当前任务：Invoke-RestMethod -Method Get -Uri ($env:PAPERCLIP_API_URL.TrimEnd('/') + '/api/issues/' + $env:PAPERCLIP_TASK_ID) -Headers $headers。评论使用 POST /api/issues/{id}/comments，状态使用 PATCH /api/issues/{id}；JSON 请求设置 Content-Type: application/json。
+所有任务写操作都携带上述认证与 X-Paperclip-Run-Id 请求头；只引用环境变量，绝不打印、复制到文档或硬编码任何凭据。若旧历史或恢复文字提及当前不存在的控制接口，按本段与技能文档使用普通 HTTP 接口完成已授权操作。
+
+do work"
+
+ ❯ test/codebuddy-executor.test.ts:139:34
+    137|   expect(received.context.paperclipTaskMarkdown).toContain("do work");
+    138|   for (const key of ["paperclipTaskMarkdownAssignment", "paperclipTask…
+    139|     expect(received.context).not.toHaveProperty(key);
+       |                                  ^
+    140|   }
+    141|   expect(JSON.stringify(received.context)).not.toContain("undefined");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ FAIL  test/codebuddy-executor.test.ts > preserves empty or non-string Markdown carriers unchanged: ""
+AssertionError: expected 'Windows PowerShell 5.1 调用 Paperclip A…' to be '' // Object.is equality
+
+- Expected
++ Received
+
++ Windows PowerShell 5.1 调用 Paperclip API 发送含中文的 JSON 时，用 [Text.Encoding]::UTF8.GetBytes($json) 作为 -Body，并设 -ContentType 'application/json; charset=utf-8'，避免中文变成问号。
++
++ ## 成员运行的 Paperclip 操作方式
++ 本成员运行没有 Paperclip 原生工具。评论、确认卡、报告和状态变更必须通过普通 HTTP 接口操作；不能因为缺少原生工具而声称无法操作 Paperclip。
++ 每次运行先读取本机技能文档：Get-Content -LiteralPath '%USERPROFILE%\AppData\Local\Temp\member-cb-executor-bpjNTR\cb-home\skills\paperclip\SKILL.md'。接口、审批和任务操作规则以该文档为准；继续遵守任务权限、审批与阻塞条件。
++ 使用 PowerShell Invoke-RestMethod。服务根地址取 $env:PAPERCLIP_API_URL，运行令牌只从 $env:PAPERCLIP_API_KEY 读取，当前运行编号取 $env:PAPERCLIP_RUN_ID。
++ $headers = @{ Authorization = ('Bearer ' + $env:PAPERCLIP_API_KEY); 'X-Paperclip-Run-Id' = $env:PAPERCLIP_RUN_ID }
++ 例如读取当前任务：Invoke-RestMethod -Method Get -Uri ($env:PAPERCLIP_API_URL.TrimEnd('/') + '/api/issues/' + $env:PAPERCLIP_TASK_ID) -Headers $headers。评论使用 POST /api/issues/{id}/comments，状态使用 PATCH /api/issues/{id}；JSON 请求设置 Content-Type: application/json。
++ 所有任务写操作都携带上述认证与 X-Paperclip-Run-Id 请求头；只引用环境变量，绝不打印、复制到文档或硬编码任何凭据。若旧历史或恢复文字提及当前不存在的控制接口，按本段与技能文档使用普通 HTTP 接口完成已授权操作。
+
+ ❯ test/codebuddy-executor.test.ts:153:35
+    151|   for (const key of keys) {
+    152|     expect(received.context).toHaveProperty(key);
+    153|     expect(received.context[key]).toBe(value);
+       |                                   ^
+    154|   }
+    155| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯
+
+ FAIL  test/codebuddy-executor.test.ts > preserves empty or non-string Markdown carriers unchanged: "   "
+AssertionError: expected 'Windows PowerShell 5.1 调用 Paperclip A…' to be '   ' // Object.is equality
+
+- Expected
++ Received
+
++ Windows PowerShell 5.1 调用 Paperclip API 发送含中文的 JSON 时，用 [Text.Encoding]::UTF8.GetBytes($json) 作为 -Body，并设 -ContentType 'application/json; charset=utf-8'，避免中文变成问号。
++
++ ## 成员运行的 Paperclip 操作方式
++ 本成员运行没有 Paperclip 原生工具。评论、确认卡、报告和状态变更必须通过普通 HTTP 接口操作；不能因为缺少原生工具而声称无法操作 Paperclip。
++ 每次运行先读取本机技能文档：Get-Content -LiteralPath '%USERPROFILE%\AppData\Local\Temp\member-cb-executor-a8f7yv\cb-home\skills\paperclip\SKILL.md'。接口、审批和任务操作规则以该文档为准；继续遵守任务权限、审批与阻塞条件。
++ 使用 PowerShell Invoke-RestMethod。服务根地址取 $env:PAPERCLIP_API_URL，运行令牌只从 $env:PAPERCLIP_API_KEY 读取，当前运行编号取 $env:PAPERCLIP_RUN_ID。
++ $headers = @{ Authorization = ('Bearer ' + $env:PAPERCLIP_API_KEY); 'X-Paperclip-Run-Id' = $env:PAPERCLIP_RUN_ID }
++ 例如读取当前任务：Invoke-RestMethod -Method Get -Uri ($env:PAPERCLIP_API_URL.TrimEnd('/') + '/api/issues/' + $env:PAPERCLIP_TASK_ID) -Headers $headers。评论使用 POST /api/issues/{id}/comments，状态使用 PATCH /api/issues/{id}；JSON 请求设置 Content-Type: application/json。
++ 所有任务写操作都携带上述认证与 X-Paperclip-Run-Id 请求头；只引用环境变量，绝不打印、复制到文档或硬编码任何凭据。若旧历史或恢复文字提及当前不存在的控制接口，按本段与技能文档使用普通 HTTP 接口完成已授权操作。
++
+     
+
+ ❯ test/codebuddy-executor.test.ts:153:35
+    151|   for (const key of keys) {
+    152|     expect(received.context).toHaveProperty(key);
+    153|     expect(received.context[key]).toBe(value);
+       |                                   ^
+    154|   }
+    155| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯
+
+ FAIL  test/codebuddy-executor.test.ts > preserves empty or non-string Markdown carriers unchanged: null
+AssertionError: expected 'Windows PowerShell 5.1 调用 Paperclip A…' to be null // Object.is equality
+
+- Expected:
+null
+
++ Received:
+"Windows PowerShell 5.1 调用 Paperclip API 发送含中文的 JSON 时，用 [Text.Encoding]::UTF8.GetBytes($json) 作为 -Body，并设 -ContentType 'application/json; charset=utf-8'，避免中文变成问号。
+
+## 成员运行的 Paperclip 操作方式
+本成员运行没有 Paperclip 原生工具。评论、确认卡、报告和状态变更必须通过普通 HTTP 接口操作；不能因为缺少原生工具而声称无法操作 Paperclip。
+每次运行先读取本机技能文档：Get-Content -LiteralPath '%USERPROFILE%\\AppData\\Local\\Temp\\member-cb-executor-Kqkvmi\\cb-home\\skills\\paperclip\\SKILL.md'。接口、审批和任务操作规则以该文档为准；继续遵守任务权限、审批与阻塞条件。
+使用 PowerShell Invoke-RestMethod。服务根地址取 $env:PAPERCLIP_API_URL，运行令牌只从 $env:PAPERCLIP_API_KEY 读取，当前运行编号取 $env:PAPERCLIP_RUN_ID。
+$headers = @{ Authorization = ('Bearer ' + $env:PAPERCLIP_API_KEY); 'X-Paperclip-Run-Id' = $env:PAPERCLIP_RUN_ID }
+例如读取当前任务：Invoke-RestMethod -Method Get -Uri ($env:PAPERCLIP_API_URL.TrimEnd('/') + '/api/issues/' + $env:PAPERCLIP_TASK_ID) -Headers $headers。评论使用 POST /api/issues/{id}/comments，状态使用 PATCH /api/issues/{id}；JSON 请求设置 Content-Type: application/json。
+所有任务写操作都携带上述认证与 X-Paperclip-Run-Id 请求头；只引用环境变量，绝不打印、复制到文档或硬编码任何凭据。若旧历史或恢复文字提及当前不存在的控制接口，按本段与技能文档使用普通 HTTP 接口完成已授权操作。"
+
+ ❯ test/codebuddy-executor.test.ts:153:35
+    151|   for (const key of keys) {
+    152|     expect(received.context).toHaveProperty(key);
+    153|     expect(received.context[key]).toBe(value);
+       |                                   ^
+    154|   }
+    155| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯
+
+ FAIL  test/codebuddy-executor.test.ts > preserves empty or non-string Markdown carriers unchanged: undefined
+AssertionError: expected 'Windows PowerShell 5.1 调用 Paperclip A…' to be undefined // Object.is equality
+
+- Expected:
+undefined
+
++ Received:
+"Windows PowerShell 5.1 调用 Paperclip API 发送含中文的 JSON 时，用 [Text.Encoding]::UTF8.GetBytes($json) 作为 -Body，并设 -ContentType 'application/json; charset=utf-8'，避免中文变成问号。
+
+## 成员运行的 Paperclip 操作方式
+本成员运行没有 Paperclip 原生工具。评论、确认卡、报告和状态变更必须通过普通 HTTP 接口操作；不能因为缺少原生工具而声称无法操作 Paperclip。
+每次运行先读取本机技能文档：Get-Content -LiteralPath '%USERPROFILE%\\AppData\\Local\\Temp\\member-cb-executor-IfQU4K\\cb-home\\skills\\paperclip\\SKILL.md'。接口、审批和任务操作规则以该文档为准；继续遵守任务权限、审批与阻塞条件。
+使用 PowerShell Invoke-RestMethod。服务根地址取 $env:PAPERCLIP_API_URL，运行令牌只从 $env:PAPERCLIP_API_KEY 读取，当前运行编号取 $env:PAPERCLIP_RUN_ID。
+$headers = @{ Authorization = ('Bearer ' + $env:PAPERCLIP_API_KEY); 'X-Paperclip-Run-Id' = $env:PAPERCLIP_RUN_ID }
+例如读取当前任务：Invoke-RestMethod -Method Get -Uri ($env:PAPERCLIP_API_URL.TrimEnd('/') + '/api/issues/' + $env:PAPERCLIP_TASK_ID) -Headers $headers。评论使用 POST /api/issues/{id}/comments，状态使用 PATCH /api/issues/{id}；JSON 请求设置 Content-Type: application/json。
+所有任务写操作都携带上述认证与 X-Paperclip-Run-Id 请求头；只引用环境变量，绝不打印、复制到文档或硬编码任何凭据。若旧历史或恢复文字提及当前不存在的控制接口，按本段与技能文档使用普通 HTTP 接口完成已授权操作。"
+
+ ❯ test/codebuddy-executor.test.ts:153:35
+    151|   for (const key of keys) {
+    152|     expect(received.context).toHaveProperty(key);
+    153|     expect(received.context[key]).toBe(value);
+       |                                   ^
+    154|   }
+    155| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯
+
+ FAIL  test/codebuddy-executor.test.ts > preserves empty or non-string Markdown carriers unchanged: 0
+AssertionError: expected 'Windows PowerShell 5.1 调用 Paperclip A…' to be +0 // Object.is equality
+
+- Expected:
+0
+
++ Received:
+"Windows PowerShell 5.1 调用 Paperclip API 发送含中文的 JSON 时，用 [Text.Encoding]::UTF8.GetBytes($json) 作为 -Body，并设 -ContentType 'application/json; charset=utf-8'，避免中文变成问号。
+
+## 成员运行的 Paperclip 操作方式
+本成员运行没有 Paperclip 原生工具。评论、确认卡、报告和状态变更必须通过普通 HTTP 接口操作；不能因为缺少原生工具而声称无法操作 Paperclip。
+每次运行先读取本机技能文档：Get-Content -LiteralPath '%USERPROFILE%\\AppData\\Local\\Temp\\member-cb-executor-21sj3M\\cb-home\\skills\\paperclip\\SKILL.md'。接口、审批和任务操作规则以该文档为准；继续遵守任务权限、审批与阻塞条件。
+使用 PowerShell Invoke-RestMethod。服务根地址取 $env:PAPERCLIP_API_URL，运行令牌只从 $env:PAPERCLIP_API_KEY 读取，当前运行编号取 $env:PAPERCLIP_RUN_ID。
+$headers = @{ Authorization = ('Bearer ' + $env:PAPERCLIP_API_KEY); 'X-Paperclip-Run-Id' = $env:PAPERCLIP_RUN_ID }
+例如读取当前任务：Invoke-RestMethod -Method Get -Uri ($env:PAPERCLIP_API_URL.TrimEnd('/') + '/api/issues/' + $env:PAPERCLIP_TASK_ID) -Headers $headers。评论使用 POST /api/issues/{id}/comments，状态使用 PATCH /api/issues/{id}；JSON 请求设置 Content-Type: application/json。
+所有任务写操作都携带上述认证与 X-Paperclip-Run-Id 请求头；只引用环境变量，绝不打印、复制到文档或硬编码任何凭据。若旧历史或恢复文字提及当前不存在的控制接口，按本段与技能文档使用普通 HTTP 接口完成已授权操作。"
+
+ ❯ test/codebuddy-executor.test.ts:153:35
+    151|   for (const key of keys) {
+    152|     expect(received.context).toHaveProperty(key);
+    153|     expect(received.context[key]).toBe(value);
+       |                                   ^
+    154|   }
+    155| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯
+
+ FAIL  test/codebuddy-executor.test.ts > preserves empty or non-string Markdown carriers unchanged: false
+AssertionError: expected 'Windows PowerShell 5.1 调用 Paperclip A…' to be false // Object.is equality
+
+- Expected:
+false
+
++ Received:
+"Windows PowerShell 5.1 调用 Paperclip API 发送含中文的 JSON 时，用 [Text.Encoding]::UTF8.GetBytes($json) 作为 -Body，并设 -ContentType 'application/json; charset=utf-8'，避免中文变成问号。
+
+## 成员运行的 Paperclip 操作方式
+本成员运行没有 Paperclip 原生工具。评论、确认卡、报告和状态变更必须通过普通 HTTP 接口操作；不能因为缺少原生工具而声称无法操作 Paperclip。
+每次运行先读取本机技能文档：Get-Content -LiteralPath '%USERPROFILE%\\AppData\\Local\\Temp\\member-cb-executor-JO8K1h\\cb-home\\skills\\paperclip\\SKILL.md'。接口、审批和任务操作规则以该文档为准；继续遵守任务权限、审批与阻塞条件。
+使用 PowerShell Invoke-RestMethod。服务根地址取 $env:PAPERCLIP_API_URL，运行令牌只从 $env:PAPERCLIP_API_KEY 读取，当前运行编号取 $env:PAPERCLIP_RUN_ID。
+$headers = @{ Authorization = ('Bearer ' + $env:PAPERCLIP_API_KEY); 'X-Paperclip-Run-Id' = $env:PAPERCLIP_RUN_ID }
+例如读取当前任务：Invoke-RestMethod -Method Get -Uri ($env:PAPERCLIP_API_URL.TrimEnd('/') + '/api/issues/' + $env:PAPERCLIP_TASK_ID) -Headers $headers。评论使用 POST /api/issues/{id}/comments，状态使用 PATCH /api/issues/{id}；JSON 请求设置 Content-Type: application/json。
+所有任务写操作都携带上述认证与 X-Paperclip-Run-Id 请求头；只引用环境变量，绝不打印、复制到文档或硬编码任何凭据。若旧历史或恢复文字提及当前不存在的控制接口，按本段与技能文档使用普通 HTTP 接口完成已授权操作。"
+
+ ❯ test/codebuddy-executor.test.ts:153:35
+    151|   for (const key of keys) {
+    152|     expect(received.context).toHaveProperty(key);
+    153|     expect(received.context[key]).toBe(value);
+       |                                   ^
+    154|   }
+    155| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/8]⎯
+
+ FAIL  test/codebuddy-executor.test.ts > preserves empty or non-string Markdown carriers unchanged: {}
+AssertionError: expected 'Windows PowerShell 5.1 调用 Paperclip A…' to be {} // Object.is equality
+
+- Expected:
+{}
+
++ Received:
+"Windows PowerShell 5.1 调用 Paperclip API 发送含中文的 JSON 时，用 [Text.Encoding]::UTF8.GetBytes($json) 作为 -Body，并设 -ContentType 'application/json; charset=utf-8'，避免中文变成问号。
+
+## 成员运行的 Paperclip 操作方式
+本成员运行没有 Paperclip 原生工具。评论、确认卡、报告和状态变更必须通过普通 HTTP 接口操作；不能因为缺少原生工具而声称无法操作 Paperclip。
+每次运行先读取本机技能文档：Get-Content -LiteralPath '%USERPROFILE%\\AppData\\Local\\Temp\\member-cb-executor-9A9gAo\\cb-home\\skills\\paperclip\\SKILL.md'。接口、审批和任务操作规则以该文档为准；继续遵守任务权限、审批与阻塞条件。
+使用 PowerShell Invoke-RestMethod。服务根地址取 $env:PAPERCLIP_API_URL，运行令牌只从 $env:PAPERCLIP_API_KEY 读取，当前运行编号取 $env:PAPERCLIP_RUN_ID。
+$headers = @{ Authorization = ('Bearer ' + $env:PAPERCLIP_API_KEY); 'X-Paperclip-Run-Id' = $env:PAPERCLIP_RUN_ID }
+例如读取当前任务：Invoke-RestMethod -Method Get -Uri ($env:PAPERCLIP_API_URL.TrimEnd('/') + '/api/issues/' + $env:PAPERCLIP_TASK_ID) -Headers $headers。评论使用 POST /api/issues/{id}/comments，状态使用 PATCH /api/issues/{id}；JSON 请求设置 Content-Type: application/json。
+所有任务写操作都携带上述认证与 X-Paperclip-Run-Id 请求头；只引用环境变量，绝不打印、复制到文档或硬编码任何凭据。若旧历史或恢复文字提及当前不存在的控制接口，按本段与技能文档使用普通 HTTP 接口完成已授权操作。"
+
+ ❯ test/codebuddy-executor.test.ts:153:35
+    151|   for (const key of keys) {
+    152|     expect(received.context).toHaveProperty(key);
+    153|     expect(received.context[key]).toBe(value);
+       |                                   ^
+    154|   }
+    155| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/8]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  8 failed | 28 passed (36)
+   Start at  14:24:10
+   Duration  4.32s (tests 96%, transform 3%, import 1%)
+

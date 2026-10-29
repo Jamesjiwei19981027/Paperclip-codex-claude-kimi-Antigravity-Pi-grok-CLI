@@ -1,0 +1,5 @@
+cwd=member-agent
+command=pwsh.exe -NoProfile -Command $PSVersionTable.PSVersion.ToString()
+7.6.9
+
+exitCode=0

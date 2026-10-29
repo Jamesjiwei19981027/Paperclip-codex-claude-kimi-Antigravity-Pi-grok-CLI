@@ -1,0 +1,136 @@
+
+ RUN  v5.0.3 D:/paperclip/.claude/worktrees/codebuddy-executor-6332a5/member-agent
+
+ ❯ test/codebuddy-executor.test.ts (36 tests | 8 failed) 3531ms
+   × fills all four Markdown carriers with UTF-8 guidance, REST guidance and fallback task text 20ms
+   × fills empty or non-string Markdown carriers with UTF-8 and REST guidance: "" 17ms
+   × fills empty or non-string Markdown carriers with UTF-8 and REST guidance: "   " 14ms
+   × fills empty or non-string Markdown carriers with UTF-8 and REST guidance: null 15ms
+   × fills empty or non-string Markdown carriers with UTF-8 and REST guidance: undefined 15ms
+   × fills empty or non-string Markdown carriers with UTF-8 and REST guidance: 0 14ms
+   × fills empty or non-string Markdown carriers with UTF-8 and REST guidance: false 14ms
+   × fills empty or non-string Markdown carriers with UTF-8 and REST guidance: {} 15ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/codebuddy-executor.test.ts > fills all four Markdown carriers with UTF-8 guidance, REST guidance and fallback task text
+AssertionError: expected { …(3) } to have property "paperclipTaskMarkdownAssignment"
+ ❯ test/codebuddy-executor.test.ts:136:30
+    134|   expect(result.exitCode).toBe(0);
+    135|   for (const key of ["paperclipTaskMarkdown", "paperclipTaskMarkdownAs…
+    136|     expect(received.context).toHaveProperty(key);
+       |                              ^
+    137|     expect(typeof received.context[key]).toBe("string");
+    138|     expect(received.context[key]).toMatch(/^Windows PowerShell 5\.1/);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ FAIL  test/codebuddy-executor.test.ts > fills empty or non-string Markdown carriers with UTF-8 and REST guidance: ""
+AssertionError: expected '' to match /^Windows PowerShell 5\.1/
+
+- Expected:
+/^Windows PowerShell 5\.1/
+
++ Received:
+""
+
+ ❯ test/codebuddy-executor.test.ts:159:35
+    157|     expect(received.context).toHaveProperty(key);
+    158|     expect(typeof received.context[key]).toBe("string");
+    159|     expect(received.context[key]).toMatch(/^Windows PowerShell 5\.1/);
+       |                                   ^
+    160|     expect(received.context[key]).toContain("## 成员运行的 Paperclip 操作方式");
+    161|     expect(received.context[key]).not.toContain("undefined");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯
+
+ FAIL  test/codebuddy-executor.test.ts > fills empty or non-string Markdown carriers with UTF-8 and REST guidance: "   "
+AssertionError: expected '   ' to match /^Windows PowerShell 5\.1/
+
+- Expected:
+/^Windows PowerShell 5\.1/
+
++ Received:
+"   "
+
+ ❯ test/codebuddy-executor.test.ts:159:35
+    157|     expect(received.context).toHaveProperty(key);
+    158|     expect(typeof received.context[key]).toBe("string");
+    159|     expect(received.context[key]).toMatch(/^Windows PowerShell 5\.1/);
+       |                                   ^
+    160|     expect(received.context[key]).toContain("## 成员运行的 Paperclip 操作方式");
+    161|     expect(received.context[key]).not.toContain("undefined");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯
+
+ FAIL  test/codebuddy-executor.test.ts > fills empty or non-string Markdown carriers with UTF-8 and REST guidance: null
+ FAIL  test/codebuddy-executor.test.ts > fills empty or non-string Markdown carriers with UTF-8 and REST guidance: {}
+AssertionError: expected 'object' to be 'string' // Object.is equality
+
+Expected: "string"
+Received: "object"
+
+ ❯ test/codebuddy-executor.test.ts:158:42
+    156|   for (const key of keys) {
+    157|     expect(received.context).toHaveProperty(key);
+    158|     expect(typeof received.context[key]).toBe("string");
+       |                                          ^
+    159|     expect(received.context[key]).toMatch(/^Windows PowerShell 5\.1/);
+    160|     expect(received.context[key]).toContain("## 成员运行的 Paperclip 操作方式");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯
+
+ FAIL  test/codebuddy-executor.test.ts > fills empty or non-string Markdown carriers with UTF-8 and REST guidance: undefined
+AssertionError: expected 'undefined' to be 'string' // Object.is equality
+
+Expected: "string"
+Received: "undefined"
+
+ ❯ test/codebuddy-executor.test.ts:158:42
+    156|   for (const key of keys) {
+    157|     expect(received.context).toHaveProperty(key);
+    158|     expect(typeof received.context[key]).toBe("string");
+       |                                          ^
+    159|     expect(received.context[key]).toMatch(/^Windows PowerShell 5\.1/);
+    160|     expect(received.context[key]).toContain("## 成员运行的 Paperclip 操作方式");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯
+
+ FAIL  test/codebuddy-executor.test.ts > fills empty or non-string Markdown carriers with UTF-8 and REST guidance: 0
+AssertionError: expected 'number' to be 'string' // Object.is equality
+
+Expected: "string"
+Received: "number"
+
+ ❯ test/codebuddy-executor.test.ts:158:42
+    156|   for (const key of keys) {
+    157|     expect(received.context).toHaveProperty(key);
+    158|     expect(typeof received.context[key]).toBe("string");
+       |                                          ^
+    159|     expect(received.context[key]).toMatch(/^Windows PowerShell 5\.1/);
+    160|     expect(received.context[key]).toContain("## 成员运行的 Paperclip 操作方式");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯
+
+ FAIL  test/codebuddy-executor.test.ts > fills empty or non-string Markdown carriers with UTF-8 and REST guidance: false
+AssertionError: expected 'boolean' to be 'string' // Object.is equality
+
+Expected: "string"
+Received: "boolean"
+
+ ❯ test/codebuddy-executor.test.ts:158:42
+    156|   for (const key of keys) {
+    157|     expect(received.context).toHaveProperty(key);
+    158|     expect(typeof received.context[key]).toBe("string");
+       |                                          ^
+    159|     expect(received.context[key]).toMatch(/^Windows PowerShell 5\.1/);
+    160|     expect(received.context[key]).toContain("## 成员运行的 Paperclip 操作方式");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/8]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  8 failed | 28 passed (36)
+   Start at  14:39:56
+   Duration  3.88s (tests 95%, transform 4%, import 1%)
+

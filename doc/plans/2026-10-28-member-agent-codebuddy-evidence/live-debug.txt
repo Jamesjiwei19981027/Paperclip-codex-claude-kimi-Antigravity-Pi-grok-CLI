@@ -1,0 +1,2 @@
+TypeError: Cannot read properties of undefined (reading 'catch')
+    at file:///<WORKTREE>/member-agent/runtime/server/dist/claude-local.mjs:46002:159

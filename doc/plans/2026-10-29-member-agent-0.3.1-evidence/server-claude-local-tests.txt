@@ -1,0 +1,489 @@
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - `__dirname` (vitest.config.ts:7:25). Use `import.meta.dirname` instead
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+ RUN  v5.0.3 D:/paperclip/.claude/worktrees/codebuddy-executor-6332a5
+
+[13:23:29] [32mINFO[39m: [36mworkspace Git scan finished without a result[39m [90m{"event":"workspace_git_scan","operation":"referenced_source.toplevel","workspaceHash":"6e55b74fdafce8e9","outcome":"workspace_git_scan_failed","queueWaitMs":0,"executionMs":56,"activeCount":1,"queuedCount":0,"cacheHit":false,"singleFlightJoinCount":0,"exitOutcome":"workspace_git_scan_failed"}[39m
+[13:23:32] [32mINFO[39m: [36mworkspace Git scan finished without a result[39m [90m{"event":"workspace_git_scan","operation":"referenced_source.toplevel","workspaceHash":"f80bba355b4ca1b5","outcome":"workspace_git_scan_failed","queueWaitMs":0,"executionMs":51,"activeCount":1,"queuedCount":0,"cacheHit":false,"singleFlightJoinCount":0,"exitOutcome":"workspace_git_scan_failed"}[39m
+[13:23:35] [32mINFO[39m: [36mworkspace Git scan finished without a result[39m [90m{"event":"workspace_git_scan","operation":"referenced_source.toplevel","workspaceHash":"44466e1e0571b440","outcome":"workspace_git_scan_failed","queueWaitMs":0,"executionMs":89,"activeCount":1,"queuedCount":0,"cacheHit":false,"singleFlightJoinCount":0,"exitOutcome":"workspace_git_scan_failed"}[39m
+ ❯ |@paperclipai/server| src/__tests__/claude-local-execute.test.ts (32 tests | 30 failed) 11685ms
+   ❯ claude execute (32)
+     × passes real assignment markdown and ordered current events once through the CLI 69ms
+     × passes the resolved model to the CLI for undefined 27ms
+     × passes the resolved model to the CLI for "" 18ms
+     × passes the resolved model to the CLI for "  " 20ms
+     × passes the resolved model to the CLI for "claude-sonnet-4-5" 20ms
+     × uses a strict per-agent MCP config only when managed servers are present 21ms
+     × passes --append-system-prompt-file on a fresh session when instructionsFile is set 26ms
+     × omits --append-system-prompt-file on a resumed session even when instructionsFile is set 24ms
+     × commandNotes reports injection on a fresh session with instructionsFile 26ms
+     × commandNotes is empty on a resumed session even when instructionsFile is set 24ms
+     × rebuilds the combined instructions file when an unknown resumed session falls back to fresh 28ms
+     × normalizes max-turn exhaustion into scheduler stop metadata 20ms
+     × does not normalize unstructured max-turn text into scheduler stop metadata 21ms
+     × does not normalize fallback stdout/stderr max-turn text into scheduler stop metadata 27ms
+     × logs HOME, CLAUDE_CONFIG_DIR, and the resolved executable path in invocation metadata 1752ms
+     × injects bridge env into sandbox-managed remote runs 3062ms
+     × omits --effort for sandbox-managed runs when the installed Claude CLI does not advertise it 3012ms
+     × passes through --effort and reuses the sandbox capability probe across sandbox leases when the installed Claude CLI advertises it 3130ms
+     × resumes a stable Claude prompt bundle with unchanged MCP tools 47ms
+     × resumes a stable Claude prompt bundle with added MCP tools 42ms
+     × resumes a stable Claude prompt bundle with removed MCP tools 35ms
+     × resumes across per-run instruction copies and refreshes their location 30ms
+     × starts a fresh Claude session when the stable prompt bundle changes 39ms
+     × classifies Claude 'out of extra usage' failures as provider quota errors 27ms
+     × treats subtype=success results as successful even when the process exits nonzero 26ms
+     × classifies rate-limit / overloaded failures without reset metadata as transient 20ms
+     × does not reclassify deterministic Claude failures (auth, max turns) as transient 21ms
+     × auto-rotates session on previous_message_id 400 (synthetic-msg poisoning) and succeeds on retry 21ms
+     × drops sessionId and forces clearSession when a fresh run reports a poisoned previous_message_id 24ms
+     × forces clearSession when the recovery retry also reports a poisoned previous_message_id 21ms
+stderr | src/__tests__/claude-local-adapter-environment.test.ts > claude_local environment diagnostics > uses full permission bypass for sandbox hello probes
+[paperclip] Could not materialize Paperclip-managed Claude config for the environment probe { classification: 'spawn_error', errorClass: 'Error' }
+
+stderr | src/__tests__/claude-local-adapter-environment.test.ts > claude_local environment diagnostics > uses the managed Claude config seed for sandbox hello probes
+[paperclip] Could not materialize Paperclip-managed Claude config for the environment probe { classification: 'spawn_error', errorClass: 'Error' }
+
+stderr | src/__tests__/claude-local-adapter-environment.test.ts > claude_local environment diagnostics > warns and omits --effort for sandbox probes when the installed Claude CLI does not advertise it
+[paperclip] Could not materialize Paperclip-managed Claude config for the environment probe { classification: 'spawn_error', errorClass: 'Error' }
+
+ ❯ |@paperclipai/server| src/__tests__/claude-local-adapter-environment.test.ts (10 tests | 3 failed) 11971ms
+   ❯ claude_local environment diagnostics (10)
+     × uses full permission bypass for sandbox hello probes 2882ms
+     × uses the managed Claude config seed for sandbox hello probes 3009ms
+     × warns and omits --effort for sandbox probes when the installed Claude CLI does not advertise it 2988ms
+ ❯ |@paperclipai/server| src/__tests__/agent-commentary-skills.test.ts (3 tests | 1 failed) 41ms
+   ❯ default feedback skill delivery (3)
+     × mounts both skills and their shared helper for Codex, Claude and the Codex sandbox home 26ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 34 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/agent-commentary-skills.test.ts > default feedback skill delivery > mounts both skills and their shared helper for Codex, Claude and the Codex sandbox home
+Error: ENOENT: no such file or directory, open '%USERPROFILE%\AppData\Local\Temp\paperclip-commentary-skills-BYjR3C\codex\skills\complain\SKILL.md'
+ ❯ src/__tests__/agent-commentary-skills.test.ts:43:16
+     41|     for (const skills of [join(codexHome, "skills"), join(claude.addDi…
+     42|       for (const name of ["complain", "suggestion-box"]) {
+     43|         expect(await readFile(join(skills, name, "SKILL.md"), "utf8"))…
+       |                ^
+     44|       }
+     45|       expect(await readFile(join(skills, "paperclip", "scripts", "subm…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-adapter-environment.test.ts > claude_local environment diagnostics > uses full permission bypass for sandbox hello probes
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/__tests__/claude-local-adapter-environment.test.ts:352:87
+    350|     });
+    351|
+    352|     expect(result.checks.some((check) => check.code === "claude_hello_…
+       |                                                                                       ^
+    353|     const probeCall = executeCalls.find((call) => call.command === "cl…
+    354|     expect(probeCall?.args).toContain("--dangerously-skip-permissions"…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-adapter-environment.test.ts > claude_local environment diagnostics > uses the managed Claude config seed for sandbox hello probes
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/__tests__/claude-local-adapter-environment.test.ts:431:89
+    429|       });
+    430|
+    431|       expect(result.checks.some((check) => check.code === "claude_mana…
+       |                                                                                         ^
+    432|       expect(result.checks.some((check) => check.code === "claude_hell…
+    433|       expect(result.checks.some((check) => check.code === "claude_hell…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-adapter-environment.test.ts > claude_local environment diagnostics > warns and omits --effort for sandbox probes when the installed Claude CLI does not advertise it
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/__tests__/claude-local-adapter-environment.test.ts:468:94
+    466|       });
+    467|
+    468|       expect(result.checks.some((check) => check.code === "claude_effo…
+       |                                                                                              ^
+    469|       expect(result.checks.some((check) => check.code === "claude_hell…
+    470|     } finally {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > passes real assignment markdown and ordered current events once through the CLI
+Error: Failed to start command "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-context-owner-8MSTuI\bin\claude" in "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-context-owner-8MSTuI\workspace". Verify adapter command, working directory, and PATH (%USERPROFILE%\AppData\Local\Temp\paperclip-claude-context-owner-8MSTuI\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;%USERPROFILE%\.codex\tmp\arg0-windows\codex-arg0XVHPaV;%USERPROFILE%\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex-path;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe;%USERPROFILE%\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;%USERPROFILE%\bin;C:\Program Files\Eclipse Adoptium\jdk-8.0.504.1-hotspot\bin;D:\Program Files\Python312\Scripts;D:\Program Files\Python312;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\Program Files\Git\cmd;C:\Program Files\dotnet;C:\Program Files\nodejs;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;D:\Program Files\cursor\resources\app\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;%USERPROFILE%\AppData\Local\agy\bin;%USERPROFILE%\.meituan-catpaw\bin;%USERPROFILE%\.cargo\bin;%USERPROFILE%\.grok\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;%USERPROFILE%\.dotnet\tools;%USERPROFILE%\AppData\Roaming\npm;D:\Program Files\CatPawAI\bin;D:\Downloads\flutter\bin;D:\Program Files\Android\Android Studio\jbr\bin;%USERPROFILE%\AppData\Local\cursor-agent;D:\Program Files\Nmap;%USERPROFILE%\.rtk\bin;D:\Program Files\Antigravity IDE\bin;%USERPROFILE%\AppData\Local\Pandoc;%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\lucasg.Dependencies_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\nodejs;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl).
+ ❯ ChildProcess.<anonymous> ../../../../packages/adapter-utils/src/server-utils.ts:5006:18
+    5004|               ? `Failed to start command "${command}" in "${opts.cwd}"…
+    5005|               : `Failed to start command "${command}" in "${opts.cwd}"…
+    5006|           reject(new Error(msg));
+       |                  ^
+    5007|         });
+    5008|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > passes the resolved model to the CLI for undefined
+Error: Failed to start command "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-default-2cRpwD\bin\claude" in "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-default-2cRpwD\workspace". Verify adapter command, working directory, and PATH (%USERPROFILE%\AppData\Local\Temp\paperclip-claude-default-2cRpwD\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;%USERPROFILE%\.codex\tmp\arg0-windows\codex-arg0XVHPaV;%USERPROFILE%\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex-path;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe;%USERPROFILE%\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;%USERPROFILE%\bin;C:\Program Files\Eclipse Adoptium\jdk-8.0.504.1-hotspot\bin;D:\Program Files\Python312\Scripts;D:\Program Files\Python312;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\Program Files\Git\cmd;C:\Program Files\dotnet;C:\Program Files\nodejs;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;D:\Program Files\cursor\resources\app\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;%USERPROFILE%\AppData\Local\agy\bin;%USERPROFILE%\.meituan-catpaw\bin;%USERPROFILE%\.cargo\bin;%USERPROFILE%\.grok\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;%USERPROFILE%\.dotnet\tools;%USERPROFILE%\AppData\Roaming\npm;D:\Program Files\CatPawAI\bin;D:\Downloads\flutter\bin;D:\Program Files\Android\Android Studio\jbr\bin;%USERPROFILE%\AppData\Local\cursor-agent;D:\Program Files\Nmap;%USERPROFILE%\.rtk\bin;D:\Program Files\Antigravity IDE\bin;%USERPROFILE%\AppData\Local\Pandoc;%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\lucasg.Dependencies_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\nodejs;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl).
+ ❯ ChildProcess.<anonymous> ../../../../packages/adapter-utils/src/server-utils.ts:5006:18
+    5004|               ? `Failed to start command "${command}" in "${opts.cwd}"…
+    5005|               : `Failed to start command "${command}" in "${opts.cwd}"…
+    5006|           reject(new Error(msg));
+       |                  ^
+    5007|         });
+    5008|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > passes the resolved model to the CLI for ""
+Error: Failed to start command "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-default-hhqhyL\bin\claude" in "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-default-hhqhyL\workspace". Verify adapter command, working directory, and PATH (%USERPROFILE%\AppData\Local\Temp\paperclip-claude-default-hhqhyL\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;%USERPROFILE%\.codex\tmp\arg0-windows\codex-arg0XVHPaV;%USERPROFILE%\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex-path;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe;%USERPROFILE%\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;%USERPROFILE%\bin;C:\Program Files\Eclipse Adoptium\jdk-8.0.504.1-hotspot\bin;D:\Program Files\Python312\Scripts;D:\Program Files\Python312;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\Program Files\Git\cmd;C:\Program Files\dotnet;C:\Program Files\nodejs;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;D:\Program Files\cursor\resources\app\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;%USERPROFILE%\AppData\Local\agy\bin;%USERPROFILE%\.meituan-catpaw\bin;%USERPROFILE%\.cargo\bin;%USERPROFILE%\.grok\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;%USERPROFILE%\.dotnet\tools;%USERPROFILE%\AppData\Roaming\npm;D:\Program Files\CatPawAI\bin;D:\Downloads\flutter\bin;D:\Program Files\Android\Android Studio\jbr\bin;%USERPROFILE%\AppData\Local\cursor-agent;D:\Program Files\Nmap;%USERPROFILE%\.rtk\bin;D:\Program Files\Antigravity IDE\bin;%USERPROFILE%\AppData\Local\Pandoc;%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\lucasg.Dependencies_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\nodejs;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl).
+ ❯ ChildProcess.<anonymous> ../../../../packages/adapter-utils/src/server-utils.ts:5006:18
+    5004|               ? `Failed to start command "${command}" in "${opts.cwd}"…
+    5005|               : `Failed to start command "${command}" in "${opts.cwd}"…
+    5006|           reject(new Error(msg));
+       |                  ^
+    5007|         });
+    5008|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > passes the resolved model to the CLI for "  "
+Error: Failed to start command "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-default-754173\bin\claude" in "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-default-754173\workspace". Verify adapter command, working directory, and PATH (%USERPROFILE%\AppData\Local\Temp\paperclip-claude-default-754173\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;%USERPROFILE%\.codex\tmp\arg0-windows\codex-arg0XVHPaV;%USERPROFILE%\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex-path;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe;%USERPROFILE%\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;%USERPROFILE%\bin;C:\Program Files\Eclipse Adoptium\jdk-8.0.504.1-hotspot\bin;D:\Program Files\Python312\Scripts;D:\Program Files\Python312;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\Program Files\Git\cmd;C:\Program Files\dotnet;C:\Program Files\nodejs;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;D:\Program Files\cursor\resources\app\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;%USERPROFILE%\AppData\Local\agy\bin;%USERPROFILE%\.meituan-catpaw\bin;%USERPROFILE%\.cargo\bin;%USERPROFILE%\.grok\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;%USERPROFILE%\.dotnet\tools;%USERPROFILE%\AppData\Roaming\npm;D:\Program Files\CatPawAI\bin;D:\Downloads\flutter\bin;D:\Program Files\Android\Android Studio\jbr\bin;%USERPROFILE%\AppData\Local\cursor-agent;D:\Program Files\Nmap;%USERPROFILE%\.rtk\bin;D:\Program Files\Antigravity IDE\bin;%USERPROFILE%\AppData\Local\Pandoc;%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\lucasg.Dependencies_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\nodejs;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl).
+ ❯ ChildProcess.<anonymous> ../../../../packages/adapter-utils/src/server-utils.ts:5006:18
+    5004|               ? `Failed to start command "${command}" in "${opts.cwd}"…
+    5005|               : `Failed to start command "${command}" in "${opts.cwd}"…
+    5006|           reject(new Error(msg));
+       |                  ^
+    5007|         });
+    5008|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > passes the resolved model to the CLI for "claude-sonnet-4-5"
+Error: Failed to start command "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-default-bSlz7A\bin\claude" in "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-default-bSlz7A\workspace". Verify adapter command, working directory, and PATH (%USERPROFILE%\AppData\Local\Temp\paperclip-claude-default-bSlz7A\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;%USERPROFILE%\.codex\tmp\arg0-windows\codex-arg0XVHPaV;%USERPROFILE%\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex-path;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe;%USERPROFILE%\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;%USERPROFILE%\bin;C:\Program Files\Eclipse Adoptium\jdk-8.0.504.1-hotspot\bin;D:\Program Files\Python312\Scripts;D:\Program Files\Python312;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\Program Files\Git\cmd;C:\Program Files\dotnet;C:\Program Files\nodejs;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;D:\Program Files\cursor\resources\app\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;%USERPROFILE%\AppData\Local\agy\bin;%USERPROFILE%\.meituan-catpaw\bin;%USERPROFILE%\.cargo\bin;%USERPROFILE%\.grok\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;%USERPROFILE%\.dotnet\tools;%USERPROFILE%\AppData\Roaming\npm;D:\Program Files\CatPawAI\bin;D:\Downloads\flutter\bin;D:\Program Files\Android\Android Studio\jbr\bin;%USERPROFILE%\AppData\Local\cursor-agent;D:\Program Files\Nmap;%USERPROFILE%\.rtk\bin;D:\Program Files\Antigravity IDE\bin;%USERPROFILE%\AppData\Local\Pandoc;%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\lucasg.Dependencies_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\nodejs;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl).
+ ❯ ChildProcess.<anonymous> ../../../../packages/adapter-utils/src/server-utils.ts:5006:18
+    5004|               ? `Failed to start command "${command}" in "${opts.cwd}"…
+    5005|               : `Failed to start command "${command}" in "${opts.cwd}"…
+    5006|           reject(new Error(msg));
+       |                  ^
+    5007|         });
+    5008|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > uses a strict per-agent MCP config only when managed servers are present
+Error: Failed to start command "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-mcp-config-q8ttZA\bin\claude" in "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-mcp-config-q8ttZA\workspace". Verify adapter command, working directory, and PATH (%USERPROFILE%\AppData\Local\Temp\paperclip-claude-mcp-config-q8ttZA\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;%USERPROFILE%\.codex\tmp\arg0-windows\codex-arg0XVHPaV;%USERPROFILE%\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex-path;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe;%USERPROFILE%\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;%USERPROFILE%\bin;C:\Program Files\Eclipse Adoptium\jdk-8.0.504.1-hotspot\bin;D:\Program Files\Python312\Scripts;D:\Program Files\Python312;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\Program Files\Git\cmd;C:\Program Files\dotnet;C:\Program Files\nodejs;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;D:\Program Files\cursor\resources\app\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;%USERPROFILE%\AppData\Local\agy\bin;%USERPROFILE%\.meituan-catpaw\bin;%USERPROFILE%\.cargo\bin;%USERPROFILE%\.grok\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;%USERPROFILE%\.dotnet\tools;%USERPROFILE%\AppData\Roaming\npm;D:\Program Files\CatPawAI\bin;D:\Downloads\flutter\bin;D:\Program Files\Android\Android Studio\jbr\bin;%USERPROFILE%\AppData\Local\cursor-agent;D:\Program Files\Nmap;%USERPROFILE%\.rtk\bin;D:\Program Files\Antigravity IDE\bin;%USERPROFILE%\AppData\Local\Pandoc;%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\lucasg.Dependencies_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\nodejs;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl).
+ ❯ ChildProcess.<anonymous> ../../../../packages/adapter-utils/src/server-utils.ts:5006:18
+    5004|               ? `Failed to start command "${command}" in "${opts.cwd}"…
+    5005|               : `Failed to start command "${command}" in "${opts.cwd}"…
+    5006|           reject(new Error(msg));
+       |                  ^
+    5007|         });
+    5008|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > passes --append-system-prompt-file on a fresh session when instructionsFile is set
+Error: Failed to start command "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-fresh-X5nA7C\bin\claude" in "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-fresh-X5nA7C\workspace". Verify adapter command, working directory, and PATH (%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-fresh-X5nA7C\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;%USERPROFILE%\.codex\tmp\arg0-windows\codex-arg0XVHPaV;%USERPROFILE%\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex-path;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe;%USERPROFILE%\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;%USERPROFILE%\bin;C:\Program Files\Eclipse Adoptium\jdk-8.0.504.1-hotspot\bin;D:\Program Files\Python312\Scripts;D:\Program Files\Python312;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\Program Files\Git\cmd;C:\Program Files\dotnet;C:\Program Files\nodejs;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;D:\Program Files\cursor\resources\app\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;%USERPROFILE%\AppData\Local\agy\bin;%USERPROFILE%\.meituan-catpaw\bin;%USERPROFILE%\.cargo\bin;%USERPROFILE%\.grok\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;%USERPROFILE%\.dotnet\tools;%USERPROFILE%\AppData\Roaming\npm;D:\Program Files\CatPawAI\bin;D:\Downloads\flutter\bin;D:\Program Files\Android\Android Studio\jbr\bin;%USERPROFILE%\AppData\Local\cursor-agent;D:\Program Files\Nmap;%USERPROFILE%\.rtk\bin;D:\Program Files\Antigravity IDE\bin;%USERPROFILE%\AppData\Local\Pandoc;%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\lucasg.Dependencies_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\nodejs;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl).
+ ❯ ChildProcess.<anonymous> ../../../../packages/adapter-utils/src/server-utils.ts:5006:18
+    5004|               ? `Failed to start command "${command}" in "${opts.cwd}"…
+    5005|               : `Failed to start command "${command}" in "${opts.cwd}"…
+    5006|           reject(new Error(msg));
+       |                  ^
+    5007|         });
+    5008|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > omits --append-system-prompt-file on a resumed session even when instructionsFile is set
+Error: Failed to start command "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-resume-o99Dma\bin\claude" in "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-resume-o99Dma\workspace". Verify adapter command, working directory, and PATH (%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-resume-o99Dma\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;%USERPROFILE%\.codex\tmp\arg0-windows\codex-arg0XVHPaV;%USERPROFILE%\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex-path;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe;%USERPROFILE%\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;%USERPROFILE%\bin;C:\Program Files\Eclipse Adoptium\jdk-8.0.504.1-hotspot\bin;D:\Program Files\Python312\Scripts;D:\Program Files\Python312;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\Program Files\Git\cmd;C:\Program Files\dotnet;C:\Program Files\nodejs;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;D:\Program Files\cursor\resources\app\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;%USERPROFILE%\AppData\Local\agy\bin;%USERPROFILE%\.meituan-catpaw\bin;%USERPROFILE%\.cargo\bin;%USERPROFILE%\.grok\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;%USERPROFILE%\.dotnet\tools;%USERPROFILE%\AppData\Roaming\npm;D:\Program Files\CatPawAI\bin;D:\Downloads\flutter\bin;D:\Program Files\Android\Android Studio\jbr\bin;%USERPROFILE%\AppData\Local\cursor-agent;D:\Program Files\Nmap;%USERPROFILE%\.rtk\bin;D:\Program Files\Antigravity IDE\bin;%USERPROFILE%\AppData\Local\Pandoc;%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\lucasg.Dependencies_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\nodejs;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl).
+ ❯ ChildProcess.<anonymous> ../../../../packages/adapter-utils/src/server-utils.ts:5006:18
+    5004|               ? `Failed to start command "${command}" in "${opts.cwd}"…
+    5005|               : `Failed to start command "${command}" in "${opts.cwd}"…
+    5006|           reject(new Error(msg));
+       |                  ^
+    5007|         });
+    5008|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > commandNotes reports injection on a fresh session with instructionsFile
+Error: Failed to start command "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-notes-fresh-pnKeeo\bin\claude" in "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-notes-fresh-pnKeeo\workspace". Verify adapter command, working directory, and PATH (%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-notes-fresh-pnKeeo\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;%USERPROFILE%\.codex\tmp\arg0-windows\codex-arg0XVHPaV;%USERPROFILE%\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex-path;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe;%USERPROFILE%\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;%USERPROFILE%\bin;C:\Program Files\Eclipse Adoptium\jdk-8.0.504.1-hotspot\bin;D:\Program Files\Python312\Scripts;D:\Program Files\Python312;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\Program Files\Git\cmd;C:\Program Files\dotnet;C:\Program Files\nodejs;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;D:\Program Files\cursor\resources\app\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;%USERPROFILE%\AppData\Local\agy\bin;%USERPROFILE%\.meituan-catpaw\bin;%USERPROFILE%\.cargo\bin;%USERPROFILE%\.grok\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;%USERPROFILE%\.dotnet\tools;%USERPROFILE%\AppData\Roaming\npm;D:\Program Files\CatPawAI\bin;D:\Downloads\flutter\bin;D:\Program Files\Android\Android Studio\jbr\bin;%USERPROFILE%\AppData\Local\cursor-agent;D:\Program Files\Nmap;%USERPROFILE%\.rtk\bin;D:\Program Files\Antigravity IDE\bin;%USERPROFILE%\AppData\Local\Pandoc;%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\lucasg.Dependencies_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\nodejs;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl).
+ ❯ ChildProcess.<anonymous> ../../../../packages/adapter-utils/src/server-utils.ts:5006:18
+    5004|               ? `Failed to start command "${command}" in "${opts.cwd}"…
+    5005|               : `Failed to start command "${command}" in "${opts.cwd}"…
+    5006|           reject(new Error(msg));
+       |                  ^
+    5007|         });
+    5008|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > commandNotes is empty on a resumed session even when instructionsFile is set
+Error: Failed to start command "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-notes-resume-wXfcBy\bin\claude" in "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-notes-resume-wXfcBy\workspace". Verify adapter command, working directory, and PATH (%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-notes-resume-wXfcBy\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;%USERPROFILE%\.codex\tmp\arg0-windows\codex-arg0XVHPaV;%USERPROFILE%\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex-path;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe;%USERPROFILE%\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;%USERPROFILE%\bin;C:\Program Files\Eclipse Adoptium\jdk-8.0.504.1-hotspot\bin;D:\Program Files\Python312\Scripts;D:\Program Files\Python312;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\Program Files\Git\cmd;C:\Program Files\dotnet;C:\Program Files\nodejs;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;D:\Program Files\cursor\resources\app\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;%USERPROFILE%\AppData\Local\agy\bin;%USERPROFILE%\.meituan-catpaw\bin;%USERPROFILE%\.cargo\bin;%USERPROFILE%\.grok\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;%USERPROFILE%\.dotnet\tools;%USERPROFILE%\AppData\Roaming\npm;D:\Program Files\CatPawAI\bin;D:\Downloads\flutter\bin;D:\Program Files\Android\Android Studio\jbr\bin;%USERPROFILE%\AppData\Local\cursor-agent;D:\Program Files\Nmap;%USERPROFILE%\.rtk\bin;D:\Program Files\Antigravity IDE\bin;%USERPROFILE%\AppData\Local\Pandoc;%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\lucasg.Dependencies_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\nodejs;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl).
+ ❯ ChildProcess.<anonymous> ../../../../packages/adapter-utils/src/server-utils.ts:5006:18
+    5004|               ? `Failed to start command "${command}" in "${opts.cwd}"…
+    5005|               : `Failed to start command "${command}" in "${opts.cwd}"…
+    5006|           reject(new Error(msg));
+       |                  ^
+    5007|         });
+    5008|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > rebuilds the combined instructions file when an unknown resumed session falls back to fresh
+Error: Failed to start command "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-resume-fallback-qstPJa\bin\claude" in "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-resume-fallback-qstPJa\workspace". Verify adapter command, working directory, and PATH (%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-resume-fallback-qstPJa\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;%USERPROFILE%\.codex\tmp\arg0-windows\codex-arg0XVHPaV;%USERPROFILE%\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex-path;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe;%USERPROFILE%\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;%USERPROFILE%\bin;C:\Program Files\Eclipse Adoptium\jdk-8.0.504.1-hotspot\bin;D:\Program Files\Python312\Scripts;D:\Program Files\Python312;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\Program Files\Git\cmd;C:\Program Files\dotnet;C:\Program Files\nodejs;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;D:\Program Files\cursor\resources\app\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;%USERPROFILE%\AppData\Local\agy\bin;%USERPROFILE%\.meituan-catpaw\bin;%USERPROFILE%\.cargo\bin;%USERPROFILE%\.grok\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;%USERPROFILE%\.dotnet\tools;%USERPROFILE%\AppData\Roaming\npm;D:\Program Files\CatPawAI\bin;D:\Downloads\flutter\bin;D:\Program Files\Android\Android Studio\jbr\bin;%USERPROFILE%\AppData\Local\cursor-agent;D:\Program Files\Nmap;%USERPROFILE%\.rtk\bin;D:\Program Files\Antigravity IDE\bin;%USERPROFILE%\AppData\Local\Pandoc;%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\lucasg.Dependencies_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\nodejs;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl).
+ ❯ ChildProcess.<anonymous> ../../../../packages/adapter-utils/src/server-utils.ts:5006:18
+    5004|               ? `Failed to start command "${command}" in "${opts.cwd}"…
+    5005|               : `Failed to start command "${command}" in "${opts.cwd}"…
+    5006|           reject(new Error(msg));
+       |                  ^
+    5007|         });
+    5008|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > normalizes max-turn exhaustion into scheduler stop metadata
+Error: Failed to start command "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-max-turns-qAjXIW\bin\claude" in "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-max-turns-qAjXIW\workspace". Verify adapter command, working directory, and PATH (%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-max-turns-qAjXIW\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;%USERPROFILE%\.codex\tmp\arg0-windows\codex-arg0XVHPaV;%USERPROFILE%\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex-path;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe;%USERPROFILE%\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;%USERPROFILE%\bin;C:\Program Files\Eclipse Adoptium\jdk-8.0.504.1-hotspot\bin;D:\Program Files\Python312\Scripts;D:\Program Files\Python312;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\Program Files\Git\cmd;C:\Program Files\dotnet;C:\Program Files\nodejs;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;D:\Program Files\cursor\resources\app\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;%USERPROFILE%\AppData\Local\agy\bin;%USERPROFILE%\.meituan-catpaw\bin;%USERPROFILE%\.cargo\bin;%USERPROFILE%\.grok\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;%USERPROFILE%\.dotnet\tools;%USERPROFILE%\AppData\Roaming\npm;D:\Program Files\CatPawAI\bin;D:\Downloads\flutter\bin;D:\Program Files\Android\Android Studio\jbr\bin;%USERPROFILE%\AppData\Local\cursor-agent;D:\Program Files\Nmap;%USERPROFILE%\.rtk\bin;D:\Program Files\Antigravity IDE\bin;%USERPROFILE%\AppData\Local\Pandoc;%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\lucasg.Dependencies_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\nodejs;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl).
+ ❯ ChildProcess.<anonymous> ../../../../packages/adapter-utils/src/server-utils.ts:5006:18
+    5004|               ? `Failed to start command "${command}" in "${opts.cwd}"…
+    5005|               : `Failed to start command "${command}" in "${opts.cwd}"…
+    5006|           reject(new Error(msg));
+       |                  ^
+    5007|         });
+    5008|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > does not normalize unstructured max-turn text into scheduler stop metadata
+Error: Failed to start command "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-max-turn-text-05Y6PX\bin\claude" in "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-max-turn-text-05Y6PX\workspace". Verify adapter command, working directory, and PATH (%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-max-turn-text-05Y6PX\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;%USERPROFILE%\.codex\tmp\arg0-windows\codex-arg0XVHPaV;%USERPROFILE%\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex-path;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe;%USERPROFILE%\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;%USERPROFILE%\bin;C:\Program Files\Eclipse Adoptium\jdk-8.0.504.1-hotspot\bin;D:\Program Files\Python312\Scripts;D:\Program Files\Python312;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\Program Files\Git\cmd;C:\Program Files\dotnet;C:\Program Files\nodejs;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;D:\Program Files\cursor\resources\app\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;%USERPROFILE%\AppData\Local\agy\bin;%USERPROFILE%\.meituan-catpaw\bin;%USERPROFILE%\.cargo\bin;%USERPROFILE%\.grok\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;%USERPROFILE%\.dotnet\tools;%USERPROFILE%\AppData\Roaming\npm;D:\Program Files\CatPawAI\bin;D:\Downloads\flutter\bin;D:\Program Files\Android\Android Studio\jbr\bin;%USERPROFILE%\AppData\Local\cursor-agent;D:\Program Files\Nmap;%USERPROFILE%\.rtk\bin;D:\Program Files\Antigravity IDE\bin;%USERPROFILE%\AppData\Local\Pandoc;%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\lucasg.Dependencies_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\nodejs;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl).
+ ❯ ChildProcess.<anonymous> ../../../../packages/adapter-utils/src/server-utils.ts:5006:18
+    5004|               ? `Failed to start command "${command}" in "${opts.cwd}"…
+    5005|               : `Failed to start command "${command}" in "${opts.cwd}"…
+    5006|           reject(new Error(msg));
+       |                  ^
+    5007|         });
+    5008|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > does not normalize fallback stdout/stderr max-turn text into scheduler stop metadata
+Error: Failed to start command "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-max-turn-fallback-zqf8UY\bin\claude" in "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-max-turn-fallback-zqf8UY\workspace". Verify adapter command, working directory, and PATH (%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-max-turn-fallback-zqf8UY\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;%USERPROFILE%\.codex\tmp\arg0-windows\codex-arg0XVHPaV;%USERPROFILE%\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex-path;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe;%USERPROFILE%\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;%USERPROFILE%\bin;C:\Program Files\Eclipse Adoptium\jdk-8.0.504.1-hotspot\bin;D:\Program Files\Python312\Scripts;D:\Program Files\Python312;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\Program Files\Git\cmd;C:\Program Files\dotnet;C:\Program Files\nodejs;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;D:\Program Files\cursor\resources\app\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;%USERPROFILE%\AppData\Local\agy\bin;%USERPROFILE%\.meituan-catpaw\bin;%USERPROFILE%\.cargo\bin;%USERPROFILE%\.grok\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;%USERPROFILE%\.dotnet\tools;%USERPROFILE%\AppData\Roaming\npm;D:\Program Files\CatPawAI\bin;D:\Downloads\flutter\bin;D:\Program Files\Android\Android Studio\jbr\bin;%USERPROFILE%\AppData\Local\cursor-agent;D:\Program Files\Nmap;%USERPROFILE%\.rtk\bin;D:\Program Files\Antigravity IDE\bin;%USERPROFILE%\AppData\Local\Pandoc;%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\lucasg.Dependencies_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\nodejs;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl).
+ ❯ ChildProcess.<anonymous> ../../../../packages/adapter-utils/src/server-utils.ts:5006:18
+    5004|               ? `Failed to start command "${command}" in "${opts.cwd}"…
+    5005|               : `Failed to start command "${command}" in "${opts.cwd}"…
+    5006|           reject(new Error(msg));
+       |                  ^
+    5007|         });
+    5008|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > logs HOME, CLAUDE_CONFIG_DIR, and the resolved executable path in invocation metadata
+AssertionError: expected 1 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ src/__tests__/claude-local-execute.test.ts:877:31
+    875|       });
+    876|
+    877|       expect(result.exitCode).toBe(0);
+       |                               ^
+    878|       expect(result.errorMessage).toBeNull();
+    879|       expect(result.usage).toEqual({ inputTokens: 1, cachedInputTokens…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > injects bridge env into sandbox-managed remote runs
+Error: Command failed: tar -c --no-xattrs -f %USERPROFILE%\AppData\Local\Temp\paperclip-sandbox-sync-7p1fWU\workspace.tar -C %USERPROFILE%\AppData\Local\Temp\paperclip-claude-execute-sandbox-OwUYLg\workspace --exclude ._* --exclude node_modules --exclude node_modules/* --exclude */node_modules --exclude */node_modules/* --exclude vendor --exclude vendor/* --exclude */vendor --exclude */vendor/* --exclude dist --exclude dist/* --exclude */dist --exclude */dist/* --exclude build --exclude build/* --exclude */build --exclude */build/* --exclude out --exclude out/* --exclude */out --exclude */out/* --exclude coverage --exclude coverage/* --exclude */coverage --exclude */coverage/* --exclude .next --exclude .next/* --exclude */.next --exclude */.next/* --exclude .turbo --exclude .turbo/* --exclude */.turbo --exclude */.turbo/* --exclude .cache --exclude .cache/* --exclude */.cache --exclude */.cache/* --exclude .git --exclude .git/* --exclude .paperclip-runtime --null -T %USERPROFILE%\AppData\Local\Temp\paperclip-tar-list-mEJ18I\entries.nul
+tar: Cannot connect to C: resolve failed
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > omits --effort for sandbox-managed runs when the installed Claude CLI does not advertise it
+Error: Command failed: tar -c --no-xattrs -f %USERPROFILE%\AppData\Local\Temp\paperclip-sandbox-sync-M1wFk6\workspace.tar -C %USERPROFILE%\AppData\Local\Temp\paperclip-claude-execute-sandbox-effort-deVfuJ\workspace --exclude ._* --exclude node_modules --exclude node_modules/* --exclude */node_modules --exclude */node_modules/* --exclude vendor --exclude vendor/* --exclude */vendor --exclude */vendor/* --exclude dist --exclude dist/* --exclude */dist --exclude */dist/* --exclude build --exclude build/* --exclude */build --exclude */build/* --exclude out --exclude out/* --exclude */out --exclude */out/* --exclude coverage --exclude coverage/* --exclude */coverage --exclude */coverage/* --exclude .next --exclude .next/* --exclude */.next --exclude */.next/* --exclude .turbo --exclude .turbo/* --exclude */.turbo --exclude */.turbo/* --exclude .cache --exclude .cache/* --exclude */.cache --exclude */.cache/* --exclude .git --exclude .git/* --exclude .paperclip-runtime --null -T %USERPROFILE%\AppData\Local\Temp\paperclip-tar-list-T0ALLr\entries.nul
+tar: Cannot connect to C: resolve failed
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > passes through --effort and reuses the sandbox capability probe across sandbox leases when the installed Claude CLI advertises it
+Error: Command failed: tar -c --no-xattrs -f %USERPROFILE%\AppData\Local\Temp\paperclip-sandbox-sync-Y9PozB\workspace.tar -C %USERPROFILE%\AppData\Local\Temp\paperclip-claude-execute-sandbox-effort-supported-GJ9B5S\workspace --exclude ._* --exclude node_modules --exclude node_modules/* --exclude */node_modules --exclude */node_modules/* --exclude vendor --exclude vendor/* --exclude */vendor --exclude */vendor/* --exclude dist --exclude dist/* --exclude */dist --exclude */dist/* --exclude build --exclude build/* --exclude */build --exclude */build/* --exclude out --exclude out/* --exclude */out --exclude */out/* --exclude coverage --exclude coverage/* --exclude */coverage --exclude */coverage/* --exclude .next --exclude .next/* --exclude */.next --exclude */.next/* --exclude .turbo --exclude .turbo/* --exclude */.turbo --exclude */.turbo/* --exclude .cache --exclude .cache/* --exclude */.cache --exclude */.cache/* --exclude .git --exclude .git/* --exclude .paperclip-runtime --null -T %USERPROFILE%\AppData\Local\Temp\paperclip-tar-list-zdfcWk\entries.nul
+tar: Cannot connect to C: resolve failed
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > resumes a stable Claude prompt bundle with unchanged MCP tools
+Error: Failed to start command "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-execute-bundle-pgyscV\claude" in "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-execute-bundle-pgyscV\workspace". Verify adapter command, working directory, and PATH (%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;%USERPROFILE%\.codex\tmp\arg0-windows\codex-arg0XVHPaV;%USERPROFILE%\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex-path;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe;%USERPROFILE%\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;%USERPROFILE%\bin;C:\Program Files\Eclipse Adoptium\jdk-8.0.504.1-hotspot\bin;D:\Program Files\Python312\Scripts;D:\Program Files\Python312;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\Program Files\Git\cmd;C:\Program Files\dotnet;C:\Program Files\nodejs;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;D:\Program Files\cursor\resources\app\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;%USERPROFILE%\AppData\Local\agy\bin;%USERPROFILE%\.meituan-catpaw\bin;%USERPROFILE%\.cargo\bin;%USERPROFILE%\.grok\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;%USERPROFILE%\.dotnet\tools;%USERPROFILE%\AppData\Roaming\npm;D:\Program Files\CatPawAI\bin;D:\Downloads\flutter\bin;D:\Program Files\Android\Android Studio\jbr\bin;%USERPROFILE%\AppData\Local\cursor-agent;D:\Program Files\Nmap;%USERPROFILE%\.rtk\bin;D:\Program Files\Antigravity IDE\bin;%USERPROFILE%\AppData\Local\Pandoc;%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\lucasg.Dependencies_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\nodejs;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl).
+ ❯ ChildProcess.<anonymous> ../../../../packages/adapter-utils/src/server-utils.ts:5006:18
+    5004|               ? `Failed to start command "${command}" in "${opts.cwd}"…
+    5005|               : `Failed to start command "${command}" in "${opts.cwd}"…
+    5006|           reject(new Error(msg));
+       |                  ^
+    5007|         });
+    5008|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > resumes a stable Claude prompt bundle with added MCP tools
+Error: Failed to start command "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-execute-bundle-6mxa1K\claude" in "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-execute-bundle-6mxa1K\workspace". Verify adapter command, working directory, and PATH (%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;%USERPROFILE%\.codex\tmp\arg0-windows\codex-arg0XVHPaV;%USERPROFILE%\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex-path;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe;%USERPROFILE%\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;%USERPROFILE%\bin;C:\Program Files\Eclipse Adoptium\jdk-8.0.504.1-hotspot\bin;D:\Program Files\Python312\Scripts;D:\Program Files\Python312;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\Program Files\Git\cmd;C:\Program Files\dotnet;C:\Program Files\nodejs;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;D:\Program Files\cursor\resources\app\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;%USERPROFILE%\AppData\Local\agy\bin;%USERPROFILE%\.meituan-catpaw\bin;%USERPROFILE%\.cargo\bin;%USERPROFILE%\.grok\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;%USERPROFILE%\.dotnet\tools;%USERPROFILE%\AppData\Roaming\npm;D:\Program Files\CatPawAI\bin;D:\Downloads\flutter\bin;D:\Program Files\Android\Android Studio\jbr\bin;%USERPROFILE%\AppData\Local\cursor-agent;D:\Program Files\Nmap;%USERPROFILE%\.rtk\bin;D:\Program Files\Antigravity IDE\bin;%USERPROFILE%\AppData\Local\Pandoc;%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\lucasg.Dependencies_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\nodejs;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl).
+ ❯ ChildProcess.<anonymous> ../../../../packages/adapter-utils/src/server-utils.ts:5006:18
+    5004|               ? `Failed to start command "${command}" in "${opts.cwd}"…
+    5005|               : `Failed to start command "${command}" in "${opts.cwd}"…
+    5006|           reject(new Error(msg));
+       |                  ^
+    5007|         });
+    5008|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > resumes a stable Claude prompt bundle with removed MCP tools
+Error: Failed to start command "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-execute-bundle-yf01u7\claude" in "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-execute-bundle-yf01u7\workspace". Verify adapter command, working directory, and PATH (%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;%USERPROFILE%\.codex\tmp\arg0-windows\codex-arg0XVHPaV;%USERPROFILE%\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex-path;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe;%USERPROFILE%\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;%USERPROFILE%\bin;C:\Program Files\Eclipse Adoptium\jdk-8.0.504.1-hotspot\bin;D:\Program Files\Python312\Scripts;D:\Program Files\Python312;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\Program Files\Git\cmd;C:\Program Files\dotnet;C:\Program Files\nodejs;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;D:\Program Files\cursor\resources\app\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;%USERPROFILE%\AppData\Local\agy\bin;%USERPROFILE%\.meituan-catpaw\bin;%USERPROFILE%\.cargo\bin;%USERPROFILE%\.grok\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;%USERPROFILE%\.dotnet\tools;%USERPROFILE%\AppData\Roaming\npm;D:\Program Files\CatPawAI\bin;D:\Downloads\flutter\bin;D:\Program Files\Android\Android Studio\jbr\bin;%USERPROFILE%\AppData\Local\cursor-agent;D:\Program Files\Nmap;%USERPROFILE%\.rtk\bin;D:\Program Files\Antigravity IDE\bin;%USERPROFILE%\AppData\Local\Pandoc;%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\lucasg.Dependencies_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\nodejs;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl).
+ ❯ ChildProcess.<anonymous> ../../../../packages/adapter-utils/src/server-utils.ts:5006:18
+    5004|               ? `Failed to start command "${command}" in "${opts.cwd}"…
+    5005|               : `Failed to start command "${command}" in "${opts.cwd}"…
+    5006|           reject(new Error(msg));
+       |                  ^
+    5007|         });
+    5008|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[25/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > resumes across per-run instruction copies and refreshes their location
+Error: Failed to start command "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-working-copy-ueRqtH\claude" in "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-working-copy-ueRqtH\workspace". Verify adapter command, working directory, and PATH (%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;%USERPROFILE%\.codex\tmp\arg0-windows\codex-arg0XVHPaV;%USERPROFILE%\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex-path;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe;%USERPROFILE%\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;%USERPROFILE%\bin;C:\Program Files\Eclipse Adoptium\jdk-8.0.504.1-hotspot\bin;D:\Program Files\Python312\Scripts;D:\Program Files\Python312;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\Program Files\Git\cmd;C:\Program Files\dotnet;C:\Program Files\nodejs;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;D:\Program Files\cursor\resources\app\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;%USERPROFILE%\AppData\Local\agy\bin;%USERPROFILE%\.meituan-catpaw\bin;%USERPROFILE%\.cargo\bin;%USERPROFILE%\.grok\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;%USERPROFILE%\.dotnet\tools;%USERPROFILE%\AppData\Roaming\npm;D:\Program Files\CatPawAI\bin;D:\Downloads\flutter\bin;D:\Program Files\Android\Android Studio\jbr\bin;%USERPROFILE%\AppData\Local\cursor-agent;D:\Program Files\Nmap;%USERPROFILE%\.rtk\bin;D:\Program Files\Antigravity IDE\bin;%USERPROFILE%\AppData\Local\Pandoc;%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\lucasg.Dependencies_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\nodejs;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl).
+ ❯ ChildProcess.<anonymous> ../../../../packages/adapter-utils/src/server-utils.ts:5006:18
+    5004|               ? `Failed to start command "${command}" in "${opts.cwd}"…
+    5005|               : `Failed to start command "${command}" in "${opts.cwd}"…
+    5006|           reject(new Error(msg));
+       |                  ^
+    5007|         });
+    5008|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[26/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > starts a fresh Claude session when the stable prompt bundle changes
+Error: Failed to start command "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-execute-reset-OMe0IZ\claude" in "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-execute-reset-OMe0IZ\workspace". Verify adapter command, working directory, and PATH (%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;%USERPROFILE%\.codex\tmp\arg0-windows\codex-arg0XVHPaV;%USERPROFILE%\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex-path;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe;%USERPROFILE%\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;%USERPROFILE%\bin;C:\Program Files\Eclipse Adoptium\jdk-8.0.504.1-hotspot\bin;D:\Program Files\Python312\Scripts;D:\Program Files\Python312;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\Program Files\Git\cmd;C:\Program Files\dotnet;C:\Program Files\nodejs;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;D:\Program Files\cursor\resources\app\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;%USERPROFILE%\AppData\Local\agy\bin;%USERPROFILE%\.meituan-catpaw\bin;%USERPROFILE%\.cargo\bin;%USERPROFILE%\.grok\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;%USERPROFILE%\.dotnet\tools;%USERPROFILE%\AppData\Roaming\npm;D:\Program Files\CatPawAI\bin;D:\Downloads\flutter\bin;D:\Program Files\Android\Android Studio\jbr\bin;%USERPROFILE%\AppData\Local\cursor-agent;D:\Program Files\Nmap;%USERPROFILE%\.rtk\bin;D:\Program Files\Antigravity IDE\bin;%USERPROFILE%\AppData\Local\Pandoc;%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\lucasg.Dependencies_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\nodejs;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl).
+ ❯ ChildProcess.<anonymous> ../../../../packages/adapter-utils/src/server-utils.ts:5006:18
+    5004|               ? `Failed to start command "${command}" in "${opts.cwd}"…
+    5005|               : `Failed to start command "${command}" in "${opts.cwd}"…
+    5006|           reject(new Error(msg));
+       |                  ^
+    5007|         });
+    5008|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[27/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > classifies Claude 'out of extra usage' failures as provider quota errors
+Error: Failed to start command "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-execute-transient-oqT1oo\claude" in "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-execute-transient-oqT1oo\workspace". Verify adapter command, working directory, and PATH (%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;%USERPROFILE%\.codex\tmp\arg0-windows\codex-arg0XVHPaV;%USERPROFILE%\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex-path;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe;%USERPROFILE%\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;%USERPROFILE%\bin;C:\Program Files\Eclipse Adoptium\jdk-8.0.504.1-hotspot\bin;D:\Program Files\Python312\Scripts;D:\Program Files\Python312;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\Program Files\Git\cmd;C:\Program Files\dotnet;C:\Program Files\nodejs;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;D:\Program Files\cursor\resources\app\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;%USERPROFILE%\AppData\Local\agy\bin;%USERPROFILE%\.meituan-catpaw\bin;%USERPROFILE%\.cargo\bin;%USERPROFILE%\.grok\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;%USERPROFILE%\.dotnet\tools;%USERPROFILE%\AppData\Roaming\npm;D:\Program Files\CatPawAI\bin;D:\Downloads\flutter\bin;D:\Program Files\Android\Android Studio\jbr\bin;%USERPROFILE%\AppData\Local\cursor-agent;D:\Program Files\Nmap;%USERPROFILE%\.rtk\bin;D:\Program Files\Antigravity IDE\bin;%USERPROFILE%\AppData\Local\Pandoc;%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\lucasg.Dependencies_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\nodejs;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl).
+ ❯ ChildProcess.<anonymous> ../../../../packages/adapter-utils/src/server-utils.ts:5006:18
+    5004|               ? `Failed to start command "${command}" in "${opts.cwd}"…
+    5005|               : `Failed to start command "${command}" in "${opts.cwd}"…
+    5006|           reject(new Error(msg));
+       |                  ^
+    5007|         });
+    5008|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[28/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > treats subtype=success results as successful even when the process exits nonzero
+Error: Failed to start command "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-execute-success-subtype-ShtVDU\claude" in "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-execute-success-subtype-ShtVDU\workspace". Verify adapter command, working directory, and PATH (%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;%USERPROFILE%\.codex\tmp\arg0-windows\codex-arg0XVHPaV;%USERPROFILE%\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex-path;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe;%USERPROFILE%\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;%USERPROFILE%\bin;C:\Program Files\Eclipse Adoptium\jdk-8.0.504.1-hotspot\bin;D:\Program Files\Python312\Scripts;D:\Program Files\Python312;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\Program Files\Git\cmd;C:\Program Files\dotnet;C:\Program Files\nodejs;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;D:\Program Files\cursor\resources\app\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;%USERPROFILE%\AppData\Local\agy\bin;%USERPROFILE%\.meituan-catpaw\bin;%USERPROFILE%\.cargo\bin;%USERPROFILE%\.grok\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;%USERPROFILE%\.dotnet\tools;%USERPROFILE%\AppData\Roaming\npm;D:\Program Files\CatPawAI\bin;D:\Downloads\flutter\bin;D:\Program Files\Android\Android Studio\jbr\bin;%USERPROFILE%\AppData\Local\cursor-agent;D:\Program Files\Nmap;%USERPROFILE%\.rtk\bin;D:\Program Files\Antigravity IDE\bin;%USERPROFILE%\AppData\Local\Pandoc;%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\lucasg.Dependencies_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\nodejs;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl).
+ ❯ ChildProcess.<anonymous> ../../../../packages/adapter-utils/src/server-utils.ts:5006:18
+    5004|               ? `Failed to start command "${command}" in "${opts.cwd}"…
+    5005|               : `Failed to start command "${command}" in "${opts.cwd}"…
+    5006|           reject(new Error(msg));
+       |                  ^
+    5007|         });
+    5008|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[29/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > classifies rate-limit / overloaded failures without reset metadata as transient
+Error: Failed to start command "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-execute-rate-limit-yT5TTF\claude" in "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-execute-rate-limit-yT5TTF\workspace". Verify adapter command, working directory, and PATH (%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;%USERPROFILE%\.codex\tmp\arg0-windows\codex-arg0XVHPaV;%USERPROFILE%\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex-path;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe;%USERPROFILE%\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;%USERPROFILE%\bin;C:\Program Files\Eclipse Adoptium\jdk-8.0.504.1-hotspot\bin;D:\Program Files\Python312\Scripts;D:\Program Files\Python312;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\Program Files\Git\cmd;C:\Program Files\dotnet;C:\Program Files\nodejs;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;D:\Program Files\cursor\resources\app\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;%USERPROFILE%\AppData\Local\agy\bin;%USERPROFILE%\.meituan-catpaw\bin;%USERPROFILE%\.cargo\bin;%USERPROFILE%\.grok\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;%USERPROFILE%\.dotnet\tools;%USERPROFILE%\AppData\Roaming\npm;D:\Program Files\CatPawAI\bin;D:\Downloads\flutter\bin;D:\Program Files\Android\Android Studio\jbr\bin;%USERPROFILE%\AppData\Local\cursor-agent;D:\Program Files\Nmap;%USERPROFILE%\.rtk\bin;D:\Program Files\Antigravity IDE\bin;%USERPROFILE%\AppData\Local\Pandoc;%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\lucasg.Dependencies_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\nodejs;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl).
+ ❯ ChildProcess.<anonymous> ../../../../packages/adapter-utils/src/server-utils.ts:5006:18
+    5004|               ? `Failed to start command "${command}" in "${opts.cwd}"…
+    5005|               : `Failed to start command "${command}" in "${opts.cwd}"…
+    5006|           reject(new Error(msg));
+       |                  ^
+    5007|         });
+    5008|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[30/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > does not reclassify deterministic Claude failures (auth, max turns) as transient
+Error: Failed to start command "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-execute-max-turns-dhyXb1\claude" in "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-execute-max-turns-dhyXb1\workspace". Verify adapter command, working directory, and PATH (%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;%USERPROFILE%\.codex\tmp\arg0-windows\codex-arg0XVHPaV;%USERPROFILE%\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex-path;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe;%USERPROFILE%\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;%USERPROFILE%\bin;C:\Program Files\Eclipse Adoptium\jdk-8.0.504.1-hotspot\bin;D:\Program Files\Python312\Scripts;D:\Program Files\Python312;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\Program Files\Git\cmd;C:\Program Files\dotnet;C:\Program Files\nodejs;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;D:\Program Files\cursor\resources\app\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;%USERPROFILE%\AppData\Local\agy\bin;%USERPROFILE%\.meituan-catpaw\bin;%USERPROFILE%\.cargo\bin;%USERPROFILE%\.grok\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;%USERPROFILE%\.dotnet\tools;%USERPROFILE%\AppData\Roaming\npm;D:\Program Files\CatPawAI\bin;D:\Downloads\flutter\bin;D:\Program Files\Android\Android Studio\jbr\bin;%USERPROFILE%\AppData\Local\cursor-agent;D:\Program Files\Nmap;%USERPROFILE%\.rtk\bin;D:\Program Files\Antigravity IDE\bin;%USERPROFILE%\AppData\Local\Pandoc;%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\lucasg.Dependencies_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\nodejs;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl).
+ ❯ ChildProcess.<anonymous> ../../../../packages/adapter-utils/src/server-utils.ts:5006:18
+    5004|               ? `Failed to start command "${command}" in "${opts.cwd}"…
+    5005|               : `Failed to start command "${command}" in "${opts.cwd}"…
+    5006|           reject(new Error(msg));
+       |                  ^
+    5007|         });
+    5008|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[31/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > auto-rotates session on previous_message_id 400 (synthetic-msg poisoning) and succeeds on retry
+Error: Failed to start command "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-poisoned-msgid-8JYZjX\bin\claude" in "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-poisoned-msgid-8JYZjX\workspace". Verify adapter command, working directory, and PATH (%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-poisoned-msgid-8JYZjX\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;%USERPROFILE%\.codex\tmp\arg0-windows\codex-arg0XVHPaV;%USERPROFILE%\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex-path;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe;%USERPROFILE%\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;%USERPROFILE%\bin;C:\Program Files\Eclipse Adoptium\jdk-8.0.504.1-hotspot\bin;D:\Program Files\Python312\Scripts;D:\Program Files\Python312;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\Program Files\Git\cmd;C:\Program Files\dotnet;C:\Program Files\nodejs;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;D:\Program Files\cursor\resources\app\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;%USERPROFILE%\AppData\Local\agy\bin;%USERPROFILE%\.meituan-catpaw\bin;%USERPROFILE%\.cargo\bin;%USERPROFILE%\.grok\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;%USERPROFILE%\.dotnet\tools;%USERPROFILE%\AppData\Roaming\npm;D:\Program Files\CatPawAI\bin;D:\Downloads\flutter\bin;D:\Program Files\Android\Android Studio\jbr\bin;%USERPROFILE%\AppData\Local\cursor-agent;D:\Program Files\Nmap;%USERPROFILE%\.rtk\bin;D:\Program Files\Antigravity IDE\bin;%USERPROFILE%\AppData\Local\Pandoc;%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\lucasg.Dependencies_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\nodejs;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl).
+ ❯ ChildProcess.<anonymous> ../../../../packages/adapter-utils/src/server-utils.ts:5006:18
+    5004|               ? `Failed to start command "${command}" in "${opts.cwd}"…
+    5005|               : `Failed to start command "${command}" in "${opts.cwd}"…
+    5006|           reject(new Error(msg));
+       |                  ^
+    5007|         });
+    5008|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[32/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > drops sessionId and forces clearSession when a fresh run reports a poisoned previous_message_id
+Error: Failed to start command "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-poisoned-fresh-3Hd8f5\bin\claude" in "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-poisoned-fresh-3Hd8f5\workspace". Verify adapter command, working directory, and PATH (%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-poisoned-fresh-3Hd8f5\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;%USERPROFILE%\.codex\tmp\arg0-windows\codex-arg0XVHPaV;%USERPROFILE%\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex-path;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe;%USERPROFILE%\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;%USERPROFILE%\bin;C:\Program Files\Eclipse Adoptium\jdk-8.0.504.1-hotspot\bin;D:\Program Files\Python312\Scripts;D:\Program Files\Python312;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\Program Files\Git\cmd;C:\Program Files\dotnet;C:\Program Files\nodejs;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;D:\Program Files\cursor\resources\app\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;%USERPROFILE%\AppData\Local\agy\bin;%USERPROFILE%\.meituan-catpaw\bin;%USERPROFILE%\.cargo\bin;%USERPROFILE%\.grok\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;%USERPROFILE%\.dotnet\tools;%USERPROFILE%\AppData\Roaming\npm;D:\Program Files\CatPawAI\bin;D:\Downloads\flutter\bin;D:\Program Files\Android\Android Studio\jbr\bin;%USERPROFILE%\AppData\Local\cursor-agent;D:\Program Files\Nmap;%USERPROFILE%\.rtk\bin;D:\Program Files\Antigravity IDE\bin;%USERPROFILE%\AppData\Local\Pandoc;%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\lucasg.Dependencies_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\nodejs;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl).
+ ❯ ChildProcess.<anonymous> ../../../../packages/adapter-utils/src/server-utils.ts:5006:18
+    5004|               ? `Failed to start command "${command}" in "${opts.cwd}"…
+    5005|               : `Failed to start command "${command}" in "${opts.cwd}"…
+    5006|           reject(new Error(msg));
+       |                  ^
+    5007|         });
+    5008|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[33/34]⎯
+
+ FAIL  |@paperclipai/server| src/__tests__/claude-local-execute.test.ts > claude execute > forces clearSession when the recovery retry also reports a poisoned previous_message_id
+Error: Failed to start command "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-poisoned-retry-GKpRb3\bin\claude" in "%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-poisoned-retry-GKpRb3\workspace". Verify adapter command, working directory, and PATH (%USERPROFILE%\AppData\Local\Temp\paperclip-claude-exec-poisoned-retry-GKpRb3\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;%USERPROFILE%\.codex\tmp\arg0-windows\codex-arg0XVHPaV;%USERPROFILE%\AppData\Roaming\npm\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\codex-path;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\Microsoft.PowerShell_8wekyb3d8bbwe;C:\Program Files\WindowsApps\Microsoft.PowerShell_7.6.9.0_x64__8wekyb3d8bbwe;%USERPROFILE%\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\local\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\usr\bin;D:\Program Files\Git\mingw64\bin;D:\Program Files\Git\usr\bin;%USERPROFILE%\bin;C:\Program Files\Eclipse Adoptium\jdk-8.0.504.1-hotspot\bin;D:\Program Files\Python312\Scripts;D:\Program Files\Python312;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0;C:\WINDOWS\System32\OpenSSH;D:\Program Files\Git\cmd;C:\Program Files\dotnet;C:\Program Files\nodejs;C:\Program Files\NVIDIA Corporation\NVIDIA App\NvDLISR;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\Docker\Docker\resources\bin;D:\Program Files\cursor\resources\app\bin;C:\Strawberry\c\bin;C:\Strawberry\perl\site\bin;C:\Strawberry\perl\bin;%USERPROFILE%\AppData\Local\agy\bin;%USERPROFILE%\.meituan-catpaw\bin;%USERPROFILE%\.cargo\bin;%USERPROFILE%\.grok\bin;%USERPROFILE%\AppData\Local\Microsoft\WindowsApps;%USERPROFILE%\.dotnet\tools;%USERPROFILE%\AppData\Roaming\npm;D:\Program Files\CatPawAI\bin;D:\Downloads\flutter\bin;D:\Program Files\Android\Android Studio\jbr\bin;%USERPROFILE%\AppData\Local\cursor-agent;D:\Program Files\Nmap;%USERPROFILE%\.rtk\bin;D:\Program Files\Antigravity IDE\bin;%USERPROFILE%\AppData\Local\Pandoc;%USERPROFILE%\AppData\Local\Microsoft\WinGet\Packages\lucasg.Dependencies_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\nodejs;D:\Program Files\Git\usr\bin\vendor_perl;D:\Program Files\Git\usr\bin\core_perl).
+ ❯ ChildProcess.<anonymous> ../../../../packages/adapter-utils/src/server-utils.ts:5006:18
+    5004|               ? `Failed to start command "${command}" in "${opts.cwd}"…
+    5005|               : `Failed to start command "${command}" in "${opts.cwd}"…
+    5006|           reject(new Error(msg));
+       |                  ^
+    5007|         });
+    5008|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[34/34]⎯
+
+
+ Test Files  3 failed | 2 passed (5)
+      Tests  34 failed | 22 passed (56)
+   Start at  13:23:04
+   Duration  54.88s (tests 44%, transform 33%, import 21%, setup 1%)
+
+  Transform  |@paperclipai/server| transforming modules took 17.87s · 33% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+

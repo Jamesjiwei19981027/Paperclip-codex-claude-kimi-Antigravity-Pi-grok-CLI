@@ -1,0 +1,6 @@
+cwd=.
+command=python -O doc/plans/2026-10-29-member-agent-0.3.4-evidence/verify-approved-inputs.py
+member-agent/dist-installer/PaperclipMemberAgent-0.3.3-codebuddy.zip: approved ZIP SHA-256 PASS; manifest and 10396 extracted vendor files PASS
+member-agent/dist-installer/PaperclipMemberAgent-0.3.3.zip: approved ZIP SHA-256 PASS; manifest and 4 extracted vendor files PASS
+
+exitCode=0

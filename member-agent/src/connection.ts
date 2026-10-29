@@ -31,6 +31,8 @@ export interface ConnectionOptions {
   agentKey: string;
   version: string;
   codexVersion?: string;
+  executor?: "echo" | "codex" | "codebuddy";
+  executorVersion?: string;
   check?: boolean;
   signal?: AbortSignal;
   logger: { write(level: 'info' | 'warn' | 'error' | 'debug', message: string, visible?: boolean): void };
@@ -210,7 +212,7 @@ function connectOnce(options: ConnectionOptions, clock: Clock): Promise<Outcome>
     socket.on('open', () => {
       if (closed) return;
       const label = (value: string) => value.slice(0, 255) || 'unknown';
-      queue.send({ v: 1, type: 'hello', agentVersion: label(options.version), codexVersion: label(options.codexVersion ?? 'none'), hostname: label(hostname()), platform: label(platform()) });
+      queue.send({ v: 1, type: 'hello', agentVersion: label(options.version), codexVersion: label(options.codexVersion ?? 'none'), hostname: label(hostname()), platform: label(platform()), ...(options.executor?{executor:options.executor,executorVersion:label(options.executorVersion??'none')}:{}) });
       helloTimer = clock.setTimeout(() => { options.logger.write('warn', '服务器 10 秒内未响应 hello，正在重新连接', true); finish(); }, 10_000);
     });
     socket.on('close', (code, reason) => {
@@ -247,7 +249,7 @@ function connectOnce(options: ConnectionOptions, clock: Clock): Promise<Outcome>
           agentVersionError = `成员代理当前版本 ${options.version} 低于或不符合服务器要求版本 ${required}；请运行新安装包升级。`;
           options.logger.write('error', agentVersionError, true);
         }
-        if (options.codexVersion && options.codexVersion !== 'none') {
+        if ((options.executor === undefined || options.executor === 'codex') && options.codexVersion && options.codexVersion !== 'none') {
           const status = codexVersionStatus(options.codexVersion, frame.pinnedCodexVersion);
           if (status === 'compatible') options.logger.write('warn', `本机 Codex ${options.codexVersion} 与服务器固定版本 ${String(frame.pinnedCodexVersion)} 不同，但都在受支持范围内，继续运行。`, true);
           if (status === 'unsupported') {

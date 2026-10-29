@@ -1,7 +1,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import { once } from "node:events";
 import { createHash } from "node:crypto";
-import { cp, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
+import { cp, lstat, mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -58,6 +58,28 @@ async function pack(dir: string, version: string) {
   await writeFile(path.join(out, "app/member-agent/src/main.ts"), "// Fake installer package; never run.");
   await writeFile(path.join(out, "app/member-agent/package.json"), '{"type":"module"}');
   await manifest(out, version); return out;
+}
+async function longCacheFixture(base: string, target?: string) {
+  const deep = path.join(base, "instances/default/companies", "c".repeat(36), "claude-prompt-cache", "a".repeat(64), ".claude/skills", "深".repeat(40));
+  await mkdir(deep, { recursive: true });
+  for (const name of ["copied-skill.md", "hidden-cache.txt", "readonly-cache.txt"]) {
+    const file = path.join(deep, name);
+    expect(file.length).toBeGreaterThan(260);
+    await writeFile(file, "regenerable");
+  }
+  if (target) {
+    const junction = path.join(deep, "paperclip");
+    expect(junction.length).toBeGreaterThan(260);
+    const made = spawnSync("pwsh.exe", ["-NoProfile", "-NonInteractive", "-Command", "$ErrorActionPreference='Stop'; New-Item -ItemType Junction -Path $env:PMA_JUNCTION -Target $env:PMA_TARGET | Out-Null"], {
+      env: { ...process.env, PMA_JUNCTION: junction, PMA_TARGET: target }, encoding: "utf8", windowsHide: true, timeout: 15_000,
+    });
+    expect(made.status, made.stdout + made.stderr).toBe(0);
+    expect((await lstat(junction)).isSymbolicLink()).toBe(true);
+  }
+  const attributes = spawnSync("pwsh.exe", ["-NoProfile", "-NonInteractive", "-Command", "$ErrorActionPreference='Stop'; (Get-Item -LiteralPath ($env:PMA_DEEP+'\\readonly-cache.txt')).IsReadOnly=$true; (Get-Item -LiteralPath ($env:PMA_DEEP+'\\hidden-cache.txt')).Attributes='Hidden'"], {
+    env: { ...process.env, PMA_DEEP: deep }, encoding: "utf8", windowsHide: true, timeout: 15_000,
+  });
+  expect(attributes.status, attributes.stdout + attributes.stderr).toBe(0);
 }
 describe.skipIf(process.platform !== "win32")("isolated Windows installer scripts", () => {
   it("every executable script has UTF-8 BOM and parses in both engines", async () => {
@@ -187,6 +209,121 @@ fsFixture.writeFileSync(inputFixture,'\\uFEFF'+bytesFixture.toString('utf8'));
         await writeFile(path.join(s.config, "agent-control.json"), JSON.stringify({ pid: process.pid, startedAt: "2000-01-01T00:00:00.000Z" }));
         const overwrite = execute(shell, path.join(pkg, "install.ps1"), [...args, "-TestOverwrite"]);
         expect(overwrite.code, overwrite.output).not.toBe(0); expect(await readFile(executable, "utf8")).toBe("EXISTING-DO-NOT-OVERWRITE");
+      } finally { await rm(s.dir, { recursive: true, force: true }); }
+    }, 60_000);
+    it("cleans legacy CodeBuddy runtime junctions on overwrite and default uninstall while preserving targets", async () => {
+      const s = await sandbox();
+      try {
+        const target = path.join(s.dir, "legacy-target");
+        const cache = path.join(s.config, "codebuddy-home", "paperclip-runtime");
+        await mkdir(target); await writeFile(path.join(target, "keep.txt"), "must survive");
+        const junction = (destination: string) => {
+          const result = spawnSync(shell, ["-NoProfile", "-NonInteractive", "-Command", "$ErrorActionPreference='Stop'; New-Item -ItemType Junction -Path $env:PMA_JUNCTION -Target $env:PMA_TARGET | Out-Null"], {
+            env: { ...process.env, PMA_JUNCTION: destination, PMA_TARGET: target }, encoding: "utf8", windowsHide: true, timeout: 15_000,
+          });
+          expect(result.status, result.stdout + result.stderr).toBe(0);
+        };
+        const pkg = await pack(s.dir, "0.3.4");
+        const args = [...s.args, "-TestDefaultCwd", s.cwd, "-TestExecutor", s.executor, "-TestNode", process.execPath];
+        await writeFile(path.join(s.config, "codes.json"), "[0]");
+        const installed = execute(shell, path.join(pkg, "install.ps1"), args);
+        expect(installed.code, installed.output).toBe(0);
+
+        for (const cacheRootLink of [false, true]) {
+          await mkdir(path.dirname(cache), { recursive: true });
+          if (cacheRootLink) junction(cache);
+          else {
+            await mkdir(path.join(cache, "nested"), { recursive: true });
+            junction(path.join(cache, "nested", "legacy-skill"));
+            await writeFile(path.join(cache, "regenerable.txt"), "cache");
+          }
+          await writeFile(path.join(s.config, "codes.json"), "[0]");
+          const overwritten = execute(shell, path.join(pkg, "install.ps1"), [...args, "-TestOverwrite"]);
+          expect(overwritten.code, overwritten.output).toBe(0);
+          expect(await lstat(cache).catch(() => null)).toBeNull();
+          expect((await lstat(target)).isDirectory()).toBe(true);
+          expect(await readFile(path.join(target, "keep.txt"), "utf8")).toBe("must survive");
+        }
+
+        await mkdir(cache, { recursive: true }); junction(path.join(cache, "legacy-skill"));
+        const configBefore = await readFile(path.join(s.config, "config.json"), "utf8");
+        const uninstalled = execute(shell, path.join(root, "uninstall.ps1"), s.args);
+        expect(uninstalled.code, uninstalled.output).toBe(0);
+        expect(await lstat(cache).catch(() => null)).toBeNull();
+        expect(await readFile(path.join(s.config, "config.json"), "utf8")).toBe(configBefore);
+        expect((await lstat(target)).isDirectory()).toBe(true);
+        expect(await readFile(path.join(target, "keep.txt"), "utf8")).toBe("must survive");
+      } finally { await rm(s.dir, { recursive: true, force: true }); }
+    }, 90_000);
+    for (const linked of [true, false]) it(`cleans >260-character ${linked ? "junctions and ordinary files" : "copied ordinary files"} before overwrite and uninstall config scanning`, async () => {
+      const s = await sandbox();
+      try {
+        const target = path.join(s.dir, "long-cache-target");
+        await mkdir(target); await writeFile(path.join(target, "keep.txt"), "must survive long cache cleanup");
+        const cache = path.join(s.config, "codebuddy-home/paperclip-runtime");
+        const pkg = await pack(s.dir, "0.3.4");
+        const args = [...s.args, "-TestDefaultCwd", s.cwd, "-TestExecutor", s.executor, "-TestNode", process.execPath];
+        await writeFile(path.join(s.config, "codes.json"), "[0]");
+        const installed = execute(shell, path.join(pkg, "install.ps1"), args);
+        expect(installed.code, installed.output).toBe(0);
+        await longCacheFixture(cache, linked ? target : undefined);
+        await writeFile(path.join(s.config, "codes.json"), "[0]");
+        const overwritten = execute(shell, path.join(pkg, "install.ps1"), [...args, "-TestOverwrite"]);
+        expect(overwritten.code, overwritten.output).toBe(0);
+        expect(await lstat(cache).catch(() => null)).toBeNull();
+        expect(await readFile(path.join(s.install, "current.txt"), "utf8")).toBe("0.3.4");
+        expect((await lstat(target)).isDirectory()).toBe(true);
+        expect(await readFile(path.join(target, "keep.txt"), "utf8")).toBe("must survive long cache cleanup");
+
+        for (const removeConfig of [false, true]) {
+          if (removeConfig) {
+            await writeFile(path.join(s.config, "codes.json"), "[0]");
+            const reinstalled = execute(shell, path.join(pkg, "install.ps1"), args);
+            expect(reinstalled.code, reinstalled.output).toBe(0);
+          }
+          await longCacheFixture(cache, linked ? target : undefined);
+          const before = await readFile(path.join(s.config, "config.json"), "utf8");
+          const uninstalled = execute(shell, path.join(root, "uninstall.ps1"), [...s.args, ...(removeConfig ? ["-RemoveConfig", "-RemoveHome", "-RemoveLogs"] : [])]);
+          expect(uninstalled.code, uninstalled.output).toBe(0);
+          expect(await lstat(cache).catch(() => null)).toBeNull();
+          expect(await lstat(s.install).catch(() => null)).toBeNull();
+          if (removeConfig) {
+            expect(await lstat(path.join(s.config, "config.json")).catch(() => null)).toBeNull();
+            expect(await lstat(path.join(s.config, "codebuddy-home")).catch(() => null)).toBeNull();
+          } else expect(await readFile(path.join(s.config, "config.json"), "utf8")).toBe(before);
+          expect((await lstat(target)).isDirectory()).toBe(true);
+          expect(await readFile(path.join(target, "keep.txt"), "utf8")).toBe("must survive long cache cleanup");
+        }
+      } finally { await rm(s.dir, { recursive: true, force: true }); }
+    }, 90_000);
+    it("rejects junctions outside the regenerable cache on install and default uninstall", async () => {
+      const s = await sandbox();
+      try {
+        const target = path.join(s.dir, "external-target"); await mkdir(target);
+        await writeFile(path.join(target, "keep.txt"), "must survive");
+        const pkg = await pack(s.dir, "0.3.4");
+        const args = [...s.args, "-TestDefaultCwd", s.cwd, "-TestExecutor", s.executor, "-TestNode", process.execPath];
+        await writeFile(path.join(s.config, "codes.json"), "[0]");
+        const installed = execute(shell, path.join(pkg, "install.ps1"), args);
+        expect(installed.code, installed.output).toBe(0);
+        const made = spawnSync(shell, ["-NoProfile", "-NonInteractive", "-Command", "$ErrorActionPreference='Stop'; New-Item -ItemType Junction -Path $env:PMA_JUNCTION -Target $env:PMA_TARGET | Out-Null"], {
+          env: { ...process.env, PMA_JUNCTION: path.join(s.config, "outside-cache-link"), PMA_TARGET: target }, encoding: "utf8", windowsHide: true, timeout: 15_000,
+        });
+        expect(made.status, made.stdout + made.stderr).toBe(0);
+        const rejected = execute(shell, path.join(pkg, "install.ps1"), [...args, "-TestOverwrite"]);
+        expect(rejected.code, rejected.output).not.toBe(0);
+        const uninstalled = execute(shell, path.join(root, "uninstall.ps1"), s.args);
+        expect(uninstalled.code, uninstalled.output).not.toBe(0);
+        expect((await lstat(s.install)).isDirectory()).toBe(true);
+        expect(await readFile(path.join(target, "keep.txt"), "utf8")).toBe("must survive");
+        await rm(path.join(s.config, "outside-cache-link"));
+        await longCacheFixture(path.join(s.config, "outside-cache-tree"), target);
+        const longRejected = execute(shell, path.join(pkg, "install.ps1"), [...args, "-TestOverwrite"]);
+        expect(longRejected.code, longRejected.output).not.toBe(0);
+        const longUninstalled = execute(shell, path.join(root, "uninstall.ps1"), s.args);
+        expect(longUninstalled.code, longUninstalled.output).not.toBe(0);
+        expect((await lstat(s.install)).isDirectory()).toBe(true);
+        expect(await readFile(path.join(target, "keep.txt"), "utf8")).toBe("must survive");
       } finally { await rm(s.dir, { recursive: true, force: true }); }
     }, 60_000);
     it("drains only the owned temporary installed agent before upgrading and ignores an exited stale owner", async () => {

@@ -1,0 +1,38 @@
+PowerShell=5.1.26100.9711
+codebuddy: extract=%USERPROFILE%\AppData\Local\Temp\pf031-u5lvaZ\zip; expand_ms=40254
+2026-10-29T05:29:19.459Z WARN 警告：配置文件可能允许其他账户读取，或无法确认权限。请在 PowerShell 收紧权限：icacls '%USERPROFILE%\AppData\Local\Temp\pf031-u5lvaZ\config\config.json' /reset; icacls '%USERPROFILE%\AppData\Local\Temp\pf031-u5lvaZ\config\config.json' /inheritance:r /grant:r '%HOSTNAME%\%USERNAME%:(R)'
+2026-10-29T05:29:19.509Z INFO CodeBuddy 代理：使用环境变量代理 http://127.0.0.1:7897，http://127.0.0.1:7897，http://127.0.0.1:7897
+2026-10-29T05:29:20.485Z INFO 通过：CodeBuddy 版本 2.169.0，要求 2.169.0
+2026-10-29T05:29:20.486Z INFO 通过：共享登录凭据存在（仅检查存在性）
+2026-10-29T05:29:20.487Z INFO 通过：安装包清单完整
+2026-10-29T05:29:20.487Z INFO 通过：运行时完整
+2026-10-29T05:29:20.507Z INFO 已连接，服务器固定 Codex 版本：0.160.0
+#< CLIXML
+<Objs Version="1.1.0.1" xmlns="http://schemas.microsoft.com/powershell/2004/04"><Obj S="progress" RefId="0"><TN RefId="0"><T>System.Management.Automation.PSCustomObject</T><T>System.Object</T></TN><MS><I64 N="SourceId">1</I64><PR N="Record"><AV>����׼���״�ʹ��ģ�顣</AV><AI>0</AI><Nil /><PI>-1</PI><PC>-1</PC><T>Completed</T><SR>-1</SR><SD> </SD></PR></MS></Obj><Obj S="progress" RefId="1"><TNRef RefId="0" /><MS><I64 N="SourceId">2</I64><PR N="Record"><AV>����׼���״�ʹ��ģ�顣</AV><AI>0</AI><Nil /><PI>-1</PI><PC>-1</PC><T>Completed</T><SR>-1</SR><SD> </SD></PR></MS></Obj></Objs>
+codebuddy: start.ps1 -Mode check exitCode=0; check_ms=2334
+PowerShell=5.1.26100.9711
+codex: extract=%USERPROFILE%\AppData\Local\Temp\pf031-dEgxpx\zip; expand_ms=5069
+2026-10-29T05:29:30.354Z WARN 警告：配置文件可能允许其他账户读取，或无法确认权限。请在 PowerShell 收紧权限：icacls '%USERPROFILE%\AppData\Local\Temp\pf031-dEgxpx\config\config.json' /reset; icacls '%USERPROFILE%\AppData\Local\Temp\pf031-dEgxpx\config\config.json' /inheritance:r /grant:r '%HOSTNAME%\%USERNAME%:(R)'
+2026-10-29T05:29:30.391Z INFO Codex 代理：使用环境变量代理 http://127.0.0.1:7897，http://127.0.0.1:7897，http://127.0.0.1:7897
+2026-10-29T05:29:30.625Z INFO 通过：Codex 可执行文件存在
+2026-10-29T05:29:30.625Z INFO 通过：Codex 工具宿主 codex-code-mode-host.exe 存在
+2026-10-29T05:29:30.626Z INFO 通过：Codex 版本 0.160.0
+2026-10-29T05:29:30.627Z ERROR 失败：Codex 登录凭据不存在，请先运行 login
+2026-10-29T05:29:30.627Z INFO 通过：运行时包完整；如需重建，请运行 build-runtime
+2026-10-29T05:29:30.628Z ERROR 配置错误：Codex 本机检查未全部通过，请按上方提示修复。
+#< CLIXML
+<Objs Version="1.1.0.1" xmlns="http://schemas.microsoft.com/powershell/2004/04"><Obj S="progress" RefId="0"><TN RefId="0"><T>System.Management.Automation.PSCustomObject</T><T>System.Object</T></TN><MS><I64 N="SourceId">1</I64><PR N="Record"><AV>����׼���״�ʹ��ģ�顣</AV><AI>0</AI><Nil /><PI>-1</PI><PC>-1</PC><T>Completed</T><SR>-1</SR><SD> </SD></PR></MS></Obj><Obj S="progress" RefId="1"><TNRef RefId="0" /><MS><I64 N="SourceId">2</I64><PR N="Record"><AV>����׼���״�ʹ��ģ�顣</AV><AI>0</AI><Nil /><PI>-1</PI><PC>-1</PC><T>Completed</T><SR>-1</SR><SD> </SD></PR></MS></Obj></Objs>
+codex: start.ps1 -Mode check exitCode=1; check_ms=1482
+Codex uses a fresh isolated home with no auth.json; missing-login failure is expected, no real credential was copied.
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+[Error: EBUSY: resource busy or locked, unlink '%USERPROFILE%\AppData\Local\Temp\pf031-dEgxpx\installed\versions\0.3.1\node\node.exe'] {
+  errno: -4082,
+  code: 'EBUSY',
+  syscall: 'unlink',
+  path: '%USERPROFILE%\\AppData\\Local\\Temp\\pf031-dEgxpx\\installed\\versions\\0.3.1\\node\\node.exe'
+}
+
+Node.js v24.18.0

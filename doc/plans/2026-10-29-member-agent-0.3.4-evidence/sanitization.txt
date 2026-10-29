@@ -1,0 +1,1 @@
+PASS: local account, domain and hostname values absent from all evidence files.

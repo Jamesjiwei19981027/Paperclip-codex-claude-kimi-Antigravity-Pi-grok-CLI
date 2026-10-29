@@ -1,0 +1,17 @@
+[
+  {
+    "path": "packages/adapters/claude-local/src/server/parse.ts",
+    "matches_HEAD": true,
+    "sha256": "66dbc41ad4b08cbe286d927fc3adb57c96c1f9814e2ddc4200bdf17ddaddb5dd"
+  },
+  {
+    "path": "packages/adapters/claude-local/src/server/execute.ts",
+    "matches_HEAD": true,
+    "sha256": "a76716c05777914997c4a56caff5b051dffbe90755ac227f010f03012a187083"
+  },
+  {
+    "path": "member-agent\\src\\executors\\codebuddy-launcher.ts",
+    "matches_0_3_1_package": true,
+    "sha256": "7ef062ecb620701ed945b1e363f71592a87843f9cee762e493a75b73cc2f11bc"
+  }
+]

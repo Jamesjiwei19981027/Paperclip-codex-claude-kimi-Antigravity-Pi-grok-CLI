@@ -1,0 +1,50 @@
+[
+  {
+    "package": "PaperclipMemberAgent-0.3.2-codebuddy",
+    "source": "member-agent/package.json",
+    "matches": true
+  },
+  {
+    "package": "PaperclipMemberAgent-0.3.2-codebuddy",
+    "source": "member-agent/src/executors/echo.ts",
+    "matches": true
+  },
+  {
+    "package": "PaperclipMemberAgent-0.3.2-codebuddy",
+    "source": "member-agent/src/job-runner.ts",
+    "matches": true
+  },
+  {
+    "package": "PaperclipMemberAgent-0.3.2-codebuddy",
+    "source": "member-agent/src/executors/codebuddy.ts",
+    "matches": true
+  },
+  {
+    "package": "PaperclipMemberAgent-0.3.2-codebuddy",
+    "source": "member-agent/src/executors/codebuddy-launcher.ts",
+    "matches": true
+  },
+  {
+    "package": "PaperclipMemberAgent-0.3.2-codebuddy",
+    "agentVersion": "0.3.2"
+  },
+  {
+    "package": "PaperclipMemberAgent-0.3.2",
+    "source": "member-agent/package.json",
+    "matches": true
+  },
+  {
+    "package": "PaperclipMemberAgent-0.3.2",
+    "source": "member-agent/src/executors/echo.ts",
+    "matches": true
+  },
+  {
+    "package": "PaperclipMemberAgent-0.3.2",
+    "source": "member-agent/src/job-runner.ts",
+    "matches": true
+  },
+  {
+    "package": "PaperclipMemberAgent-0.3.2",
+    "agentVersion": "0.3.2"
+  }
+]

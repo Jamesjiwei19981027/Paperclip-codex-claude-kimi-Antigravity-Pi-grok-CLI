@@ -1,0 +1,7 @@
+仓库文件引用：78；技能相对链接：3；缺失：0
+文件行数：
+references/acceptance.md：144
+references/installation.md：96
+references/pitfalls.md：108
+scripts/verify-docs.py：41
+SKILL.md：220

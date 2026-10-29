@@ -236,6 +236,17 @@ async function build() {
     logLevel: "silent",
   });
 
+  const claudeFile = assertInsideRuntime(path.resolve(outputDir, "server/dist/claude-local.mjs"), "Claude bundle");
+  await assertRealRuntimeTarget(claudeFile, "Claude bundle");
+  const claudeResult = await esbuild.build({
+    absWorkingDir, entryPoints: [path.resolve(repoRoot, "packages/adapters/claude-local/src/server/execute.ts")],
+    outfile: claudeFile, bundle: true, platform: "node", format: "esm", target: nodeTarget,
+    banner: { js: 'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);' },
+    logLevel: "silent",
+  });
+  if (claudeResult.warnings.length) throw new Error(`Claude 构建产生 ${claudeResult.warnings.length} 条警告。`);
+  await fs.writeFile(claudeFile, encodePublicSshPlaceholder(await fs.readFile(claudeFile, "utf8")), "utf8");
+
   const bundle = await fs.readFile(outputFile, "utf8");
   await fs.writeFile(outputFile, encodePublicSshPlaceholder(bundle), "utf8");
 
@@ -246,7 +257,7 @@ async function build() {
   }
   reportPackageSizes(result.metafile, outputFile);
 
-  const assets = {};
+  const assets = { "server/dist/claude-local.mjs": sha256(await fs.readFile(claudeFile)) };
   const assetSpecs = [
     ["codex-auth-merge-decision.cjs", "server/dist/codex-auth-merge-decision.cjs"],
     ["codex-auth-merge-extract.sh", "server/dist/codex-auth-merge-extract.sh"],

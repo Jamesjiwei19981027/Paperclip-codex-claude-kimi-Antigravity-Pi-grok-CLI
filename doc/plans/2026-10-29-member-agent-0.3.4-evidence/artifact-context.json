@@ -1,0 +1,7 @@
+{
+  "PAPERCLIP_API_URL": false,
+  "PAPERCLIP_API_KEY": false,
+  "PAPERCLIP_COMPANY_ID": false,
+  "PAPERCLIP_TASK_ID": false,
+  "PAPERCLIP_RUN_ID": false
+}

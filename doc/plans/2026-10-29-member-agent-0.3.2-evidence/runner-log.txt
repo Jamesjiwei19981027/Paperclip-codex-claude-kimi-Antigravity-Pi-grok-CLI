@@ -1,0 +1,2 @@
+2026-10-29T06:16:36.679Z INFO 任务结束 fixture-log：失败（member_agent_codebuddy_login_required）
+{"v":1,"type":"job.result","jobId":"fixture-log","exitCode":0,"signal":null,"timedOut":false,"errorCode":"member_agent_codebuddy_login_required"}

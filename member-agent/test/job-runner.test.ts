@@ -18,6 +18,16 @@ function setup(mode='normal'){
  const runner=new JobRunner({serverUrl:'http://127.0.0.1:1',logger,send:f=>frames.push(f),executorUrl:new URL('./fixtures/executor.ts',import.meta.url),executorData:{mode}});runners.push(runner);return {runner,frames,dir,visible};
 }
 describe('阶段2任务执行器隔离',()=>{
+ it.each([
+  ['error-code','失败（member_agent_codebuddy_login_required）'],
+  ['timed-out','失败'],
+  ['nonzero','失败'],
+  ['normal','成功'],
+ ])('logs the same outcome as the server for %s',async(mode,outcome)=>{
+  const {runner,frames,visible}=setup(mode);runner.start(job());await until(()=>frames.some(f=>f.type==='job.result'));
+  expect(visible.find(line=>line.includes('任务结束 fixture-job：'))).toContain(`任务结束 fixture-job：${outcome}`);
+  if(mode==='error-code')expect(frames.find(f=>f.type==='job.result')).toMatchObject({exitCode:0,errorCode:'member_agent_codebuddy_login_required'});
+ });
  it('7 accepts before preparation, numbers logs and events independently, and emits one result',async()=>{
   const {runner,frames}=setup();runner.start(job());expect(frames[0]?.type).toBe('job.accepted');await until(()=>frames.some(f=>f.type==='job.result'));
   expect(frames.filter(f=>f.type==='job.result')).toHaveLength(1);expect(frames.filter(f=>f.type==='job.log').map(f=>f.seq)).toEqual([1,2]);expect(frames.filter(f=>f.type==='job.event').map(f=>f.seq)).toEqual([1]);

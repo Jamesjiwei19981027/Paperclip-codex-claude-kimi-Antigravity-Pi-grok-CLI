@@ -45,6 +45,17 @@ export async function main(args=process.argv.slice(2)):Promise<number>{
  try{
   const config=await loadConfig(configPath,process.env,message=>warnings.push(message),{requireAgentKey:command!=='login'});
   if(command==='login'){
+   if(config.executor==='codebuddy'){
+    const {readCodeBuddyVersion,runCodeBuddyLogin,hasCodeBuddyLogin,verifyCodeBuddyPackage,CODEBUDDY_VERSION}=await import('./codebuddy-cli.ts');
+    if((await verifyCodeBuddyPackage(config.codebuddyEntry!)).length)throw new ConfigError(['配置错误：CodeBuddy 安装包清单未通过，请重新获取完整安装包。']);
+    if(await readCodeBuddyVersion(config.codebuddyEntry!,config.codebuddyHome!)!==CODEBUDDY_VERSION)throw new ConfigError(['配置错误：CodeBuddy 必须为固定版本 2.169.0。']);
+    await mkdir(config.codebuddyHome!,{recursive:true});
+    console.log('请在 CodeBuddy 界面输入 /login 完成登录后退出。将共用成员本机 CodeBuddy 登录，仅会话、设置和模型配置使用成员代理专属目录。');
+    const code=await runCodeBuddyLogin(config.codebuddyEntry!,config.codebuddyHome!);
+    const exists=await hasCodeBuddyLogin();
+    console.log(exists?'CodeBuddy 登录凭据已存在（仅检查存在性，未读取内容）。':'未发现 CodeBuddy 登录凭据，请运行 start.ps1 -Mode login 后重试。');
+    return code|| (exists?0:1);
+   }
    if(config.executor!=='codex')throw new ConfigError(['配置错误：login 只适用于 executor="codex"，请先配置 Codex 执行器。']);
    if(!config.codexExecutable||!config.codexHome)throw new ConfigError(['配置错误：login 需要设置 codexExecutable 与 codexHome，请使用独立的成员代理 Codex 目录。']);
    if(!await isCodexExecutableReady(config.codexExecutable))throw new ConfigError(['配置错误：codexExecutable 不存在或不可执行，请填写固定版本的绝对 .exe 路径。']);
@@ -70,6 +81,19 @@ export async function main(args=process.argv.slice(2)):Promise<number>{
     if(missing.length)throw new ConfigError([`配置错误：运行时包缺少 ${missing.join(', ')}，请重新运行 build-runtime。`]);
    }
   }
+  let executorVersion=codexVersion;
+  if(config.executor==='codebuddy'){
+   const {inspectCodeBuddyInstallation,CODEBUDDY_VERSION}=await import('./codebuddy-cli.ts');
+   const proxy=await resolveCodexProxy({env:process.env,serverUrl:config.serverUrl,warn:message=>logger!.write('warn',message,true)});
+   logger.write('info',`CodeBuddy 代理：${proxy.message}`,true);
+   const result=await inspectCodeBuddyInstallation({codebuddyEntry:config.codebuddyEntry!,codebuddyHome:config.codebuddyHome!,runtimeDir:config.runtimeDir!});
+   logger.write(result.version===CODEBUDDY_VERSION?'info':'error',`${result.version===CODEBUDDY_VERSION?'通过':'失败'}：CodeBuddy 版本 ${result.version??'无法读取'}，要求 ${CODEBUDDY_VERSION}`,true);
+   if(command==='run'&&!result.loggedIn)logger.write('warn','警告：未发现 CodeBuddy 共享登录凭据；成员代理将照常上线，任务会以 member_agent_codebuddy_login_required 失败。请运行 start.ps1 -Mode login 完成登录。',true);
+   else logger.write(result.loggedIn?'info':'error',`${result.loggedIn?'通过':'失败'}：共享登录凭据${result.loggedIn?'存在（仅检查存在性）':'不存在，请运行 start.ps1 -Mode login'}`,true);
+   for(const [name,issues] of [['安装包清单',result.packageIssues],['运行时',result.runtimeIssues]] as const)logger.write(issues.length?'error':'info',`${issues.length?'失败':'通过'}：${name}${issues.length?'：'+issues.join('；'):'完整'}`,true);
+   if(result.version!==CODEBUDDY_VERSION||result.packageIssues.length||result.runtimeIssues.length||(command==='check'&&!result.loggedIn))throw new ConfigError(['配置错误：CodeBuddy 本机检查未全部通过，请按上方提示修复。']);
+   executorVersion=result.version!;
+  }
   release=await acquireLock(stateDir);
   assertTransportAllowed(config.serverUrl);
   const stop=new AbortController();
@@ -77,7 +101,7 @@ export async function main(args=process.argv.slice(2)):Promise<number>{
   let sendControl:(frame:import('./protocol.ts').Frame)=>void=()=>{};
   let drain:()=>Promise<boolean>=async()=>true;
   const runner=new JobRunner({serverUrl:config.serverUrl,logger,send:()=>{},echoHoldSec:config.echoHoldSec,
-   ...(config.executor==='codex'?{executorUrl:new URL('./executors/codex.ts',import.meta.url),executorData:{codexExecutable:config.codexExecutable,codexHome:config.codexHome,runtimeDir:config.runtimeDir,projectDirs:config.projectDirs,defaultCwd:config.defaultCwd,configDir:stateDir,proxyWarningState:new SharedArrayBuffer(4)}}:{})});
+   ...(config.executor==='codebuddy'?{executorUrl:new URL('./executors/codebuddy.ts',import.meta.url),executorData:{codebuddyEntry:config.codebuddyEntry,codebuddyHome:config.codebuddyHome,codebuddyModel:config.codebuddyModel,runtimeDir:config.runtimeDir,projectDirs:config.projectDirs,defaultCwd:config.defaultCwd,configDir:stateDir,proxyWarningState:new SharedArrayBuffer(4)}}:config.executor==='codex'?{executorUrl:new URL('./executors/codex.ts',import.meta.url),executorData:{codexExecutable:config.codexExecutable,codexHome:config.codexHome,runtimeDir:config.runtimeDir,projectDirs:config.projectDirs,defaultCwd:config.defaultCwd,configDir:stateDir,proxyWarningState:new SharedArrayBuffer(4)}}:{})});
   const installControl=command==='run'?await createInstallControl({stateDir,busy:()=>runner.busy,
    onDrain:()=>{installDraining=true;logger!.write('info','安装程序请求停止：等待当前任务完成',true);},
    onStop:async force=>{try{if(force)await runner.shutdown();if(!await drain())logger!.write('warn','升级停止前结果未送达，请在看板核对',true);}finally{stop.abort();}},
@@ -86,7 +110,7 @@ export async function main(args=process.argv.slice(2)):Promise<number>{
    try{if(!await drain())logger!.write('warn','退出前结果未能送达服务器，请在看板核对本次运行',true);}finally{stop.abort();}
   },code=>process.exit(code));
   try{
-   return await connectLoop({serverUrl:config.serverUrl,agentKey:config.agentKey,version:AGENT_VERSION,codexVersion,check:command==='check',signal:stop.signal,logger,
+   return await connectLoop({serverUrl:config.serverUrl,agentKey:config.agentKey,version:AGENT_VERSION,codexVersion,executor:config.executor,executorVersion,check:command==='check',signal:stop.signal,logger,
     onSession:(send,flush)=>{runner.setSender(send);sendControl=send;drain=flush;},onDisconnect:()=>runner.disconnect(),onFrame:frame=>{
      if(stop.signal.aborted)return;
      if(frame.type==='job.start'){

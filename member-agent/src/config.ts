@@ -8,11 +8,14 @@ import { Redactor } from "./logger.ts";
 export interface Config {
   serverUrl: string;
   agentKey: string;
-  executor: "echo" | "codex";
+  executor: "echo" | "codex" | "codebuddy";
   projectDirs: Record<string, unknown>;
   defaultCwd: string;
   /** Test-only echo delay; real executors must not consume this option. */
   echoHoldSec: number;
+  codebuddyEntry?: string;
+  codebuddyHome?: string;
+  codebuddyModel?: string;
   codexExecutable?: string;
   codexHome?: string;
   runtimeDir?: string;
@@ -32,7 +35,7 @@ export function validateConfig(value: unknown, env: NodeJS.ProcessEnv = process.
   if (!isObject(value)) throw new ConfigError(["配置错误：配置必须是 JSON 对象，请按示例填写配置文件。"]);
   const errors: string[] = [];
   const redactor = new Redactor(); redactor.register(value.agentKey, env.PAPERCLIP_AGENT_KEY);
-  const allowed = new Set(["serverUrl", "agentKey", "executor", "projectDirs", "defaultCwd", "echoHoldSec", "codexExecutable", "codexHome", "runtimeDir"]);
+  const allowed = new Set(["serverUrl", "agentKey", "executor", "projectDirs", "defaultCwd", "echoHoldSec", "codexExecutable", "codexHome", "runtimeDir", "codebuddyEntry", "codebuddyHome", "codebuddyModel"]);
   for (const field of Object.keys(value)) {
     if (!allowed.has(field)) errors.push(`配置错误：未知字段 ${redactor.redact(JSON.stringify(field))}，请删除或改为正确字段名。`);
   }
@@ -48,12 +51,12 @@ export function validateConfig(value: unknown, env: NodeJS.ProcessEnv = process.
   }
   const agentKey = env.PAPERCLIP_AGENT_KEY ?? value.agentKey;
   if (options.requireAgentKey !== false && (typeof agentKey !== "string" || !agentKey.trim() || /[\r\n]/.test(agentKey))) errors.push("配置错误：agentKey 必须是非空字符串且不得含换行，请填写 Key 或设置 PAPERCLIP_AGENT_KEY 环境变量。");
-  if (value.executor !== "echo" && value.executor !== "codex") errors.push('配置错误：executor 必须是 "echo" 或 "codex"，请修改执行器设置。');
+  if (value.executor !== "echo" && value.executor !== "codex" && value.executor !== "codebuddy") errors.push('配置错误：executor 必须是 "echo"、"codex" 或 "codebuddy"，请修改执行器设置。');
   if (!isObject(value.projectDirs)) errors.push("配置错误：projectDirs 必须是对象，本阶段请填写 {}。");
   if (typeof value.defaultCwd !== "string") errors.push('配置错误：defaultCwd 必须是字符串，本阶段可填写 ""。');
   const echoHoldSec = value.echoHoldSec === undefined ? 0 : value.echoHoldSec;
   if (typeof echoHoldSec !== "number" || !Number.isInteger(echoHoldSec) || echoHoldSec < 0 || echoHoldSec > 600) errors.push("配置错误：echoHoldSec 必须是整数，范围为 0 到 600；此项仅用于 echo 验收测试。");
-  const validateAbsolutePath = (field: "codexExecutable" | "codexHome" | "runtimeDir", options: { required?: boolean; executable?: boolean } = {}): string | undefined => {
+  const validateAbsolutePath = (field: "codexExecutable" | "codexHome" | "runtimeDir" | "codebuddyEntry" | "codebuddyHome", options: { required?: boolean; executable?: boolean } = {}): string | undefined => {
     const candidate = value[field];
     if (candidate === undefined && options.required !== true) return undefined;
     if (typeof candidate !== "string" || !candidate.trim() || !path.isAbsolute(candidate)) {
@@ -92,8 +95,18 @@ export function validateConfig(value: unknown, env: NodeJS.ProcessEnv = process.
     codexHome = validateAbsolutePath("codexHome");
     runtimeDir = validateAbsolutePath("runtimeDir");
   }
+  const codebuddyEntry = validateAbsolutePath("codebuddyEntry", { required: value.executor === "codebuddy" });
+  const codebuddyHome = validateAbsolutePath("codebuddyHome", { required: value.executor === "codebuddy" });
+  if (value.executor === "codebuddy") runtimeDir = validateAbsolutePath("runtimeDir", { required: true });
+  if (codebuddyHome && (env.USERPROFILE ?? env.HOME)) {
+    const rel = path.relative(path.resolve((env.USERPROFILE ?? env.HOME)!, ".codebuddy"), codebuddyHome);
+    if (rel === "" || (!rel.startsWith(`..${path.sep}`) && rel !== ".." && !path.isAbsolute(rel))) errors.push("配置错误：codebuddyHome 不得使用个人 .codebuddy 目录或其内部目录，请设置成员代理独立目录。");
+  }
+  if (codebuddyEntry && (path.basename(codebuddyEntry) !== "codebuddy" || path.basename(path.dirname(codebuddyEntry)) !== "bin")) errors.push("配置错误：codebuddyEntry 必须指向 bin/codebuddy 入口文件。");
+  const codebuddyModel = typeof value.codebuddyModel === "string" ? value.codebuddyModel.trim() : undefined;
+  if (value.codebuddyModel !== undefined && (codebuddyModel === undefined || /[\r\n\0]/.test(codebuddyModel) || /^claude-/i.test(codebuddyModel))) errors.push("配置错误：codebuddyModel 必须是 CodeBuddy 模型名字符串，不能使用 claude-*；留空使用账号默认模型。");
   if (errors.length) throw new ConfigError(errors.map((message) => redactor.redact(message)));
-  return { serverUrl, agentKey: agentKey as string, executor: value.executor as "echo" | "codex", projectDirs: value.projectDirs as Record<string, unknown>, defaultCwd: value.defaultCwd as string, echoHoldSec: echoHoldSec as number, codexExecutable, codexHome, runtimeDir };
+  return { serverUrl, agentKey: agentKey as string, executor: value.executor as "echo" | "codex" | "codebuddy", projectDirs: value.projectDirs as Record<string, unknown>, defaultCwd: value.defaultCwd as string, echoHoldSec: echoHoldSec as number, codebuddyEntry, codebuddyHome, codebuddyModel, codexExecutable, codexHome, runtimeDir };
 }
 
 const execFileAsync = promisify(execFile);

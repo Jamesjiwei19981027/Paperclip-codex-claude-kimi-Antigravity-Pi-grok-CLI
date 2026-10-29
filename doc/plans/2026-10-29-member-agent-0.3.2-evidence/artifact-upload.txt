@@ -1,0 +1,8 @@
+artifact helper exitCode=
+PAPERCLIP_API_URL=False
+PAPERCLIP_API_KEY=False
+PAPERCLIP_COMPANY_ID=False
+PAPERCLIP_TASK_ID=False
+PAPERCLIP_RUN_ID=False
+Missing required command: jq
+artifact helper exitCode=1

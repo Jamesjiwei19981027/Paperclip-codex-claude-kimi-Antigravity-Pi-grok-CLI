@@ -25,13 +25,143 @@ function Assert-PlainPath([string]$Path) {
     return $full
 }
 function Get-PlainTree([string]$Path) {
-    [void](Assert-PlainPath $Path)
-    if (!(Test-Path -LiteralPath $Path)) { return }
-    foreach ($item in @(Get-ChildItem -LiteralPath $Path -Force)) {
-        if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw '目录中有链接或重解析点，已停止操作。' }
-        $item
-        if ($item.PSIsContainer) { Get-PlainTree $item.FullName }
+    $full = Assert-PlainPath $Path
+    Initialize-MemberPathNative
+    [Paperclip.MemberPathNative]::PlainTree((ConvertTo-MemberLongPath $full), $full)
+}
+function ConvertTo-MemberLongPath([string]$Path) {
+    $bs = [string][char]92
+    if ($Path.StartsWith($bs + $bs)) { return $bs + $bs + '?' + $bs + 'UNC' + $Path.Substring(1) }
+    return $bs + $bs + '?' + $bs + $Path
+}
+function Initialize-MemberPathNative {
+    # PS 5.1 providers and System.IO reject long paths, including extended paths.
+    # Keep enumeration and deletion native, and never enumerate a reparse point.
+    if (!('Paperclip.MemberPathNative' -as [type])) {
+        Add-Type -TypeDefinition @'
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+namespace Paperclip {
+    public static class MemberPathNative {
+        const uint Invalid = 0xffffffff, Directory = 0x10, Reparse = 0x400, ReadOnly = 1;
+        public class Entry {
+            public string Name { get; set; }
+            public string FullName { get; set; }
+            public uint Attributes { get; set; }
+            public bool PSIsContainer { get { return (Attributes & Directory) != 0; } }
+        }
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        struct FindData {
+            public uint Attributes;
+            public System.Runtime.InteropServices.ComTypes.FILETIME Creation, Access, Write;
+            public uint SizeHigh, SizeLow, Reserved0, Reserved1;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)] public string Name;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 14)] public string AlternateName;
+        }
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
+        static extern uint GetFileAttributesW(string path);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool SetFileAttributesW(string path, uint attributes);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
+        static extern IntPtr FindFirstFileW(string pattern, out FindData data);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool FindNextFileW(IntPtr handle, out FindData data);
+        [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool FindClose(IntPtr handle);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool RemoveDirectoryW(string path);
+        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool DeleteFileW(string path);
+
+        static Exception Failure(string action, int code) {
+            return new Win32Exception(code, "清理 CodeBuddy 运行缓存失败：" + action + "（Win32 错误码 " + code + "）。");
+        }
+        static uint Attributes(string path) {
+            uint attributes = GetFileAttributesW(path);
+            if (attributes != Invalid) return attributes;
+            int code = Marshal.GetLastWin32Error();
+            if (code == 2 || code == 3) return Invalid;
+            throw Failure("读取属性", code);
+        }
+        static List<Entry> Children(string path) {
+            var entries = new List<Entry>();
+            FindData data;
+            IntPtr handle = FindFirstFileW(path.TrimEnd((char)92) + (char)92 + "*", out data);
+            if (handle == new IntPtr(-1)) {
+                int code = Marshal.GetLastWin32Error();
+                if (code != 2) throw Failure("枚举目录", code);
+            } else {
+                try {
+                    do {
+                        if (data.Name != "." && data.Name != "..")
+                            entries.Add(new Entry { Name = data.Name, FullName = path.TrimEnd((char)92) + (char)92 + data.Name, Attributes = data.Attributes });
+                    } while (FindNextFileW(handle, out data));
+                    int code = Marshal.GetLastWin32Error();
+                    if (code != 18) throw Failure("继续枚举目录", code);
+                } finally { FindClose(handle); }
+            }
+            return entries;
+        }
+        static void CollectPlainTree(string extendedPath, string plainPath, List<Entry> all) {
+            foreach (Entry entry in Children(extendedPath)) {
+                if ((entry.Attributes & Reparse) != 0)
+                    throw new InvalidOperationException("目录中有链接或重解析点，已停止操作。");
+                string child = plainPath.TrimEnd((char)92) + (char)92 + entry.Name;
+                string extendedChild = entry.FullName;
+                entry.FullName = child;
+                all.Add(entry);
+                if (entry.PSIsContainer) CollectPlainTree(extendedChild, child, all);
+            }
+        }
+        public static List<Entry> PlainTree(string extendedPath, string plainPath) {
+            var all = new List<Entry>();
+            uint attributes = Attributes(extendedPath);
+            if (attributes == Invalid) return all;
+            if ((attributes & Reparse) != 0)
+                throw new InvalidOperationException("目录中有链接或重解析点，已停止操作。");
+            if ((attributes & Directory) == 0) {
+                all.Add(new Entry { FullName = plainPath, Attributes = attributes });
+                return all;
+            }
+            CollectPlainTree(extendedPath, plainPath, all);
+            return all;
+        }
+        static void RemoveEntry(string path) {
+            uint attributes = Attributes(path);
+            if (attributes == Invalid) return;
+            bool directory = (attributes & Directory) != 0;
+            if (directory && (attributes & Reparse) == 0)
+                foreach (Entry entry in Children(path)) RemoveEntry(entry.FullName);
+            // Only change attributes on ordinary cache entries, never on link targets.
+            if ((attributes & Reparse) == 0 && (attributes & ReadOnly) != 0 &&
+                !SetFileAttributesW(path, attributes & ~ReadOnly))
+                throw Failure("清除只读属性", Marshal.GetLastWin32Error());
+            bool removed = directory ? RemoveDirectoryW(path) : DeleteFileW(path);
+            if (!removed) throw Failure(directory ? "删除目录或目录联接" : "删除文件或文件链接", Marshal.GetLastWin32Error());
+        }
+        public static void Remove(string extendedPath) {
+            RemoveEntry(extendedPath);
+            if (Attributes(extendedPath) != Invalid)
+                throw new InvalidOperationException("清理 CodeBuddy 运行缓存失败：缓存目录仍然存在。");
+        }
     }
+}
+'@
+    }
+}
+function Remove-CodeBuddyRuntimeCache([string]$ConfigPath) {
+    $codebuddyHome = Join-Path $ConfigPath 'codebuddy-home'
+    [void](Assert-PlainPath $codebuddyHome)
+    $cache = Join-Path $codebuddyHome 'paperclip-runtime'
+    Initialize-MemberPathNative
+    [Paperclip.MemberPathNative]::Remove((ConvertTo-MemberLongPath $cache))
 }
 function Resolve-MemberPaths([bool]$Testing, [string]$RootPath, [string]$ConfigPath) {
     if ($Testing) {
@@ -161,12 +291,14 @@ try {
     if (!$TestMode -and ($RemoveConfig -or $RemoveHome -or $RemoveLogs)) { throw '删除选项参数仅供测试；正常卸载必须逐项确认。' }
     $paths = Resolve-MemberPaths $TestMode $InstallRoot $ConfigDir
     $InstallRoot = $paths.Root; $ConfigDir = $paths.Config
+    Remove-CodeBuddyRuntimeCache $ConfigDir
+    if (Test-Path -LiteralPath $ConfigDir) { [void]@(Get-PlainTree $ConfigDir) }
     $deleteConfig = Confirm-Member '删除配置和加密 Key 吗？默认保留。' $TestMode $RemoveConfig
-    $deleteHome = Confirm-Member '删除 Codex 登录和模型设置吗？默认保留。' $TestMode $RemoveHome
+    $deleteHome = Confirm-Member '删除 Codex 独立登录和 CodeBuddy 独立配置及模型设置吗？默认保留。' $TestMode $RemoveHome
     $deleteLogs = Confirm-Member '删除日志吗？默认保留。' $TestMode $RemoveLogs
     $targets = @($InstallRoot)
     if ($deleteConfig) { $targets += (Join-Path $ConfigDir 'config.json'); $targets += (Join-Path $ConfigDir 'agent-key.dpapi') }
-    if ($deleteHome) { $targets += (Join-Path $ConfigDir 'codex-home') }
+    if ($deleteHome) { $targets += (Join-Path $ConfigDir 'codex-home'); $targets += (Join-Path $ConfigDir 'codebuddy-home') }
     if ($deleteLogs) { $targets += (Join-Path $ConfigDir 'logs') }
     Write-Host '将删除以下内容：'; $targets | ForEach-Object { Write-Host ('  ' + $_) }
     foreach ($target in $targets) { [void](Assert-PlainPath $target); if (Test-Path -LiteralPath $target -PathType Container) { [void]@(Get-PlainTree $target) } }

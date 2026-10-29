@@ -1,0 +1,4 @@
+cwd=.
+command=git diff --check
+
+exitCode=0

@@ -1,0 +1,20 @@
+{
+  "artifact": "member-agent/dist-installer/PaperclipMemberAgent-0.3.0-codebuddy.zip",
+  "bytes": 128845050,
+  "sha256": "ee8f86da8783711f2eda1e5891542fd657bba7fd80c58714104dd84d2c6a5ea4",
+  "fileCount": 10462,
+  "manifestFileCount": 10461,
+  "codebuddyFileCount": 10394,
+  "noCodexBinaries": true,
+  "codebuddyIntegrity": "sha512-ccwSxOizTYO/e+dOidQTSEBcGQPMD0JvWxRn39/jNVo/cmO/1eVtVOk4fTvo0+HwJfgafmh8M4DEiXQeGnvlKA==",
+  "inspect": {
+    "version": "2.169.0",
+    "loggedIn": true,
+    "packageIssues": [],
+    "runtimeIssues": [],
+    "ok": true
+  },
+  "helpResume": true,
+  "helpAllowedTools": true,
+  "localEquivalentCheck": "passed; no server connection or system installation"
+}

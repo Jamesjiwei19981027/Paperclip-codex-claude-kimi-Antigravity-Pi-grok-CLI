@@ -239,7 +239,8 @@ export class JobRunner {
      errorMessage: [result.errorMessage, active.cleanupFailureMessage].filter(Boolean).join('；'),
     };
    }
-   this.options.logger.write('info', `任务结束 ${active.job.jobId}：${result.exitCode === 0 ? '成功' : result.errorCode ?? '失败'}`, true);
+   const failed = result.exitCode !== 0 || Boolean(result.errorCode) || result.timedOut;
+   this.options.logger.write('info', `任务结束 ${active.job.jobId}：${failed ? `失败${result.errorCode ? `（${result.errorCode}）` : ''}` : '成功'}`, true);
    if (!active.suppressed) {
     const frame = this.safe({ v: 1, type: 'job.result', jobId: active.job.jobId, ...validateResult(result) });
     resultSent = true;

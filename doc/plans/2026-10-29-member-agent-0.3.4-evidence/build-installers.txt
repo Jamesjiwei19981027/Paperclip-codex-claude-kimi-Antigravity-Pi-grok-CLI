@@ -1,0 +1,8 @@
+cwd=.
+command=node doc/plans/2026-10-29-member-agent-0.3.4-evidence/build-without-install.mjs
+[installer-build] codebuddy: approved vendor files verified; no dependency installation
+{"path":"member-agent/dist-installer/PaperclipMemberAgent-0.3.4-codebuddy.zip","bytes":128850599,"sha256":"90899faa3595345526873ec89e01064bb06b8cdce2bea7f43f8db8dbfcd7c6dd"}
+[installer-build] codex: approved vendor files verified; no dependency installation
+{"path":"member-agent/dist-installer/PaperclipMemberAgent-0.3.4.zip","bytes":173270129,"sha256":"157c1505901a44e51af0e9fccc18e0fa6493cb697dff757532c58b73f8364d72"}
+
+exitCode=0

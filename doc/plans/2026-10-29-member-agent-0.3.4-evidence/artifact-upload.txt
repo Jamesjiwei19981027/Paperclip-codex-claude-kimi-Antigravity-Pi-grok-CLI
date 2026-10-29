@@ -1,0 +1,5 @@
+cwd=.
+command=bash skills/paperclip/scripts/paperclip-upload-artifact.sh member-agent/dist-installer/PaperclipMemberAgent-0.3.4-codebuddy.zip --title Member agent 0.3.4 CodeBuddy --summary Task K verified installer
+Missing required command: jq
+
+exitCode=1

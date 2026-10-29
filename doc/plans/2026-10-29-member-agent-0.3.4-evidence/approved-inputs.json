@@ -1,0 +1,10 @@
+{
+  "codebuddy": {
+    "directory": "member-agent/dist-installer/PaperclipMemberAgent-0.3.3-codebuddy",
+    "manifestSha256": "f852d56107d8ccb2ebfb1a769ff3d837f749802ca43685f0befea2630f7fd6a4"
+  },
+  "codex": {
+    "directory": "member-agent/dist-installer/PaperclipMemberAgent-0.3.3",
+    "manifestSha256": "aac152e27462ffa5f6c2557917b8003b00604b77e6398db68661904355b20920"
+  }
+}

@@ -1,0 +1,4 @@
+powershell.exe: exitCode=1
+失败原因：安装包已损坏或被修改，请重新获取。原因：发现未列入清单的文件：extra.zip
+pwsh.exe: exitCode=1
+失败原因：安装包已损坏或被修改，请重新获取。原因：发现未列入清单的文件：extra.zip

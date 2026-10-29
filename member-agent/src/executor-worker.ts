@@ -9,7 +9,9 @@ async function run(){
  try{
   const module=await import(workerData.executorUrl);
   // This local delay is exclusively for echo acceptance tests, never a server protocol field.
-  const executor:Executor=module.createCodexExecutor
+  const executor:Executor=module.createCodeBuddyExecutor
+   ? module.createCodeBuddyExecutor(workerData.executorData)
+   : module.createCodexExecutor
    ? module.createCodexExecutor(workerData.executorData)
    : module.createEchoExecutor
     ? module.createEchoExecutor({echoHoldSec:workerData.echoHoldSec})

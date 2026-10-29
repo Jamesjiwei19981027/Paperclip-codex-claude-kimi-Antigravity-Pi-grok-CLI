@@ -1,0 +1,27 @@
+PowerShell=5.1.26100.9711
+codebuddy: extract=%USERPROFILE%\AppData\Local\Temp\pf032-9NcgqL\zip; expand_ms=24390
+hello={"agentVersion":"0.3.2","executor":"codebuddy","executorVersion":"2.169.0"}
+2026-10-29T06:35:10.477Z WARN 警告：配置文件可能允许其他账户读取，或无法确认权限。请在 PowerShell 收紧权限：icacls '%USERPROFILE%\AppData\Local\Temp\pf032-9NcgqL\config\config.json' /reset; icacls '%USERPROFILE%\AppData\Local\Temp\pf032-9NcgqL\config\config.json' /inheritance:r /grant:r '%HOSTNAME%\%USERNAME%:(R)'
+2026-10-29T06:35:10.516Z INFO CodeBuddy 代理：使用环境变量代理 http://127.0.0.1:7897，http://127.0.0.1:7897，http://127.0.0.1:7897
+2026-10-29T06:35:11.428Z INFO 通过：CodeBuddy 版本 2.169.0，要求 2.169.0
+2026-10-29T06:35:11.429Z INFO 通过：共享登录凭据存在（仅检查存在性）
+2026-10-29T06:35:11.429Z INFO 通过：安装包清单完整
+2026-10-29T06:35:11.430Z INFO 通过：运行时完整
+2026-10-29T06:35:11.447Z INFO 已连接，服务器固定 Codex 版本：0.160.0
+#< CLIXML
+<Objs Version="1.1.0.1" xmlns="http://schemas.microsoft.com/powershell/2004/04"><Obj S="progress" RefId="0"><TN RefId="0"><T>System.Management.Automation.PSCustomObject</T><T>System.Object</T></TN><MS><I64 N="SourceId">1</I64><PR N="Record"><AV>����׼���״�ʹ��ģ�顣</AV><AI>0</AI><Nil /><PI>-1</PI><PC>-1</PC><T>Completed</T><SR>-1</SR><SD> </SD></PR></MS></Obj><Obj S="progress" RefId="1"><TNRef RefId="0" /><MS><I64 N="SourceId">2</I64><PR N="Record"><AV>����׼���״�ʹ��ģ�顣</AV><AI>0</AI><Nil /><PI>-1</PI><PC>-1</PC><T>Completed</T><SR>-1</SR><SD> </SD></PR></MS></Obj></Objs>
+codebuddy: start.ps1 -Mode check exitCode=0; check_ms=2148
+PowerShell=5.1.26100.9711
+codex: extract=%USERPROFILE%\AppData\Local\Temp\pf032-Ixk0IX\zip; expand_ms=4272
+2026-10-29T06:35:19.345Z WARN 警告：配置文件可能允许其他账户读取，或无法确认权限。请在 PowerShell 收紧权限：icacls '%USERPROFILE%\AppData\Local\Temp\pf032-Ixk0IX\config\config.json' /reset; icacls '%USERPROFILE%\AppData\Local\Temp\pf032-Ixk0IX\config\config.json' /inheritance:r /grant:r '%HOSTNAME%\%USERNAME%:(R)'
+2026-10-29T06:35:19.376Z INFO Codex 代理：使用环境变量代理 http://127.0.0.1:7897，http://127.0.0.1:7897，http://127.0.0.1:7897
+2026-10-29T06:35:19.572Z INFO 通过：Codex 可执行文件存在
+2026-10-29T06:35:19.573Z INFO 通过：Codex 工具宿主 codex-code-mode-host.exe 存在
+2026-10-29T06:35:19.573Z INFO 通过：Codex 版本 0.160.0
+2026-10-29T06:35:19.573Z ERROR 失败：Codex 登录凭据不存在，请先运行 login
+2026-10-29T06:35:19.574Z INFO 通过：运行时包完整；如需重建，请运行 build-runtime
+2026-10-29T06:35:19.575Z ERROR 配置错误：Codex 本机检查未全部通过，请按上方提示修复。
+#< CLIXML
+<Objs Version="1.1.0.1" xmlns="http://schemas.microsoft.com/powershell/2004/04"><Obj S="progress" RefId="0"><TN RefId="0"><T>System.Management.Automation.PSCustomObject</T><T>System.Object</T></TN><MS><I64 N="SourceId">1</I64><PR N="Record"><AV>����׼���״�ʹ��ģ�顣</AV><AI>0</AI><Nil /><PI>-1</PI><PC>-1</PC><T>Completed</T><SR>-1</SR><SD> </SD></PR></MS></Obj><Obj S="progress" RefId="1"><TNRef RefId="0" /><MS><I64 N="SourceId">2</I64><PR N="Record"><AV>����׼���״�ʹ��ģ�顣</AV><AI>0</AI><Nil /><PI>-1</PI><PC>-1</PC><T>Completed</T><SR>-1</SR><SD> </SD></PR></MS></Obj></Objs>
+codex: start.ps1 -Mode check exitCode=1; check_ms=1229
+Codex 使用全新专属目录，无 auth.json；预期自检因未登录失败，未复制真实凭据。

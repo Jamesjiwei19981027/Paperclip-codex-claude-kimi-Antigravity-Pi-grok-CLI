@@ -1,0 +1,5 @@
+cwd=.
+command=python doc/plans/2026-10-29-member-agent-0.3.4-evidence/check-optimized-validator.py
+PASS: python -O rejects an incorrect approved ZIP digest before writing approval metadata.
+
+exitCode=0

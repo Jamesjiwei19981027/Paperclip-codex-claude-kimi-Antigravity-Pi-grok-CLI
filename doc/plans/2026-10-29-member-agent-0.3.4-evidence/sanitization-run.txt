@@ -1,0 +1,5 @@
+cwd=.
+command=python doc/plans/2026-10-29-member-agent-0.3.4-evidence/sanitize-evidence.py
+PASS: local account, domain and hostname values absent from all evidence files.
+
+exitCode=0

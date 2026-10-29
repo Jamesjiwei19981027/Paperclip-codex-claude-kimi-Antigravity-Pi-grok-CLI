@@ -1,0 +1,5 @@
+cwd=.
+command=pwsh.exe -NoProfile -NonInteractive -Command $PSVersionTable.PSVersion.ToString()
+7.6.9
+
+exitCode=0

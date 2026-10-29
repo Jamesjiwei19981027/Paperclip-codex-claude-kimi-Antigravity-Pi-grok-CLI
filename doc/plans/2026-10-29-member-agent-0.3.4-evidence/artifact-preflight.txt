@@ -1,0 +1,13 @@
+cwd=.
+command=node doc/plans/2026-10-29-member-agent-0.3.4-evidence/artifact-preflight.mjs
+{
+  "PAPERCLIP_API_URL": false,
+  "PAPERCLIP_API_KEY": false,
+  "PAPERCLIP_COMPANY_ID": false,
+  "PAPERCLIP_TASK_ID": false,
+  "PAPERCLIP_RUN_ID": false
+}
+Tool discovery: no Paperclip register_deliverable or artifact upload connector returned.
+The local report and ZIPs have not been uploaded or registered as work products.
+
+exitCode=0

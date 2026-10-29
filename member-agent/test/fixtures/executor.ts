@@ -4,6 +4,9 @@ const mode=workerData.executorData?.mode;
 const executor:Executor={name:'test-only',async execute(hooks){
  if(mode==='throw-secret')throw new Error('x'.repeat(1010)+hooks.job.authToken);
  if(mode==='live-handle')setInterval(()=>{},1000);
+ if(mode==='error-code')return {exitCode:0,signal:null,timedOut:false,errorCode:'member_agent_codebuddy_login_required'};
+ if(mode==='timed-out')return {exitCode:0,signal:null,timedOut:true};
+ if(mode==='nonzero')return {exitCode:2,signal:null,timedOut:false};
  if(mode==='blocked'){const end=Date.now()+2000;while(Date.now()<end){} }
  if(mode==='wait')await new Promise<void>(resolve=>{if(hooks.signal.aborted)resolve();else hooks.signal.addEventListener('abort',()=>resolve(),{once:true});});
  if(mode==='secret'){

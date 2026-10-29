@@ -1,0 +1,70 @@
+Source: @tencent-ai/codebuddy-code@2.169.0
+File: dist/codebuddy-headless.js (installed official package)
+Method: static source inspection and isolated evaluation of only the risk regex arrays.
+No package startup, real model invocation, credential/configuration reads, or candidate command execution.
+Offsets below count Unicode characters in the decoded installed JavaScript.
+
+[Base command-risk tables; near character offset 10837000]
+HIGH table eb includes /git\s+restore\b/ and /\brm\s+(-[^\s]*r|-[^\s]*R|--recursive)/.
+CRITICAL table eC includes /git\s+reset\s+--hard/.
+SAFE table ew includes /git\s+restore\s+--staged\b/ (so do not use --staged for a HIGH probe).
+checkSingleCommandSafety checks SAFE, then CRITICAL, then HIGH, then MEDIUM, then a known-command whitelist or LOW unknown fallback.
+HIGH/CRITICAL results set isSafe:false, requiresApproval:true.
+checkCommandSafety lowercases and normalizes input before matching; compound commands take the highest matched level.
+applyWorkBuddyCommandPolicy preserves an existing HIGH/CRITICAL level.
+
+[Pure regex evaluation; commands below were NOT executed]
+git restore -- risk-victim.txt => HIGH; matched /git\s+restore\b/
+git reset --hard HEAD => CRITICAL; matched /git\s+reset\s+--hard/
+rm -r -- risk-victim => HIGH; matched /\brm\s+(-[^\s]*r|-[^\s]*R|--recursive)/
+Remove-Item -LiteralPath '.\high-risk-victim' -Recurse -Force => no base risk/safe-pattern match; base LOW unknown fallback.
+This last classification concerns the CommandUtils base table, not every independent sandbox/parser/security-review subsystem.
+
+[Remove-Item has separate handling]
+Near offset 7347215, the builtin exec-policy has an exact prefix rule for Remove-Item -Recurse -Force against the system-drive root, with decision:"forbidden" and reason:"catastrophic delete of Windows system drive".
+This is not a general Remove-Item HIGH rule. Never use the system-drive-root rule as a live probe.
+Other Remove-Item references include safe-delete wrapper implementation and deeper parser/dynamic-signal rules for nested destructive commands.
+
+[Print bypasses ordinary dangerous-command approval checks; offset 10016278]
+if(!eE.print){let eA=this.checkCommandSafety(ey,ew,eE);if(eA)return eA}
+The subsequent bypass branch also requires !eE.print for the forced dangerous-command ask:
+if(!(0,aJ.PY)(ew)&&this.isDangerousCommand(ey)&&!eE.print) ... {behavior:"ask",message:"Dangerous command requires explicit approval even in bypass mode"}
+Otherwise bypass returns behavior:"allow".
+Therefore the CLI help text saying HIGH/CRITICAL still ask does not describe this print-mode branch precisely.
+
+[dontAsk is passed into print requests]
+Near offset 5234186, request builder starts eg={...eA.opts()} and returns {path:ep,body:eg}; buildAgentRequest also uses body:{...ec,prompt:eu}.
+Near offset 14342261:
+async resolvePermissionMode(eA){if(eA.options.dangerouslySkipPermissions)return tj.ZC.BypassPermissions;let el=eA.options.permissionMode;if(el){let eA=this.validatePermissionMode(el); ...}}
+Thus -y takes precedence over --permission-mode dontAsk; a dontAsk probe must omit -y.
+Near offset 10010743, applyModeFinalization converts behavior:"ask" into behavior:"deny" when the mode is DontAsk, without excluding print.
+Near offset 10606505, the DontAsk strategy requires approval for Bash/Edit/unknown operations and allows trusted-directory reads; prior explicit allow rules can still authorize tools.
+dontAsk is a stricter authorization mode, not an additive no-prompt option for a write-enabled -y run.
+
+[Default print input avoids approval prompts; offset 10026530]
+let eh=eA.options?.inputFormat==="stream-json"&&eA.options?.acp!==!0;
+el.shouldAvoidPermissionPrompts=(eA.options?.print===!0||ef)&&eA.options?.acp!==!0&&!eh;
+Near offset 10017396, a tool that still needs approval is denied when shouldAvoidPermissionPrompts is true and there is no host canUseTool callback (outside effective auto mode).
+
+[Final interruption no-UI fallback; offsets 14217883 and 14257660]
+The interruption handler uses shouldAvoidInteractiveApproval(eA) or library-runtime detection to call denyForNonInteractive, approve the denied interruption, and continue.
+shouldAvoidInteractiveApproval(eA){let el=eA.options?.inputFormat==="stream-json"&&eA.options?.acp!==!0;return eA.options?.print===!0&&eA.options?.acp!==!0&&!el}
+denyForNonInteractive caches {allowed:!1,message:ed,permissionDecision:"deny"} and logs "Non-interactive (-p) mode, no approval UI available: auto-denying".
+This supports automatic refusal rather than an interactive wait for -p with ordinary text input and no host approval callback.
+--output-format stream-json does not change this condition. --input-format stream-json is a distinct approval-capable input protocol and is explicitly excluded.
+
+[Independent sandbox approval path]
+Near offset 9693365, tryAutoAllowInBypassMode checks CommandUtils HIGH/CRITICAL separately and refuses auto-allow for those levels.
+Near offset 10278705, PowerShell has the same separate sandbox-risk precheck; queued policy approvals can skip automatic approval altogether.
+Fallback sandbox UI promises include timeouts (PowerShell ordinary approval 120000 ms; bulk-delete approval 1800000 ms; generic sandbox default 1800000 ms).
+The final ordinary-print interruption fallback above is separate and should deny when no interaction channel exists. Static inspection does not prove every runtime sandbox/security-review path.
+
+[Sandbox marker remains disabled]
+Near offset 7334239, unrestricted bypass requires BypassPermissions plus isCodeBuddySandboxEnabled(process.env), except a separate FullAccess mode.
+Do not add CODEBUDDY_IS_SANDBOX or FullAccess for this verification.
+
+[Recommended independent probe]
+Use git restore -- risk-victim.txt only in a separately created disposable Git repository with that single tracked, deliberately modified victim file. This matches a proven HIGH regex without touching another repository.
+Use -p -y with default text input for the authorized unattended-execution probe; observe whether the temporary victim is restored or the tool result reports denial. Capture the matched-rule proof above alongside runtime output.
+For a separate refusal probe, omit -y and use --permission-mode dontAsk; expect unapproved Bash/Edit to be denied, including ordinary writes.
+No dontAsk addition is necessary solely to suppress interactive approvals in the current -p/text-input execution path. Keep executor cancellation and timeout bounds for independent long-running paths.

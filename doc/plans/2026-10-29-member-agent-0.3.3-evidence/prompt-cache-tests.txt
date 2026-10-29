@@ -1,0 +1,14 @@
+cwd=packages\adapters\claude-local
+command=node ../../../node_modules/vitest/vitest.mjs run src/server/prompt-cache.test.ts --cache=false --config vitest.config.ts --reporter=verbose
+
+ RUN  v5.0.3 D:/paperclip/.claude/worktrees/codebuddy-executor-6332a5/packages/adapters/claude-local
+
+ ✓ src/server/prompt-cache.test.ts > copies Windows skills without attempting a reparse point and hashes their contents 55ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  16:22:11
+   Duration  2.48s (transform 67%, import 30%, tests 2%)
+
+
+exitCode=0

@@ -1,0 +1,12 @@
+
+ RUN  v5.0.3 D:/paperclip/.claude/worktrees/codebuddy-executor-6332a5/member-agent
+
+
+ Test Files  4 passed (4)
+      Tests  27 passed (27)
+   Start at  13:29:02
+   Duration  9.22s (tests 96%, transform 2%, import 1%)
+
+    Isolate  4 workers spawned · ~204ms startup each (spawn + environment, per file)
+             at least ~613ms faster with isolate: false — reuses workers across files instead of one per file
+

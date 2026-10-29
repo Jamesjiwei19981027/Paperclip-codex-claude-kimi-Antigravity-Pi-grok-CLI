@@ -1,0 +1,10 @@
+cwd=.
+command=D:/Program Files/Git/usr/bin/bash.exe skills/paperclip/scripts/paperclip-upload-artifact.sh doc/plans/2026-10-29-member-agent-0.3.3-evidence/report.md
+Missing required command: jq
+
+exitCode=1
+PAPERCLIP_API_URL=False
+PAPERCLIP_API_KEY=False
+PAPERCLIP_COMPANY_ID=False
+PAPERCLIP_TASK_ID=False
+PAPERCLIP_RUN_ID=False

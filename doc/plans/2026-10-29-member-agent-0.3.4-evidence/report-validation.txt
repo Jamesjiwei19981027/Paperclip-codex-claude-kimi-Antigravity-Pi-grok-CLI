@@ -1,0 +1,5 @@
+cwd=.
+command=python doc/plans/2026-10-29-member-agent-0.3.4-evidence/validate-report.py
+PASS: report links resolve, measured package records and test counts match, local identity absent.
+
+exitCode=0

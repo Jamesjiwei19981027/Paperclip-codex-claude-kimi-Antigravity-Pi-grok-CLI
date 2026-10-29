@@ -74,13 +74,13 @@ async function fixture(current: string, required: unknown, codexVersion = "0.160
 }
 
 describe("member-agent minimum version gate", () => {
-  it("keeps package and lockfile release metadata aligned with the reported 0.2.2 agent", () => {
+  it("keeps package and lockfile release metadata aligned with the reported 0.3.4 agent", () => {
     const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
     const lock = JSON.parse(readFileSync(new URL("../package-lock.json", import.meta.url), "utf8"));
-    expect(pkg.version).toBe("0.2.2");
-    expect(lock.version).toBe("0.2.2");
-    expect(lock.packages[""].version).toBe("0.2.2");
-    expect(AGENT_VERSION).toBe("0.2.2");
+    expect(pkg.version).toBe("0.3.4");
+    expect(lock.version).toBe("0.3.4");
+    expect(lock.packages[""].version).toBe("0.3.4");
+    expect(AGENT_VERSION).toBe("0.3.4");
   });
 
   it("reports an outdated version as a failed one-shot self-check", async () => {
@@ -90,18 +90,18 @@ describe("member-agent minimum version gate", () => {
   });
 
   it("refuses every outdated job before acceptance or Worker creation while keeping heartbeats online", async () => {
-    const f = await fixture(AGENT_VERSION, "0.3.0");
+    const f = await fixture(AGENT_VERSION, "0.4.0");
     f.send("old-first"); f.send("old-second");
     await until(() => f.frames.filter(frame => frame.type === "job.result").length === 2);
     expect(f.dispatched()).toBe(0);
     expect(f.runner.busy).toBe(false);
     expect(f.frames.some(frame => frame.type === "job.accepted")).toBe(false);
-    expect(f.frames.find(frame => frame.type === "hello")?.agentVersion).toBe("0.2.2");
+    expect(f.frames.find(frame => frame.type === "hello")?.agentVersion).toBe("0.3.4");
     for (const frame of f.frames.filter(frame => frame.type === "job.result")) {
       const { v: _v, type: _type, jobId: _jobId, ...payload } = frame;
       expect(validateResult(payload)).toMatchObject({ exitCode: 1, signal: null, timedOut: false, errorCode: "member_agent_version_outdated" });
-      expect(frame.errorMessage).toContain("0.2.2");
-      expect(frame.errorMessage).toContain("0.3.0");
+      expect(frame.errorMessage).toContain("0.3.4");
+      expect(frame.errorMessage).toContain("0.4.0");
       expect(frame.errorMessage).toContain("请运行新安装包升级");
     }
     const before = f.frames.filter(frame => frame.type === "heartbeat").length;
@@ -112,8 +112,8 @@ describe("member-agent minimum version gate", () => {
   });
 
   it.each([
-    ["0.2.2", "0.2.0"], ["0.2.0", "0.2.0"], ["0.3.0", "0.2.0"], ["0.10.0", "0.2.0"],
-    ["1.0.0", "0.99.0"], ["0.3.0-beta.1", "0.2.0"], ["0.2.0+build.7", "0.2.0"],
+    ["0.2.2", "0.2.0"], ["0.2.0", "0.2.0"], ["0.3.2", "0.2.0"], ["0.10.0", "0.2.0"],
+    ["1.0.0", "0.99.0"], ["0.3.2-beta.1", "0.2.0"], ["0.2.0+build.7", "0.2.0"],
     ["0.2.0-beta.10", "0.2.0-beta.2"], ["0.1", undefined],
   ])("dispatches current %s against compatible/legacy requirement %s normally", async (current, required) => {
     const f = await fixture(current, required);

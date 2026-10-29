@@ -1,0 +1,3 @@
+git diff --check (task files)
+
+exitCode=0

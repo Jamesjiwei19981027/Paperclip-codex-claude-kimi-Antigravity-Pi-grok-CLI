@@ -1,0 +1,12 @@
+[
+  {
+    "path": "D:\\paperclip\\.claude\\worktrees\\codebuddy-executor-6332a5\\member-agent\\dist-installer\\PaperclipMemberAgent-0.3.1-codebuddy.zip",
+    "bytes": 128848147,
+    "sha256": "60274a72c6b05e4d259314c75749a062cd267ba361cf532deb97ea873f201e10"
+  },
+  {
+    "path": "D:\\paperclip\\.claude\\worktrees\\codebuddy-executor-6332a5\\member-agent\\dist-installer\\PaperclipMemberAgent-0.3.1.zip",
+    "bytes": 173268077,
+    "sha256": "e98e02498b7fe26b21ae1566bdd778c39e3a16c174783102d622a80446d306d2"
+  }
+]

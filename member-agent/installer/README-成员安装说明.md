@@ -1,10 +1,10 @@
 # 成员代理安装说明
 
-先向负责人索取安装压缩包、服务器地址和你自己的智能体 Key。**不要把 Key 发给任何人，包括负责人。** 本机 Codex 登录只用于你自己的智能体。安装不需要管理员权限，也不需要先装 Node。
+先向负责人索取安装压缩包、服务器地址和你自己的智能体 Key。**不要把 Key 发给任何人，包括负责人。** 本机执行器登录只用于你自己的智能体。安装不需要管理员权限，也不需要先装 Node。
 
 ## 安装
 
-将压缩包解压到普通目录，不要直接在压缩包中运行。用可信渠道拿到压缩包，并将 `Get-FileHash .\PaperclipMemberAgent-0.2.2.zip -Algorithm SHA256` 的结果与负责人单独提供的 SHA-256 核对。包内清单检查只能发现损坏或修改，不能证明来源。
+当前版本为 **0.3.4**。默认 Codex 安装包为 `PaperclipMemberAgent-0.3.4.zip`，CodeBuddy 安装包为 `PaperclipMemberAgent-0.3.4-codebuddy.zip`，后者不包含 Codex 二进制。必须解压到一个空文件夹，压缩包本身不要放在解压出来的文件夹里，否则会提示发现未列入清单的文件。不要直接在压缩包中运行。请解压到路径较短的目录（例如 `D:\成员代理安装包`），不要放在多层嵌套文件夹里——CodeBuddy 版包内文件层级较深，Windows 自带解压在总路径超过 260 个字符时会失败。用可信渠道拿到压缩包，并将 `Get-FileHash .\PaperclipMemberAgent-0.3.4-codebuddy.zip -Algorithm SHA256` （Codex 版使用对应文件名）的结果与负责人单独提供的 SHA-256 核对。包内清单检查只能发现损坏或修改，不能证明来源。
 
 在解压目录打开 PowerShell，运行：
 
@@ -12,9 +12,15 @@
 powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-按提示输入服务器地址、已有的工作目录、Key，选择登录 Codex。Key 输入隐藏并由当前 Windows 用户加密保存，不会进入命令参数。服务器地址只填源地址，例如 `http://192.168.0.213:3100`；不带路径、查询参数或账号密码。公网必须用 HTTPS。此处的 Bypass 只影响这次脚本进程。
+按提示输入服务器地址、已有的工作目录、Key。CodeBuddy 首次配置可额外输入模型，直接回车使用默认模型。Codex 版未发现独立登录时会问“现在登录 Codex 吗？”；CodeBuddy 版未发现本机 CodeBuddy 登录时会问“现在登录 CodeBuddy 吗？”，选是即启动登录；已登录则不问；也可以以后随时运行下文的 `start.ps1 -Mode login`。Key 输入隐藏并由当前 Windows 用户加密保存，不会进入命令参数。服务器地址只填源地址，例如 `http://<服务器地址>:3100`；不带路径、查询参数或账号密码。公网必须用 HTTPS。此处的 Bypass 只影响这次脚本进程。
 
-程序装在 `%LOCALAPPDATA%\Programs\PaperclipMemberAgent`；配置、加密 Key、独立 Codex 登录和日志放在 `%APPDATA%\paperclip-member-agent`。不要手动移动版本目录。安装器会注册你本人登录时启动、每 5 分钟检查一次的计划任务，不提升权限；已运行时不会重复启动。公司策略禁止时会提示手动启动命令。
+程序装在 `%LOCALAPPDATA%\Programs\PaperclipMemberAgent`；配置、加密 Key、执行器独立配置和日志放在 `%APPDATA%\paperclip-member-agent`。不要手动移动版本目录。安装器会注册你本人登录时启动、每 5 分钟检查一次的计划任务，不提升权限；已运行时不会重复启动。公司策略禁止时会提示手动启动命令。
+
+## CodeBuddy 登录和模型
+
+CodeBuddy 版固定包含 CLI 2.169.0。与 Codex 版共用同一成员代理 `start.ps1 -Mode login` 入口，入口按当前配置启动对应 CLI。CodeBuddy 复用当前 Windows 成员已有的 CodeBuddy 共享登录（包括 CodeBuddy 扩展登录）；如已登录通常无需再次登录。成员代理不复制、不读取或输出凭据内容。`%APPDATA%\paperclip-member-agent\codebuddy-home` 用于隔离成员代理配置和技能，登录凭据仍由 CodeBuddy 管理，不承诺单独的登录隔离；Codex 仍使用自己的独立登录目录。
+
+需要换模型时，编辑 `%APPDATA%\paperclip-member-agent\config.json` 的可选字段 `"codebuddyModel": "你的可用模型名"`；删除此字段即恢复 CLI 默认模型。保存后运行 `-Mode check`，再重启代理。不要修改包内 CLI 文件或版本目录中的 `PACKAGE-MANIFEST.json`；自检会按包清单检查 CodeBuddy 文件，篡改或缺失时应重新安装。
 
 ## Codex 账号与代理
 
@@ -52,7 +58,7 @@ Get-ChildItem $logs -File | Sort-Object LastWriteTime -Descending | Select-Objec
 
 ## 升级和回滚
 
-拿到新压缩包，核对哈希后解压，运行新包里的 `install.ps1`。现有配置、Key 和 Codex 登录可以沿用。提示“沿用现有配置吗？[Y/n]”时，直接回车即沿用，输入 n 才重新填写；其他确认提示的默认选项不变。安装器先写维护锁、禁用计划任务并停止启动器，再等当前任务结束，最多等待 60 秒；仍未结束会询问是否强制停止，选择否会取消升级。维护期间不会启动任务执行，但仍可登录或自检；操作成功且自启任务重新注册后才解除维护锁。取消或失败后保持禁用，修复原因并重新运行安装器恢复。最多保留两个版本。
+拿到新压缩包，核对哈希后解压，运行新包里的 `install.ps1`。现有配置、Key 和执行器配置可以沿用。跨 Codex/CodeBuddy 升级时，安装器按新包内容切换执行器并更新程序路径；回滚按实际保留的旧版本切回。同版本的 CodeBuddy 安装目录使用 `0.3.4-codebuddy` 标识以保留跨执行器回滚，代理报告版本仍是 0.3.4。登录和配置数据保留。提示“沿用现有配置吗？[Y/n]”时，直接回车即沿用，输入 n 才重新填写；其他确认提示的默认选项不变。安装器先写维护锁、禁用计划任务并停止启动器，再等当前任务结束，最多等待 60 秒；仍未结束会询问是否强制停止，选择否会取消升级。维护期间不会启动任务执行，但仍可登录或自检；操作成功且自启任务重新注册后才解除维护锁。取消或失败后保持禁用，修复原因并重新运行安装器恢复。最多保留两个版本。
 
 回滚时在解压目录运行：
 
@@ -70,7 +76,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 -Rollback
 powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $env:LOCALAPPDATA 'Programs\PaperclipMemberAgent\uninstall.ps1')
 ```
 
-卸载会列出删除路径，停止代理、删除自启任务和程序。配置与加密 Key、Codex 登录与模型设置、日志会分别询问是否删除，默认都保留。保留的数据仍在 `%APPDATA%\paperclip-member-agent`。
+卸载会列出删除路径，停止代理、删除自启任务和程序。配置与加密 Key、Codex 独立登录、CodeBuddy 独立配置和模型设置、日志会分别询问是否删除，默认都保留。卸载不删除当前 Windows 用户的 CodeBuddy 共享登录。保留的数据仍在 `%APPDATA%\paperclip-member-agent`。
+
+从 0.3.1 升级时，如果 CodeBuddy 曾在 `codebuddy-home\paperclip-runtime` 留下目录联接，安装器和卸载器会先安全删除该缓存联接本身，再删除缓存目录；联接指向的目标文件不会被删除。0.3.4 修复 Windows PowerShell 5.1 在缓存总路径超过 260 字符时清理失败的问题，同时支持旧联接和 0.3.3 复制生成的超长普通缓存文件。清理在配置扫描前完成，失败会显示中文原因与 Win32 错误码。配置目录其他位置的链接或重解析点仍会被拒绝。
 
 ## 常见问题
 
@@ -85,3 +93,5 @@ model = "gpt-5.4"
 具体模型名请使用你账号可用的模型。不要修改个人 `%USERPROFILE%\.codex`。项目映射在配置文件 `projectDirs` 中添加，键为服务器项目 ID，值为本地已有目录；保留 JSON 格式，例如 `"projectDirs": { "项目ID": "D:\\项目目录" }`。修改配置后运行自检，再重启代理。
 
 如果安全软件拦截，请先核对来源及哈希，再让负责人或 IT 确认。安装包尚未代码签名。不要关闭整机防护，也不要把 Key 或 Codex 登录文件发给他人。
+
+CodeBuddy 安装时由安装器对清单全量计算 SHA-256；安装后自检和启动核对所有文件的存在性与大小，并校验 CodeBuddy 入口、package.json、package-lock.json 的哈希，不再重复哈希全部依赖文件。

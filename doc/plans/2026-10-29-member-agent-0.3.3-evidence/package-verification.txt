@@ -1,0 +1,10 @@
+cwd=.
+command=python doc/plans/2026-10-29-member-agent-0.3.3-evidence/verify-packages.py
+PaperclipMemberAgent-0.3.3-codebuddy.zip: agentVersion=0.3.3; manifestFiles=10461; ZIP paths, file hashes, runtime assets and current sources PASS
+PaperclipMemberAgent-0.3.3-codebuddy.zip: packaged node + main.ts version -> 0.3.3; exitCode=0
+{"path": "member-agent/dist-installer/PaperclipMemberAgent-0.3.3-codebuddy.zip", "bytes": 128848990, "sha256": "637d4e580c56448886a98773a7bb643c3437ad4dcec9247eecfaa0a7dd0d2910"}
+PaperclipMemberAgent-0.3.3.zip: agentVersion=0.3.3; manifestFiles=65; ZIP paths, file hashes, runtime assets and current sources PASS
+PaperclipMemberAgent-0.3.3.zip: packaged node + main.ts version -> 0.3.3; exitCode=0
+{"path": "member-agent/dist-installer/PaperclipMemberAgent-0.3.3.zip", "bytes": 173268505, "sha256": "5128c88be25ca4d5a16be4a32a6524b5e733eab3856bd8b639ebcf74abb3be61"}
+
+exitCode=0

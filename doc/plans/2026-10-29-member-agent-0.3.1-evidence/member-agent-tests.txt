@@ -1,0 +1,9 @@
+
+ RUN  v5.0.3 D:/paperclip/.claude/worktrees/codebuddy-executor-6332a5/member-agent
+
+
+ Test Files  35 passed (35)
+      Tests  484 passed (484)
+   Start at  13:20:31
+   Duration  550.65s (tests 100%)
+

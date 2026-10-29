@@ -1,0 +1,17 @@
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.patchedDependencies", "pnpm.overrides". See https://pnpm.io/settings for the new home of each setting.
+
+> paperclip@ check:token-gates D:\paperclip\.claude\worktrees\codebuddy-executor-6332a5
+> node scripts/check-token-gates.mjs && node scripts/sync-agent-palette-tokens.mjs --check && node scripts/sync-cliplab-character.mjs --check
+
+check-token-gates summary
+  Files scanned:                 1209
+  Allowlist entries loaded:      33
+  Allowlisted issues skipped:    107
+
+  Gate 1 (color literals):       CLEAN
+  Gate 2 (arbitrary bracket vals): CLEAN
+  Gate 3 (raw font-size):        CLEAN
+  Gate 4 (legacy hsl(var())):    CLEAN
+
+All gates clean.
+cliplab character in sync

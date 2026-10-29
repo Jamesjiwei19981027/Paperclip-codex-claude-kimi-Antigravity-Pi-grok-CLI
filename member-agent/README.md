@@ -1,6 +1,6 @@
-# 成员代理：阶段 3
+# 成员代理 0.3.4
 
-这个程序在成员 Windows 电脑上常驻，连接 Paperclip 并通过 echo 或本机 Codex 执行任务。需要 Node 24.11.0 或更新版本。代理源码直接运行 TypeScript；Codex 适配器在首次使用前单独打包到 `member-agent/runtime/`。本阶段不提供代理安装包、自动升级或开机自启。
+这个程序在成员 Windows 电脑上常驻，连接 Paperclip 并通过 echo、本机 Codex 或 CodeBuddy 执行任务。需要 Node 24.11.0 或更新版本。代理源码直接运行 TypeScript；Codex / Claude CLI 适配器在首次使用前单独打包到 `member-agent/runtime/`。Windows 安装包使用便携 Node，并提供交互登录、自检与用户级任务计划启动；安装说明见 `installer/README-成员安装说明.md`。
 
 在仓库根目录安装唯一运行依赖：
 
@@ -83,3 +83,29 @@ pnpm exec tsc --noEmit
 ```
 
 自动化测试只监听随机回环端口，不访问 Paperclip 或专用服务器。Windows 进程树测试只创建和终止自己的测试子孙进程。阶段 3 的 Codex 集成测试使用本地回环假模型，不使用真实 Codex 账号或登录凭据。
+
+## CodeBuddy 执行器
+
+CodeBuddy 版安装包为 `PaperclipMemberAgent-0.3.4-codebuddy.zip`，内置固定版本 `@tencent-ai/codebuddy-code@2.169.0`。安装程序识别包内容选择执行器。首次运行 `start.ps1 -Mode login`，在交互界面输入 `/login`，完成后退出，再运行 `start.ps1 -Mode check`。登录与成员自己的 CodeBuddy 插件 / WorkBuddy 共用；代理只检查凭据文件存在性，从不读取或复制其内容。
+
+配置使用 `executor: "codebuddy"`、`codebuddyEntry`（随包 `codebuddy/node_modules/@tencent-ai/codebuddy-code/bin/codebuddy` 的绝对路径）、`codebuddyHome`（默认 `%APPDATA%\paperclip-member-agent\codebuddy-home`）、`runtimeDir`，以及可选 `codebuddyModel`。`codebuddyModel` 留空使用账号默认模型，不能填写 `claude-*`。改模型只需修改该字段后重启。`codebuddyHome` 不得指向成员个人 `.codebuddy`、其内部目录或指向该目录的联接；不会覆盖 `USERPROFILE` / `HOME`。
+
+CodeBuddy 执行器复用 Claude CLI 的提示词、会话和输出解析；启动器转换系统提示词文件参数并过滤 Claude 默认模型。它仅使用 `--print --output-format stream-json`，输入仍为文本，且使用 `-y` 权限模式。需审批而无法非交互完成的动作由 CodeBuddy 拒绝。运行可取消；连续 15 分钟无输出会停止进程，另受任务最大运行时间限制。退出码为 0 但终态 `result.is_error=true` 仍算失败；未登录和不可用模型会给出中文修复提示。
+
+Windows 上 Claude prompt cache 会直接复制 Paperclip 技能目录，不创建符号链接或目录联接；缓存目录名包含技能内容哈希。安装器和卸载器会在扫描配置目录前清理 `codebuddy-home\paperclip-runtime` 中可再生的旧缓存联接，只删除联接本身并保留其目标目录，缓存之外的重解析点仍会拒绝操作。
+
+0.3.4 的缓存清理使用 Win32 宽字符 API 和扩展长路径：Windows PowerShell 5.1 与 pwsh 都能枚举及删除超过 260 字符的旧技能联接和普通缓存文件。目录联接、文件链接只删除入口；普通缓存递归删除，最后确认缓存目录已不存在。失败时报告中文原因和 Win32 错误码。复制缓存中的超长普通文件也在 ConfigDir 扫描前清除；缓存以外的链接仍拒绝操作。
+
+沿用 0.3.3 的结果修正：仅在明确的 `result/subtype=success`、`is_error!==true`、退出码 0、未超时且无信号时，清除复用解析器因工具文本触发的 `claude_auth_required` 及其附带错误信息；其他失败保留。成员本机结束日志与服务端一致：非零退出、有错误码或超时均记失败，并显示错误码。CodeBuddy 的四种任务提示均说明：Windows PowerShell 5.1 发送含中文的 JSON 时，使用 `-Body ([Text.Encoding]::UTF8.GetBytes($json)) -ContentType 'application/json; charset=utf-8'`。
+
+安装器对安装包清单全量计算 SHA-256；已安装目录自检和启动仅核对文件存在性与大小，以及 CodeBuddy 入口、package.json、package-lock.json 的哈希，避免重复读取全部依赖。自检仍验证 runtime 哈希、固定版本和共享登录存在性，再进行现有平台连接检查。开发中直接用本机 CLI 构造执行器验收可不连接服务器；生产自检要求使用完整安装包清单。
+
+构建 CodeBuddy 安装包（依赖仅安装到构建器新建临时目录，不能向联接的仓库 `node_modules` 安装）：
+
+```powershell
+node .\member-agent\scripts\build-installer.mjs --executor codebuddy --node-zip <已有官方NodeZIP>
+```
+
+不传 `--executor` 仍构建 Codex 版 `PaperclipMemberAgent-0.3.4.zip`，不带 CodeBuddy 依赖或执行器。
+
+禁止安装依赖的验收环境可使用构建模块的 `reuseVerifiedCodeBuddy(directory, manifestPath, expectedManifestSha256)`：先从独立可信记录核对旧交付 ZIP 的 SHA-256，再核对 ZIP 中清单并取得清单 SHA-256。此入口逐项校验旧 CodeBuddy 文件、文件集合、固定版本和 npm integrity 后才授予扫描凭据，不运行 npm。测试可通过 `PMA_VERIFIED_CODEBUDDY_DIR`、`PMA_VERIFIED_CODEBUDDY_MANIFEST`、`PMA_VERIFIED_CODEBUDDY_MANIFEST_SHA256` 指向该已验证副本；未提供这些变量时仍使用原来的临时目录安装流程。

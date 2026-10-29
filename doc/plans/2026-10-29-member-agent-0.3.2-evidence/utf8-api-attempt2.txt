@@ -1,0 +1,20 @@
+node.exe: 
+Line |
+   2 |  … tempt1.txt; node doc/plans/2026-10-29-member-agent-0.3.2-evidence/utf …
+     |                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | 无法处理来自 "Output" 的 "C:\Program Files\nodejs\node.exe" 流中的 XML: Data at the root level is invalid. Line 1, position 1.
+node.exe: 
+Line |
+   2 |  … tempt1.txt; node doc/plans/2026-10-29-member-agent-0.3.2-evidence/utf …
+     |                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | 无法处理来自 "Output" 的 "C:\Program Files\nodejs\node.exe" 流中的 XML: Data at the root level is invalid. Line 1, position 1.
+node.exe: 
+Line |
+   2 |  … tempt1.txt; node doc/plans/2026-10-29-member-agent-0.3.2-evidence/utf …
+     |                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | 无法处理来自 "Output" 的 "C:\Program Files\nodejs\node.exe" 流中的 XML: Data at the root level is invalid. Line 1, position 1.
+node.exe: 
+Line |
+   2 |  … tempt1.txt; node doc/plans/2026-10-29-member-agent-0.3.2-evidence/utf …
+     |                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | 无法处理来自 "Output" 的 "C:\Program Files\nodejs\node.exe" 流中的 XML: Data at the root level is invalid. Line 1, position 1.

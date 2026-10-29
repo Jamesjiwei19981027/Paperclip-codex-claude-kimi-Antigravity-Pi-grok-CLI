@@ -1,0 +1,32 @@
+cwd=packages\adapters\claude-local
+command=node ../../../node_modules/vitest/vitest.mjs run src/server/prompt-cache.test.ts --cache=false --config vitest.config.ts --reporter=verbose
+
+ RUN  v5.0.3 D:/paperclip/.claude/worktrees/codebuddy-executor-6332a5/packages/adapters/claude-local
+
+ × src/server/prompt-cache.test.ts > copies Windows skills without attempting a reparse point and hashes their contents 25ms
+   → ENOENT: no such file or directory, open 'C:\Users\[redacted]\AppData\Local\Temp\claude-skill-junction-XDgYqV\cache\instances\default\companies\company\claude-prompt-cache\053c3c645c162d19a68255d35af522a39fd0f87c7fad3d09aa8a8c273e4009af\.claude\skills\paperclip\SKILL.md'
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/server/prompt-cache.test.ts > copies Windows skills without attempting a reparse point and hashes their contents
+Error: ENOENT: no such file or directory, open 'C:\Users\[redacted]\AppData\Local\Temp\claude-skill-junction-XDgYqV\cache\instances\default\companies\company\claude-prompt-cache\053c3c645c162d19a68255d35af522a39fd0f87c7fad3d09aa8a8c273e4009af\.claude\skills\paperclip\SKILL.md'
+ ❯ src/server/prompt-cache.test.ts:23:10
+     21|   const bundle = await prepareClaudePromptBundle({ companyId: "company…
+     22|   const target = path.join(bundle.addDir, ".claude/skills/paperclip");
+     23|   expect(await fs.readFile(path.join(target, "SKILL.md"), "utf8")).toB…
+       |          ^
+     24|   expect((await fs.lstat(target)).isSymbolicLink()).toBe(false);
+     25|   expect((await fs.lstat(path.join(target, "scripts"))).isSymbolicLink…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -4058, code: 'ENOENT', syscall: 'open', path: 'C:\Users\[redacted]\AppData\Local\Temp\claude-skill-junction-XDgYqV\cache\instances\default\companies\company\claude-prompt-cache\053c3c645c162d19a68255d35af522a39fd0f87c7fad3d09aa8a8c273e4009af\.claude\skills\paperclip\SKILL.md' }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  16:21:20
+   Duration  3.00s (transform 68%, import 31%, tests 1%)
+
+
+exitCode=1

@@ -1,0 +1,146 @@
+
+ RUN  v5.0.3 D:/paperclip/.claude/worktrees/codebuddy-executor-6332a5/member-agent
+
+ ❯ test/codebuddy-executor.test.ts (27 tests | 10 failed) 3730ms
+   × replays a Read tool result containing unauthorized recipients through the real claude_local runtime and normalization 2842ms
+   × clears only heuristic Claude auth fields after an explicit successful terminal result 1ms
+   × keeps login failures when explicit success conditions are absent: {"exitCode":1} 2ms
+   × keeps login failures when explicit success conditions are absent: {"exitCode":null} 1ms
+   × keeps login failures when explicit success conditions are absent: {"timedOut":true} 1ms
+   × keeps login failures when explicit success conditions are absent: {"signal":"SIGTERM"} 1ms
+   × keeps login failures when explicit success conditions are absent: {"resultJson":{"type":"result","subtype":"success","is_error":true}} 1ms
+   × keeps login failures when explicit success conditions are absent: {"resultJson":{"type":"result","result":"完成"}} 1ms
+   × keeps login failures when explicit success conditions are absent: {"resultJson":{"type":"assistant","subtype":"success"}} 0ms
+   × uses CLI with isolated config, shared login identity, REST guidance and child-only proxy 65ms
+ ❯ test/job-runner.test.ts (16 tests | 2 failed) 2507ms
+   ❯ 阶段2任务执行器隔离 (16)
+     × logs the same outcome as the server for error-code 117ms
+     × logs the same outcome as the server for timed-out 83ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 12 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  test/codebuddy-executor.test.ts > replays a Read tool result containing unauthorized recipients through the real claude_local runtime and normalization
+AssertionError: expected { exitCode: +0, signal: null, …(21) } to not have property "errorCode"
+
+- Expected:
+undefined
+
++ Received:
+"claude_auth_required"
+
+ ❯ test/codebuddy-executor.test.ts:28:22
+     26|   expect(raw).toMatchObject({ exitCode: 0, timedOut: false, errorCode:…
+     27|   expect(result).toMatchObject({ exitCode: 0, timedOut: false, signal:…
+     28|   expect(result).not.toHaveProperty("errorCode");
+       |                      ^
+     29|   expect(() => validateResult(result)).not.toThrow();
+     30|   console.log(`REPLAY raw=${JSON.stringify({ exitCode: raw.exitCode, e…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/12]⎯
+
+ FAIL  test/codebuddy-executor.test.ts > clears only heuristic Claude auth fields after an explicit successful terminal result
+AssertionError: expected { exitCode: +0, signal: null, …(8) } to not have property "errorCode"
+
+- Expected:
+undefined
+
++ Received:
+"claude_auth_required"
+
+ ❯ test/codebuddy-executor.test.ts:41:131
+     39|   const result = normalizeCodeBuddyResult(authResult(), "");
+     40|   expect(result.exitCode).toBe(0);
+     41|   for (const field of ["errorCode", "errorMessage", "errorFamily", "er…
+       |                                                                                                                                   ^
+     42|   expect(() => validateResult(result)).not.toThrow();
+     43| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/12]⎯
+
+ FAIL  test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"exitCode":1}
+ FAIL  test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"exitCode":null}
+ FAIL  test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"timedOut":true}
+ FAIL  test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"signal":"SIGTERM"}
+ FAIL  test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"resultJson":{"type":"result","subtype":"success","is_error":true}}
+ FAIL  test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"resultJson":{"type":"result","result":"完成"}}
+ FAIL  test/codebuddy-executor.test.ts > keeps login failures when explicit success conditions are absent: {"resultJson":{"type":"assistant","subtype":"success"}}
+AssertionError: expected 'claude_auth_required' to be 'member_agent_codebuddy_login_required' // Object.is equality
+
+Expected: "member_agent_codebuddy_login_required"
+Received: "claude_auth_required"
+
+ ❯ test/codebuddy-executor.test.ts:52:28
+     50| ])("keeps login failures when explicit success conditions are absent: …
+     51|   const result = normalizeCodeBuddyResult({ ...authResult(), ...patch …
+     52|   expect(result.errorCode).toBe("member_agent_codebuddy_login_required…
+       |                            ^
+     53| });
+     54| it.each(["provider_quota", "duplex_channel_lost", "member_agent_proces…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/12]⎯
+
+ FAIL  test/codebuddy-executor.test.ts > uses CLI with isolated config, shared login identity, REST guidance and child-only proxy
+AssertionError: expected '## 成员运行的 Paperclip 操作方式\n本成员运行没有 Pape…' to contain '[Text.Encoding]::UTF8.GetBytes($json)'
+
+- Expected
++ Received
+
+- [Text.Encoding]::UTF8.GetBytes($json)
++ ## 成员运行的 Paperclip 操作方式
++ 本成员运行没有 Paperclip 原生工具。评论、确认卡、报告和状态变更必须通过普通 HTTP 接口操作；不能因为缺少原生工具而声称无法操作 Paperclip。
++ 每次运行先读取本机技能文档：Get-Content -LiteralPath '%USERPROFILE%\AppData\Local\Temp\member-cb-executor-O4nZhd\cb-home\skills\paperclip\SKILL.md'。接口、审批和任务操作规则以该文档为准；继续遵守任务权限、审批与阻塞条件。
++ 使用 PowerShell Invoke-RestMethod。服务根地址取 $env:PAPERCLIP_API_URL，运行令牌只从 $env:PAPERCLIP_API_KEY 读取，当前运行编号取 $env:PAPERCLIP_RUN_ID。
++ $headers = @{ Authorization = ('Bearer ' + $env:PAPERCLIP_API_KEY); 'X-Paperclip-Run-Id' = $env:PAPERCLIP_RUN_ID }
++ 例如读取当前任务：Invoke-RestMethod -Method Get -Uri ($env:PAPERCLIP_API_URL.TrimEnd('/') + '/api/issues/' + $env:PAPERCLIP_TASK_ID) -Headers $headers。评论使用 POST /api/issues/{id}/comments，状态使用 PATCH /api/issues/{id}；JSON 请求设置 Content-Type: application/json。
++ 所有任务写操作都携带上述认证与 X-Paperclip-Run-Id 请求头；只引用环境变量，绝不打印、复制到文档或硬编码任何凭据。若旧历史或恢复文字提及当前不存在的控制接口，按本段与技能文档使用普通 HTTP 接口完成已授权操作。
++
++ do work
+
+ ❯ test/codebuddy-executor.test.ts:94:39
+     92|   expect(received.context.paperclipTaskMarkdown).toContain(path.join(f…
+     93|   for (const carrier of ["paperclipTaskMarkdown", "paperclipTaskMarkdo…
+     94|     expect(received.context[carrier]).toContain("[Text.Encoding]::UTF8…
+       |                                       ^
+     95|     expect(received.context[carrier]).toContain("-ContentType 'applica…
+     96|   }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/12]⎯
+
+ FAIL  test/job-runner.test.ts > 阶段2任务执行器隔离 > logs the same outcome as the server for error-code
+AssertionError: expected '2026-10-29T06:04:09.763Z INFO 任务结束 fi…' to contain '任务结束 fixture-job：失败（member_agent_code…'
+
+Expected: "任务结束 fixture-job：失败（member_agent_codebuddy_login_required）"
+Received: "2026-10-29T06:04:09.763Z INFO 任务结束 fixture-job：成功"
+
+ ❯ test/job-runner.test.ts:28:66
+     26|  ])('logs the same outcome as the server for %s',async(mode,outcome)=>{
+     27|   const {runner,frames,visible}=setup(mode);runner.start(job());await …
+     28|   expect(visible.find(line=>line.includes('任务结束 fixture-job：'))).toCon…
+       |                                                                  ^
+     29|   if(mode==='error-code')expect(frames.find(f=>f.type==='job.result'))…
+     30|  });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/12]⎯
+
+ FAIL  test/job-runner.test.ts > 阶段2任务执行器隔离 > logs the same outcome as the server for timed-out
+AssertionError: expected '2026-10-29T06:04:09.861Z INFO 任务结束 fi…' to contain '任务结束 fixture-job：失败'
+
+Expected: "任务结束 fixture-job：失败"
+Received: "2026-10-29T06:04:09.861Z INFO 任务结束 fixture-job：成功"
+
+ ❯ test/job-runner.test.ts:28:66
+     26|  ])('logs the same outcome as the server for %s',async(mode,outcome)=>{
+     27|   const {runner,frames,visible}=setup(mode);runner.start(job());await …
+     28|   expect(visible.find(line=>line.includes('任务结束 fixture-job：'))).toCon…
+       |                                                                  ^
+     29|   if(mode==='error-code')expect(frames.find(f=>f.type==='job.result'))…
+     30|  });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/12]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  12 failed | 31 passed (43)
+   Start at  14:04:05
+   Duration  6.78s (tests 97%, transform 2%, import 1%)
+

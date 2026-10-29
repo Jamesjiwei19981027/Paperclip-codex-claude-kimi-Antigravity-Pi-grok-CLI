@@ -1,0 +1,8 @@
+[runtime-build] 包体积（bytes）：{"(workspace)":2018964,"zod":593637,"acpx":287268,"@agentclientprotocol+sdk":153147}
+[runtime-build] 构建完成：D:\paperclip\.claude\worktrees\codebuddy-executor-6332a5\member-agent\runtime
+[runtime-build] 清单：D:\paperclip\.claude\worktrees\codebuddy-executor-6332a5\member-agent\runtime\MANIFEST.json
+[runtime-build] 适配器版本：0.3.1；esbuild 0.28.2；目标 node24
+[installer-build] Node 官方 ZIP SHA-256：0ae68406b42d7725661da979b1403ec9926da205c6770827f33aac9d8f26e821
+[installer-build] 构建完成：D:\paperclip\.claude\worktrees\codebuddy-executor-6332a5\member-agent\dist-installer\PaperclipMemberAgent-0.3.2-codebuddy.zip
+[installer-build] ZIP SHA-256：794f0a994149e688fbea015d4645bf69f66d8650c390e71b216565b15037d58d
+build-codebuddy exitCode=0

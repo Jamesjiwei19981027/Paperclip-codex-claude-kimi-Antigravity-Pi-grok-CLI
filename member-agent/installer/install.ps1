@@ -24,11 +24,13 @@ function Test-PackageManifest {
     try {
         $manifest = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'MANIFEST.json') -Raw -Encoding UTF8 | ConvertFrom-Json
         Assert-Version $manifest.agentVersion
-        if (!$manifest.nodeVersion -or !$manifest.codexVersion -or !$manifest.runtimeManifest -or !$manifest.builtAt -or !$manifest.repoCommit -or !$manifest.files) { throw '清单字段不完整' }
+        $isCodeBuddy = $manifest.executor -eq 'codebuddy'
+        if (!$manifest.nodeVersion -or (!$isCodeBuddy -and !$manifest.codexVersion) -or ($isCodeBuddy -and !$manifest.codebuddyVersion) -or !$manifest.runtimeManifest -or !$manifest.builtAt -or !$manifest.repoCommit -or !$manifest.files) { throw '清单字段不完整' }
         $seen = @{}
         foreach ($entry in $manifest.files) {
             $relative = [string]$entry.path
-            if (!$relative -or $relative -match '\\|:|(^|/)\.\.?(/|$)' -or $relative.StartsWith('/') -or $relative -notmatch '^(install\.ps1|uninstall\.ps1|README-成员安装说明\.md|app/start\.ps1|app/(node|codex|member-agent)/[^\x00-\x1f]+)$') { throw '非法文件路径' }
+            if (!$relative -or $relative -match '\\|:|(^|/)\.\.?(/|$)' -or $relative.StartsWith('/') -or $relative -notmatch '^(install\.ps1|uninstall\.ps1|README-成员安装说明\.md|app/start\.ps1|app/(node|codex|codebuddy|member-agent)/[^\x00-\x1f]+)$') { throw '非法文件路径' }
+            if (($isCodeBuddy -and $relative.StartsWith('app/codex/')) -or (!$isCodeBuddy -and $relative.StartsWith('app/codebuddy/'))) { throw '执行器与包内容不符' }
             if ($seen.ContainsKey($relative)) { throw '重复清单条目' }; $seen[$relative] = $true
             $filePath = Join-Path $PSScriptRoot ($relative.Replace('/', '\'))
             [void](Assert-PlainPath $filePath)
@@ -42,16 +44,27 @@ function Test-PackageManifest {
         foreach ($file in $all) {
             if ($file.PSIsContainer) { continue }
             $relative = $file.FullName.Substring($PSScriptRoot.TrimEnd('\').Length + 1).Replace('\', '/')
-            if ($relative -ne 'MANIFEST.json' -and !$seen.ContainsKey($relative)) { throw '发现未列入清单的文件' }
+            if ($relative -ne 'MANIFEST.json' -and !$seen.ContainsKey($relative)) { throw ('发现未列入清单的文件：' + $relative) }
         }
-        foreach ($required in @('install.ps1', 'uninstall.ps1', 'README-成员安装说明.md', 'app/start.ps1', 'app/node/node.exe', 'app/codex/codex.exe', 'app/codex/codex-code-mode-host.exe', 'app/member-agent/src/main.ts', 'app/member-agent/package.json')) { if (!$seen.ContainsKey($required)) { throw '缺少安装必需文件' } }
+        $executorFiles = if ($isCodeBuddy) { @('app/codebuddy/node_modules/@tencent-ai/codebuddy-code/bin/codebuddy', 'app/codebuddy/package-lock.json', 'app/member-agent/runtime/server/dist/claude-local.mjs') } else { @('app/codex/codex.exe', 'app/codex/codex-code-mode-host.exe') }
+        foreach ($required in (@('install.ps1', 'uninstall.ps1', 'README-成员安装说明.md', 'app/start.ps1', 'app/node/node.exe', 'app/member-agent/src/main.ts', 'app/member-agent/package.json') + $executorFiles)) { if (!$seen.ContainsKey($required)) { throw '缺少安装必需文件' } }
         return $manifest
-    } catch { throw '安装包已损坏或被修改，请重新获取。' }
+    } catch { throw ('安装包已损坏或被修改，请重新获取。原因：' + $_.Exception.Message) }
 }
-function Set-ConfigPrograms($Config, [string]$VersionPath) {
-    $Config | Add-Member -MemberType NoteProperty -Name 'codexExecutable' -Value (Join-Path $VersionPath 'codex\codex.exe') -Force
+function Set-ConfigPrograms($Config, [string]$VersionPath, [string]$ValidationRoot = $VersionPath) {
+    $isCodeBuddy = Test-Path -LiteralPath (Join-Path $ValidationRoot 'codebuddy') -PathType Container
+    $executor = if ($isCodeBuddy) { 'codebuddy' } else { 'codex' }
+    $Config | Add-Member -MemberType NoteProperty -Name 'executor' -Value $executor -Force
+    if ($isCodeBuddy) {
+        foreach ($name in @('codexExecutable', 'codexHome')) { if ($Config.PSObject.Properties.Name -contains $name) { $Config.PSObject.Properties.Remove($name) } }
+        $Config | Add-Member -MemberType NoteProperty -Name 'codebuddyEntry' -Value (Join-Path $VersionPath 'codebuddy\node_modules\@tencent-ai\codebuddy-code\bin\codebuddy') -Force
+        $Config | Add-Member -MemberType NoteProperty -Name 'codebuddyHome' -Value (Join-Path $ConfigDir 'codebuddy-home') -Force
+    } else {
+        foreach ($name in @('codebuddyEntry', 'codebuddyHome', 'codebuddyModel')) { if ($Config.PSObject.Properties.Name -contains $name) { $Config.PSObject.Properties.Remove($name) } }
+        $Config | Add-Member -MemberType NoteProperty -Name 'codexExecutable' -Value (Join-Path $VersionPath 'codex\codex.exe') -Force
+        $Config | Add-Member -MemberType NoteProperty -Name 'codexHome' -Value (Join-Path $ConfigDir 'codex-home') -Force
+    }
     $Config | Add-Member -MemberType NoteProperty -Name 'runtimeDir' -Value (Join-Path $VersionPath 'member-agent\runtime') -Force
-    $Config | Add-Member -MemberType NoteProperty -Name 'codexHome' -Value (Join-Path $ConfigDir 'codex-home') -Force
     if ($Config.PSObject.Properties.Name -contains 'agentKey') { $Config.PSObject.Properties.Remove('agentKey') }
 }
 function Test-MemberConfiguration($Config, [string]$VersionPath, [string]$ValidationRoot = $VersionPath) {
@@ -124,6 +137,7 @@ try {
     if (!$TestMode -and ($TestExecutor -or $TestNode -or $TestDefaultCwd -or $TestOverwrite -or $TestReplaceConfig -or $PSBoundParameters.ContainsKey('TestServerUrl'))) { throw 'Test 参数仅限显式测试模式。' }
     $paths = Resolve-MemberPaths $TestMode $InstallRoot $ConfigDir
     $InstallRoot = $paths.Root; $ConfigDir = $paths.Config
+    Remove-CodeBuddyRuntimeCache $ConfigDir
     if ($TestMode) {
         if (!$TestExecutor -or !$TestNode) { throw '测试模式必须指定假 TestExecutor 和校验用 TestNode。' }
         $temp = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
@@ -148,7 +162,10 @@ try {
         $versionPath = Join-Path $versionsPath $version
         if (!(Test-Path -LiteralPath (Join-Path $versionPath 'start.ps1'))) { throw '上一个版本不完整，请重新安装。' }
     } else {
-        $manifest = Test-PackageManifest; $version = [string]$manifest.agentVersion
+        $manifest = Test-PackageManifest
+        # Distinct install identities preserve rollback across same-version variants.
+        $version = [string]$manifest.agentVersion
+        if ($manifest.executor -eq 'codebuddy') { $version += '-codebuddy' }
         $versionPath = Join-Path $versionsPath $version
         if (Test-Path -LiteralPath $versionPath) {
             if (!(Confirm-Member ('版本 ' + $version + ' 已存在，覆盖吗？') $TestMode $TestOverwrite)) { throw '未覆盖同版本，安装已取消。' }
@@ -158,6 +175,7 @@ try {
         $staging = Join-Path $versionsPath ('.staging-' + [Guid]::NewGuid().ToString('N'))
         [void][IO.Directory]::CreateDirectory($staging)
         foreach ($item in @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot 'app') -Force)) { Copy-Item -LiteralPath $item.FullName -Destination $staging -Recurse -Force }
+        Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'MANIFEST.json') -Destination (Join-Path $staging 'PACKAGE-MANIFEST.json') -Force
     }
     [void][IO.Directory]::CreateDirectory($ConfigDir)
     if (!$TestMode) { Protect-MemberPath $ConfigDir $true }
@@ -168,7 +186,7 @@ try {
         catch { $canReuse = $false }
         if ($canReuse) {
             # Validate before displaying any saved fields; never display credential values.
-            Set-ConfigPrograms $existing $versionPath
+            Set-ConfigPrograms $existing $versionPath $(if ($staging) { $staging } else { $versionPath })
             try { Test-MemberConfiguration $existing $versionPath $(if ($staging) { $staging } else { $versionPath }) }
             catch { $canReuse = $false }
         }
@@ -183,7 +201,12 @@ try {
         if ($TestMode) { $url = $TestServerUrl; $cwd = $TestDefaultCwd }
         else { $url = Read-Host '服务器地址（例如 http://192.168.0.213:3100）'; $cwd = Read-Host '默认工作目录（必须已存在，输入完整路径）' }
         $config = [PSCustomObject]@{ serverUrl = $url; executor = 'codex'; projectDirs = [PSCustomObject]@{}; defaultCwd = $cwd }
-        Set-ConfigPrograms $config $versionPath; Test-MemberConfiguration $config $versionPath $(if ($staging) { $staging } else { $versionPath })
+        Set-ConfigPrograms $config $versionPath $(if ($staging) { $staging } else { $versionPath })
+        if (!$TestMode -and $config.executor -eq 'codebuddy') {
+            $model = Read-Host 'CodeBuddy 模型（可选，回车使用默认模型）'
+            if ($model.Trim()) { $config | Add-Member -MemberType NoteProperty -Name 'codebuddyModel' -Value $model.Trim() -Force }
+        }
+        Test-MemberConfiguration $config $versionPath $(if ($staging) { $staging } else { $versionPath })
     }
     if ($current) { Stop-MemberAgent $InstallRoot $ConfigDir $TestMode }
     if ($staging) {
@@ -217,12 +240,20 @@ try {
     # files are written. Keep the old same-version directory until this point.
     $transactionCommitted = $true
     if ($backupVersionPath -and (Test-Path -LiteralPath $backupVersionPath)) { Remove-PlainTree $backupVersionPath; $backupVersionPath = $null }
-    if (!$TestMode -and !(Test-Path -LiteralPath (Join-Path $ConfigDir 'codex-home\auth.json')) -and (Confirm-Member '现在登录 Codex 吗？' $false)) {
-        $loginCode = Invoke-MemberCommand $versionPath 'login'
-        if ($loginCode -ne 0) { Write-Warning 'Codex 登录未成功，请稍后通过 start.ps1 -Mode login 重试。' }
+    if ($config.executor -eq 'codebuddy') {
+        # Same existence-only path as hasCodeBuddyLogin; never read shared credentials.
+        if (!$TestMode -and !(Test-Path -LiteralPath (Join-Path $env:USERPROFILE 'AppData\Local\CodeBuddyExtension\Data\Public\auth\Tencent-Cloud.coding-copilot.info')) -and (Confirm-Member '现在登录 CodeBuddy 吗？' $false)) {
+            $loginCode = Invoke-MemberCommand $versionPath 'login'
+            if ($loginCode -ne 0) { Write-Warning 'CodeBuddy 登录未成功，请稍后通过 start.ps1 -Mode login 重试。' }
+        }
+    } else {
+        if (!$TestMode -and !(Test-Path -LiteralPath (Join-Path $ConfigDir 'codex-home\auth.json')) -and (Confirm-Member '现在登录 Codex 吗？' $false)) {
+            $loginCode = Invoke-MemberCommand $versionPath 'login'
+            if ($loginCode -ne 0) { Write-Warning 'Codex 登录未成功，请稍后通过 start.ps1 -Mode login 重试。' }
+        }
     }
     $checkCode = Invoke-MemberCommand $versionPath 'check'
-    if ($checkCode -ne 0) { Write-Warning '自检未通过，文件已保留。请根据上方原因修复配置、Key、网络或 Codex 登录，再执行 start.ps1 -Mode check。' }
+    if ($checkCode -ne 0) { Write-Warning '自检未通过，文件已保留。请根据上方原因修复配置、Key、网络或执行器登录，再执行 start.ps1 -Mode check。' }
     $registered = Register-MemberTask $versionPath
     $maintenance = Join-Path $InstallRoot 'maintenance.flag'
     if ($registered -and (Test-Path -LiteralPath $maintenance)) { Remove-Item -LiteralPath $maintenance -Force }
@@ -244,6 +275,7 @@ try {
     Write-Host ('卸载：powershell -ExecutionPolicy Bypass -File "' + (Join-Path $InstallRoot 'uninstall.ps1') + '"')
     exit 0
 } catch {
+    $failureMessage = $_.Exception.Message
     if (!$transactionCommitted) {
         try {
             if ($staging -and (Test-Path -LiteralPath $staging)) { Remove-PlainTree $staging }
@@ -254,5 +286,6 @@ try {
             if ($previousPathExisted) { Write-MemberText $previousPath $oldPreviousText } elseif (Test-Path -LiteralPath $previousPath) { Remove-Item -LiteralPath $previousPath -Force }
         } catch { }
     }
+    Write-Host ('失败原因：' + $failureMessage)
     Write-Error '安装未完成；当前版本与配置已保留。请检查安装包、目录权限和配置后重试。' -ErrorAction Continue; exit 1
 }

@@ -125,7 +125,7 @@ export class ProcessTreeTracker {
   }
 }
 
-async function readWindowsProcessIdentity(pid: number): Promise<ProcessIdentity | null> {
+export async function readWindowsProcessIdentity(pid: number): Promise<ProcessIdentity | null> {
   const script = [
     "$ErrorActionPreference = 'Stop'",
     `$row = Get-CimInstance -ClassName Win32_Process -Filter 'ProcessId=${pid}'`,

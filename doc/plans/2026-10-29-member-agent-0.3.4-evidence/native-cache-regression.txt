@@ -1,0 +1,17 @@
+cwd=member-agent
+command=node ../node_modules/vitest/vitest.mjs run --cache=false --reporter=verbose test/installer-long-path.test.ts
+
+ RUN  v5.0.3 D:/paperclip/.claude/worktrees/codebuddy-executor-6332a5/member-agent
+
+ ✓ test/installer-long-path.test.ts > native Windows cache cleanup > powershell.exe removes an exactly 261-character junction without changing its target 927ms
+ ✓ test/installer-long-path.test.ts > native Windows cache cleanup > powershell.exe reports the Win32 error code when a cache file is locked and succeeds after release 810ms
+ ✓ test/installer-long-path.test.ts > native Windows cache cleanup > pwsh.exe removes an exactly 261-character junction without changing its target 1666ms
+ ✓ test/installer-long-path.test.ts > native Windows cache cleanup > pwsh.exe reports the Win32 error code when a cache file is locked and succeeds after release 1734ms
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  16:59:42
+   Duration  5.36s (tests 99%, transform 1%)
+
+
+exitCode=0

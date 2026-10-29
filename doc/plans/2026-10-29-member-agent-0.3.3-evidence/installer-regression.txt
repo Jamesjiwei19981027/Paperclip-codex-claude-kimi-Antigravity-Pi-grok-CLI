@@ -1,0 +1,50 @@
+cwd=member-agent
+command=node ../node_modules/vitest/vitest.mjs run --cache=false --reporter=verbose test/installer-scripts.test.ts -t legacy CodeBuddy runtime junctions|rejects junctions outside
+
+ RUN  v5.0.3 D:/paperclip/.claude/worktrees/codebuddy-executor-6332a5/member-agent
+
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > every executable script has UTF-8 BOM and parses in both engines
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 65001 > install → upgrade → rollback → uninstall preserves separate user data and keeps two versions
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 65001 > validates via a BOM-free temporary config file, tolerates a defensive BOM and removes validation files on success and failure
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 65001 > rejects manifest corruption, missing entries, traversal, public plaintext URL and incomplete test isolation
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 65001 > keeps an installed same version intact on validation failure and can replace an invalid saved configuration
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 65001 > refuses reparse-point traversal before uninstalling and refuses an unowned process control record before overwrite
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 65001 > cleans legacy CodeBuddy runtime junctions on overwrite and default uninstall while preserving targets 6108ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 65001 > rejects junctions outside the regenerable cache on install and default uninstall 2828ms
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 65001 > drains only the owned temporary installed agent before upgrading and ignores an exited stale owner
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 65001 > returns terminal run/check exit codes and retries crashes/unexpected codes at 10,30,60,300,300 seconds
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 65001 > install → upgrade → rollback → uninstall preserves separate user data and keeps two versions
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 65001 > validates via a BOM-free temporary config file, tolerates a defensive BOM and removes validation files on success and failure
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 65001 > rejects manifest corruption, missing entries, traversal, public plaintext URL and incomplete test isolation
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 65001 > keeps an installed same version intact on validation failure and can replace an invalid saved configuration
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 65001 > refuses reparse-point traversal before uninstalling and refuses an unowned process control record before overwrite
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 65001 > cleans legacy CodeBuddy runtime junctions on overwrite and default uninstall while preserving targets 11081ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 65001 > rejects junctions outside the regenerable cache on install and default uninstall 4888ms
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 65001 > drains only the owned temporary installed agent before upgrading and ignores an exited stale owner
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 65001 > returns terminal run/check exit codes and retries crashes/unexpected codes at 10,30,60,300,300 seconds
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 936 > install → upgrade → rollback → uninstall preserves separate user data and keeps two versions
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 936 > validates via a BOM-free temporary config file, tolerates a defensive BOM and removes validation files on success and failure
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 936 > rejects manifest corruption, missing entries, traversal, public plaintext URL and incomplete test isolation
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 936 > keeps an installed same version intact on validation failure and can replace an invalid saved configuration
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 936 > refuses reparse-point traversal before uninstalling and refuses an unowned process control record before overwrite
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 936 > cleans legacy CodeBuddy runtime junctions on overwrite and default uninstall while preserving targets 6003ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 936 > rejects junctions outside the regenerable cache on install and default uninstall 2663ms
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 936 > drains only the owned temporary installed agent before upgrading and ignores an exited stale owner
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > powershell.exe codepage 936 > returns terminal run/check exit codes and retries crashes/unexpected codes at 10,30,60,300,300 seconds
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 936 > install → upgrade → rollback → uninstall preserves separate user data and keeps two versions
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 936 > validates via a BOM-free temporary config file, tolerates a defensive BOM and removes validation files on success and failure
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 936 > rejects manifest corruption, missing entries, traversal, public plaintext URL and incomplete test isolation
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 936 > keeps an installed same version intact on validation failure and can replace an invalid saved configuration
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 936 > refuses reparse-point traversal before uninstalling and refuses an unowned process control record before overwrite
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 936 > cleans legacy CodeBuddy runtime junctions on overwrite and default uninstall while preserving targets 10664ms
+ ✓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 936 > rejects junctions outside the regenerable cache on install and default uninstall 4763ms
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 936 > drains only the owned temporary installed agent before upgrading and ignores an exited stale owner
+ ↓ test/installer-scripts.test.ts > isolated Windows installer scripts > pwsh.exe codepage 936 > returns terminal run/check exit codes and retries crashes/unexpected codes at 10,30,60,300,300 seconds
+
+ Test Files  1 passed (1)
+      Tests  8 passed | 29 skipped (37)
+   Start at  16:22:15
+   Duration  49.23s (tests 100%)
+
+
+exitCode=0

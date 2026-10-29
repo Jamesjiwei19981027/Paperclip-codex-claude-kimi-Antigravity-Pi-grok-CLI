@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import https from "node:https";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { isDeepStrictEqual } from "node:util";
@@ -9,6 +10,9 @@ import { isDeepStrictEqual } from "node:util";
 export const NODE_VERSION = "24.18.0";
 export const NODE_ARCHIVE = `node-v${NODE_VERSION}-win-x64.zip`;
 export const CODEX_VERSION = "0.160.0";
+export const CODEBUDDY_VERSION = "2.169.0";
+export const CODEBUDDY_INTEGRITY = "sha512-ccwSxOizTYO/e+dOidQTSEBcGQPMD0JvWxRn39/jNVo/cmO/1eVtVOk4fTvo0+HwJfgafmh8M4DEiXQeGnvlKA==";
+const codebuddyReceipts = new WeakMap();
 // Owner-approved fixed hashes. Updating Node/Codex or these hashes requires
 // explicit owner approval; never learn trusted hashes from build inputs.
 export const PINNED_BINARIES = Object.freeze({
@@ -51,15 +55,64 @@ export async function assertSafeOutput(output, memberAgentDir = memberDir) {
   return absolute;
 }
 
-function parseArgs(args) {
-  const options = { outputDir: path.join(memberDir, "dist-installer"), nodeZip: undefined };
+export function parseArgs(args) {
+  const options = { outputDir: path.join(memberDir, "dist-installer"), nodeZip: undefined, executor: "codex" };
   const seen = new Set();
   for (let index = 0; index < args.length; index += 2) {
     const flag = args[index]; const value = args[index + 1];
-    if (!["--out", "--node-zip"].includes(flag) || seen.has(flag) || !value || value.startsWith("--")) throw new Error("用法：build-installer.mjs [--node-zip <Node ZIP>] [--out <dist-installer 内的目录>]");
-    seen.add(flag); options[flag === "--out" ? "outputDir" : "nodeZip"] = path.resolve(value);
+    if (!["--out", "--node-zip", "--executor"].includes(flag) || seen.has(flag) || !value || value.startsWith("--")) throw new Error("用法：build-installer.mjs [--executor codex|codebuddy] [--node-zip <Node ZIP>] [--out <dist-installer 内的目录>]");
+    if (flag === "--executor" && !["codex", "codebuddy"].includes(value)) throw new Error("--executor 执行器只支持 codex 或 codebuddy");
+    seen.add(flag); options[flag === "--out" ? "outputDir" : flag === "--executor" ? "executor" : "nodeZip"] = flag === "--executor" ? value : path.resolve(value);
   }
   return options;
+}
+
+export function verifyCodeBuddyLock(lock) {
+  const pkg = lock?.packages?.["node_modules/@tencent-ai/codebuddy-code"];
+  if (pkg?.version !== CODEBUDDY_VERSION || pkg?.integrity !== CODEBUDDY_INTEGRITY) throw new Error("CodeBuddy npm lock version/integrity 与批准值不符");
+  for (const [name, entry] of Object.entries(lock.packages)) {
+    if (!name || !entry.resolved) continue; // npm records skipped optional platforms too.
+    if (!/^https:\/\/registry\.npmjs\.org\//.test(entry.resolved) || !/^sha512-[A-Za-z0-9+/]+={0,2}$/.test(entry.integrity ?? "")) throw new Error("CodeBuddy 依赖缺少官方 npm integrity 来源");
+  }
+}
+
+/** npm verifies tarball integrity while extracting; only fresh, script-free installs earn a receipt. */
+export async function installCodeBuddy() {
+  const directory = await fs.mkdtemp(path.join(tmpdir(), "paperclip-codebuddy-package-"));
+  try {
+    await fs.writeFile(path.join(directory, "package.json"), '{"name":"paperclip-codebuddy-stage","version":"1.0.0","private":true}\n');
+    const npmCli = path.join(path.dirname(process.execPath), "node_modules/npm/bin/npm-cli.js");
+    execFileSync(process.execPath, [npmCli, "install", `@tencent-ai/codebuddy-code@${CODEBUDDY_VERSION}`, "--ignore-scripts", "--no-audit", "--no-fund", "--registry=https://registry.npmjs.org"], {cwd:directory, windowsHide:true, stdio:"pipe", timeout:180_000});
+    verifyCodeBuddyLock(JSON.parse(await fs.readFile(path.join(directory, "package-lock.json"), "utf8")));
+    const packageRoot = path.join(directory, "node_modules/@tencent-ai/codebuddy-code");
+    const hashes = new Map();
+    for (const rel of await listFiles(directory)) hashes.set(`app/codebuddy/${rel}`, sha256(await fs.readFile(path.join(directory, rel))));
+    const receipt = Object.freeze({ integrity: CODEBUDDY_INTEGRITY });
+    codebuddyReceipts.set(receipt, hashes);
+    return {directory, packageRoot, receipt};
+  } catch (error) { await fs.rm(directory, {recursive:true,force:true}); throw error; }
+}
+
+/** Reuse a release whose manifest digest was independently verified by the caller. */
+export async function reuseVerifiedCodeBuddy(directory, manifestPath, expectedManifestSha256) {
+  const bytes = await fs.readFile(manifestPath);
+  if (!/^[a-f0-9]{64}$/.test(expectedManifestSha256 ?? "") || sha256(bytes) !== expectedManifestSha256) throw new Error("已批准安装包的清单 SHA-256 不符");
+  const manifest = JSON.parse(bytes.toString("utf8"));
+  if (manifest.executor !== "codebuddy" || manifest.codebuddyVersion !== CODEBUDDY_VERSION || manifest.codebuddyIntegrity !== CODEBUDDY_INTEGRITY) throw new Error("已批准安装包的 CodeBuddy 来源不符");
+  const hashes = new Map();
+  for (const entry of manifest.files) {
+    if (!entry.path.startsWith("app/codebuddy/")) continue;
+    const rel = entry.path.slice("app/codebuddy/".length);
+    if (!rel || rel.includes("\\") || rel.includes(":") || rel.startsWith("/") || rel.split("/").some(part => !part || part === "." || part === "..") || hashes.has(entry.path)) throw new Error("CodeBuddy 清单路径无效");
+    hashes.set(entry.path, entry.sha256);
+  }
+  const files = await listFiles(directory);
+  if (!files.length || files.length !== hashes.size) throw new Error("CodeBuddy 文件清单不完整或包含额外文件");
+  for (const rel of files) if (sha256(await fs.readFile(path.join(directory, rel))) !== hashes.get(`app/codebuddy/${rel}`)) throw new Error("CodeBuddy 文件与已批准清单的哈希不符");
+  verifyCodeBuddyLock(JSON.parse(await fs.readFile(path.join(directory, "package-lock.json"), "utf8")));
+  const receipt = Object.freeze({ integrity: CODEBUDDY_INTEGRITY });
+  codebuddyReceipts.set(receipt, hashes);
+  return { directory, packageRoot: path.join(directory, "node_modules/@tencent-ai/codebuddy-code"), receipt };
 }
 
 export function officialUrl(resource) {
@@ -133,14 +186,28 @@ async function listFiles(root) {
   await visit(root); return files;
 }
 
-export async function scanInstaller(root) {
+export async function scanInstaller(root, codebuddyReceipt) {
   const jsonWhitelist = new Set(["MANIFEST.json", runtimeManifestPath, "app/member-agent/package.json", "app/member-agent/node_modules/ws/package.json"]);
   const scanReports = [];
+  const thirdPartyHashes = codebuddyReceipts.get(codebuddyReceipt);
   for (const rel of await listFiles(root)) {
+    if (rel.startsWith("app/codebuddy/")) {
+      const trusted = thirdPartyHashes?.get(rel);
+      if (!trusted || sha256(await fs.readFile(path.join(root, rel))) !== trusted) throw new Error(`CodeBuddy 第三方文件与经 integrity 验证来源的哈希不符：${rel}`);
+      scanReports.push({path:rel, scanMethod:"npm integrity 来源验证，逐文件 SHA-256 校验", sourceIntegrity:CODEBUDDY_INTEGRITY});
+      continue;
+    }
     const parts = rel.toLowerCase().split("/"); const name = parts.at(-1);
-    if (parts.some((part) => ["test", "tests", "codex-home", "logs", ".git"].includes(part)) || ["auth.json", "config.json"].includes(name) || /\.(log|dpapi|env)$/i.test(name)) throw new Error(`安装包禁止包含本机配置、凭据、测试或日志：${rel}`);
+    if (parts.some((part) => ["test", "tests", "codex-home", "codebuddy-home", ".codebuddy", "logs", ".git"].includes(part)) || ["auth.json", "config.json"].includes(name) || /\.(log|dpapi|env)$/i.test(name)) throw new Error(`安装包禁止包含本机配置、凭据、测试或日志：${rel}`);
     if (name.endsWith(".json") && !jsonWhitelist.has(rel)) throw new Error(`JSON 文件不在安装包白名单中：${rel}`);
-    const bytes = await fs.readFile(path.join(root, rel));
+    let bytes = await fs.readFile(path.join(root, rel));
+    if (rel === "MANIFEST.json" && thirdPartyHashes) {
+      const manifest = JSON.parse(bytes.toString("utf8"));
+      // Published npm filenames can contain secret-like example strings. Only
+      // source-verified path fields are normalized; all other metadata is scanned.
+      if (Array.isArray(manifest.files)) manifest.files = manifest.files.map(file => thirdPartyHashes.get(file.path) === file.sha256 ? {...file,path:"verified-npm-file"} : file);
+      bytes = Buffer.from(JSON.stringify(manifest));
+    }
     const pinnedSha256 = PINNED_BINARIES[rel];
     if (pinnedSha256 && sha256(bytes) === pinnedSha256) {
       scanReports.push({path:rel, scanMethod:pinnedScanMethod, pinnedSha256});
@@ -185,11 +252,13 @@ async function records(root) {
 }
 
 /** Stage already verified inputs. CLI always builds runtime and verifies binaries first. */
-export async function assembleInstaller({memberAgentDir = memberDir, outputDir, nodeDirectory, codexDirectory, repoCommit}) {
+export async function assembleInstaller({memberAgentDir = memberDir, outputDir, nodeDirectory, codexDirectory, codebuddy, executor = "codex", repoCommit}) {
+  if (!["codex", "codebuddy"].includes(executor)) throw new Error("无效的 executor 执行器");
+  if (executor === "codebuddy" && !codebuddyReceipts.has(codebuddy?.receipt)) throw new Error("CodeBuddy 缺少经 integrity 验证的第三方来源");
   outputDir = await assertSafeOutput(outputDir, memberAgentDir);
   const metadata = JSON.parse(await fs.readFile(path.join(memberAgentDir, "package.json"), "utf8"));
   if (!/^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/.test(metadata.version)) throw new Error("代理版本格式无效");
-  const packageDir = await assertSafeOutput(path.join(outputDir, `PaperclipMemberAgent-${metadata.version}`), memberAgentDir);
+  const packageDir = await assertSafeOutput(path.join(outputDir, `PaperclipMemberAgent-${metadata.version}${executor === "codebuddy" ? "-codebuddy" : ""}`), memberAgentDir);
   await fs.mkdir(outputDir, {recursive: true});
   await fs.rm(packageDir, {recursive: true, force: true});
   await fs.mkdir(packageDir);
@@ -201,7 +270,7 @@ export async function assembleInstaller({memberAgentDir = memberDir, outputDir, 
     [path.join(memberAgentDir,"node_modules/ws"), "app/member-agent/node_modules/ws"],
     [path.join(nodeDirectory,"node.exe"), "app/node/node.exe"],
     [path.join(nodeDirectory,"LICENSE"), "app/node/LICENSE"],
-    ...["codex.exe","codex-code-mode-host.exe"].map((name)=>[path.join(codexDirectory,name), `app/codex/${name}`]),
+    ...(executor === "codex" ? ["codex.exe","codex-code-mode-host.exe"].map((name)=>[path.join(codexDirectory,name), `app/codex/${name}`]) : [[codebuddy.directory,"app/codebuddy"]]),
     ...["install.ps1","uninstall.ps1","README-成员安装说明.md"].map((name)=>[path.join(memberAgentDir,"installer",name), name]),
     [path.join(memberAgentDir,"installer/start.ps1"), "app/start.ps1"],
   ];
@@ -210,11 +279,23 @@ export async function assembleInstaller({memberAgentDir = memberDir, outputDir, 
     if (stat.isDirectory()) await copyTree(source, path.join(packageDir, rel));
     else { await fs.mkdir(path.dirname(path.join(packageDir,rel)), {recursive: true}); await fs.copyFile(source,path.join(packageDir,rel)); }
   }
-  await scanInstaller(packageDir);
+  if (executor === "codex") {
+    for (const rel of await listFiles(path.join(packageDir,"app/member-agent/src"))) {
+      if (/(^|\/)codebuddy[^/]*\.ts$/.test(rel)) await fs.rm(path.join(packageDir,"app/member-agent/src",rel));
+    }
+    const runtimePath = path.join(packageDir,runtimeManifestPath);
+    const runtime = JSON.parse(await fs.readFile(runtimePath,"utf8"));
+    if (runtime.assets?.["server/dist/claude-local.mjs"]) {
+      delete runtime.assets["server/dist/claude-local.mjs"];
+      await fs.writeFile(runtimePath,`${JSON.stringify(runtime,null,2)}\n`,"utf8");
+    }
+    await fs.rm(path.join(packageDir,"app/member-agent/runtime/server/dist/claude-local.mjs"),{force:true});
+  }
+  await scanInstaller(packageDir,codebuddy?.receipt);
   const runtimeManifest = JSON.parse(await fs.readFile(path.join(packageDir,runtimeManifestPath), "utf8"));
-  const manifest = {agentVersion: metadata.version, nodeVersion: NODE_VERSION, codexVersion: CODEX_VERSION, runtimeManifest, builtAt:new Date().toISOString(), repoCommit, files: await records(packageDir)};
+  const manifest = {agentVersion: metadata.version, nodeVersion: NODE_VERSION, ...(executor === "codex" ? {codexVersion:CODEX_VERSION} : {executor,codebuddyVersion:CODEBUDDY_VERSION,codebuddyIntegrity:CODEBUDDY_INTEGRITY}), runtimeManifest, builtAt:new Date().toISOString(), repoCommit, files: await records(packageDir)};
   await fs.writeFile(path.join(packageDir,"MANIFEST.json"), `${JSON.stringify(manifest,null,2)}\n`, "utf8");
-  await scanInstaller(packageDir);
+  await scanInstaller(packageDir,codebuddy?.receipt);
   return {packageDir, manifest};
   } catch (error) {
     await assertSafeOutput(packageDir, memberAgentDir);
@@ -243,7 +324,7 @@ export async function archiveInstaller(packageDir, zipOutput, memberAgentDir = m
   const absoluteOutput = await assertSafeOutput(path.resolve(zipOutput), memberAgentDir);
   await fs.rm(absoluteOutput, {force:true});
   // Explicit entry names avoid .NET Framework's platform-specific backslashes.
-  powershell("$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.IO.Compression; Add-Type -AssemblyName System.IO.Compression.FileSystem; $root=[IO.Path]::GetFullPath($env:PMA_PACKAGE_DIR).TrimEnd('\\'); $zip=[IO.Compression.ZipFile]::Open($env:PMA_ZIP_OUTPUT,[IO.Compression.ZipArchiveMode]::Create); try { foreach($file in @(Get-ChildItem -LiteralPath $root -Recurse -File | Sort-Object FullName)) { $relative=$file.FullName.Substring($root.Length+1).Replace('\\','/'); [void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip,$file.FullName,$relative,[IO.Compression.CompressionLevel]::Optimal) } } finally { $zip.Dispose() }", {PMA_PACKAGE_DIR:path.resolve(packageDir), PMA_ZIP_OUTPUT:absoluteOutput});
+  powershell("$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.IO.Compression; Add-Type -AssemblyName System.IO.Compression.FileSystem; $root=[IO.Path]::GetFullPath($env:PMA_PACKAGE_DIR).TrimEnd('\\'); $zip=[IO.Compression.ZipFile]::Open($env:PMA_ZIP_OUTPUT,[IO.Compression.ZipArchiveMode]::Create); try { foreach($file in @(Get-ChildItem -LiteralPath $root -Recurse -File | Sort-Object FullName)) { $relative=$file.FullName.Substring($root.Length+1).Replace('\\','/'); [void][IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zip,('\\\\?\\' + $file.FullName),$relative,[IO.Compression.CompressionLevel]::Optimal) } } finally { $zip.Dispose() }", {PMA_PACKAGE_DIR:path.resolve(packageDir), PMA_ZIP_OUTPUT:absoluteOutput});
 }
 
 export async function buildInstaller(args = process.argv.slice(2)) {
@@ -251,16 +332,20 @@ export async function buildInstaller(args = process.argv.slice(2)) {
   const outputDir = await assertSafeOutput(options.outputDir);
   if (process.platform !== "win32") throw new Error("安装包构建仅支持 Windows");
   execFileSync(process.execPath, [path.join(memberDir,"scripts/build-runtime.mjs")], {cwd:repoRoot, stdio:"inherit", windowsHide:true});
-  const codexDirectory = path.join(repoRoot,`node_modules/.pnpm/@openai+codex@${CODEX_VERSION}-win32-x64/node_modules/@openai/codex/vendor/x86_64-pc-windows-msvc/bin`);
-  for (const name of ["codex.exe","codex-code-mode-host.exe"]) if (!(await fs.stat(path.join(codexDirectory,name))).isFile()) throw new Error(`缺少 Codex 文件：${name}`);
-  for (const name of ["codex.exe","codex-code-mode-host.exe"]) await verifyPinnedBinary(path.join(codexDirectory,name),`app/codex/${name}`);
-  const version = execFileSync(path.join(codexDirectory,"codex.exe"), ["--version"], {encoding:"utf8", windowsHide:true}).trim();
-  if (version !== `codex-cli ${CODEX_VERSION}` && version !== CODEX_VERSION) throw new Error(`Codex 版本必须为 ${CODEX_VERSION}，实际：${version}`);
+  let codexDirectory;
+  if (options.executor === "codex") {
+    codexDirectory = path.join(repoRoot,`node_modules/.pnpm/@openai+codex@${CODEX_VERSION}-win32-x64/node_modules/@openai/codex/vendor/x86_64-pc-windows-msvc/bin`);
+    for (const name of ["codex.exe","codex-code-mode-host.exe"]) if (!(await fs.stat(path.join(codexDirectory,name))).isFile()) throw new Error(`缺少 Codex 文件：${name}`);
+    for (const name of ["codex.exe","codex-code-mode-host.exe"]) await verifyPinnedBinary(path.join(codexDirectory,name),`app/codex/${name}`);
+    const version = execFileSync(path.join(codexDirectory,"codex.exe"), ["--version"], {encoding:"utf8", windowsHide:true}).trim();
+    if (version !== `codex-cli ${CODEX_VERSION}` && version !== CODEX_VERSION) throw new Error(`Codex 版本必须为 ${CODEX_VERSION}，实际：${version}`);
+  }
   await fs.mkdir(outputDir,{recursive:true});
   const work = await fs.mkdtemp(path.join(outputDir,".node-build-"));
+  let codebuddy;
   try {
-    const sumsPath = path.join(work,"SHASUMS256.txt");
-    try { await download("SHASUMS256.txt",sumsPath); }
+    const sumsPath = options.nodeZip ? path.join(path.dirname(options.nodeZip),"SHASUMS256.txt") : path.join(work,"SHASUMS256.txt");
+    try { if (options.nodeZip) await fs.access(sumsPath); else await download("SHASUMS256.txt",sumsPath); }
     catch (error) { throw new Error(`Node 官方 SHASUMS 下载失败，已停止；不会尝试镜像：${error.message}`); }
     const zipPath = options.nodeZip ?? path.join(work,NODE_ARCHIVE);
     if (!options.nodeZip) {
@@ -271,13 +356,14 @@ export async function buildInstaller(args = process.argv.slice(2)) {
     console.log(`[installer-build] Node 官方 ZIP SHA-256：${nodeArchiveSha256}`);
     const nodeDirectory = path.join(work,"node"); await extractNode(zipPath,nodeDirectory);
     const repoCommit = execFileSync("git",["rev-parse","HEAD"],{cwd:repoRoot,encoding:"utf8",windowsHide:true}).trim();
-    const result = await assembleInstaller({outputDir,nodeDirectory,codexDirectory,repoCommit});
-    const zipOutput = await assertSafeOutput(path.join(outputDir,`PaperclipMemberAgent-${result.manifest.agentVersion}.zip`));
+    if (options.executor === "codebuddy") codebuddy = await installCodeBuddy();
+    const result = await assembleInstaller({outputDir,nodeDirectory,codexDirectory,codebuddy,executor:options.executor,repoCommit});
+    const zipOutput = await assertSafeOutput(path.join(outputDir,`${path.basename(result.packageDir)}.zip`));
     await archiveInstaller(result.packageDir, zipOutput);
     console.log(`[installer-build] 构建完成：${zipOutput}`);
     console.log(`[installer-build] ZIP SHA-256：${sha256(await fs.readFile(zipOutput))}`);
     return {...result,zipOutput};
-  } finally { await fs.rm(work,{recursive:true,force:true}); }
+  } finally { if(codebuddy) await fs.rm(codebuddy.directory,{recursive:true,force:true}); await fs.rm(work,{recursive:true,force:true}); }
 }
 
 if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {

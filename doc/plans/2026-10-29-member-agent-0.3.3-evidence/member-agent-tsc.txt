@@ -1,0 +1,4 @@
+cwd=.
+command=node node_modules/typescript/bin/tsc -p member-agent/tsconfig.json
+
+exitCode=0

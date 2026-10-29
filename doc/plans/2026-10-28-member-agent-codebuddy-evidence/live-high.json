@@ -1,0 +1,97 @@
+{
+  "scenario": "high",
+  "model": "deepseek-v4.1-flash",
+  "stdoutLines": 12,
+  "firstLineMs": 5021,
+  "endedMs": 16765,
+  "abortAtMs": null,
+  "afterAbortMs": null,
+  "pids": [
+    15140
+  ],
+  "beforeCancel": [],
+  "survivors": [],
+  "proof": null,
+  "victimExists": false,
+  "result": {
+    "exitCode": 0,
+    "signal": null,
+    "timedOut": false,
+    "usageComplete": true,
+    "errorMessage": null,
+    "errorCode": null,
+    "errorFamily": null,
+    "retryNotBefore": null,
+    "usage": {
+      "inputTokens": 24265,
+      "outputTokens": 718,
+      "cachedInputTokens": 56576
+    },
+    "usageBasis": "per_run",
+    "sessionId": "01a182af-9642-7f7b-bf3f-b7eee74fdf14",
+    "sessionParams": {
+      "sessionId": "01a182af-9642-7f7b-bf3f-b7eee74fdf14",
+      "cwd": "<TEST_TEMP>\\project",
+      "promptBundleKey": "aa562348ae83a293791fc461ea6c8eed947164bcfcf930900f9960be6ef20960",
+      "mcpServerIdentity": "[]"
+    },
+    "sessionDisplayId": "01a182af-9642-7f7b-bf3f-b7eee74fdf14",
+    "provider": "tencent",
+    "biller": "tencent",
+    "model": "deepseek-v4.1-flash",
+    "billingType": "subscription",
+    "costUsd": 0,
+    "resultJson": {
+      "type": "result",
+      "subtype": "success",
+      "is_error": false,
+      "result": "DONE",
+      "uuid": "01a182af-c9b2-726e-abf8-6c854f19412d",
+      "session_id": "01a182af-9642-7f7b-bf3f-b7eee74fdf14",
+      "duration_ms": 11674,
+      "duration_api_ms": 11673,
+      "num_turns": 10,
+      "total_cost_usd": 0,
+      "usage": {
+        "input_tokens": 80841,
+        "output_tokens": 718,
+        "cache_creation_input_tokens": 24265,
+        "cache_read_input_tokens": 56576,
+        "cache_creation": null,
+        "server_tool_use": null,
+        "service_tier": null
+      },
+      "permission_denials": [],
+      "modelUsage": {
+        "deepseek-v4.1-flash": {
+          "inputTokens": 0,
+          "outputTokens": 718,
+          "cacheReadInputTokens": 56576,
+          "cacheCreationInputTokens": 24265,
+          "contextWindow": 1000000,
+          "maxOutputTokens": 128000
+        }
+      },
+      "_meta": {
+        "codebuddy.ai/contextUsed": 27737,
+        "codebuddy.ai/usageByCategory": {
+          "systemPrompt": 1722,
+          "conversation": 2588,
+          "tools": 23372,
+          "mcp": 0,
+          "skills": 55,
+          "version": 1
+        },
+        "traceparent": "00-3d780b508193e0375dbbb7c210b63799-320a15fda77a21b2-01",
+        "baggage": "codebuddy.session_id=01a182af-9642-7f7b-bf3f-b7eee74fdf14,codebuddy.conversation_request_id=01a182af9b5e7e9caacccb0d547d2e69"
+      },
+      "_requestId": "01a182af9b5e7e9caacccb0d547d2e69",
+      "__timestamp": "2026-10-28T13:25:20.968Z"
+    },
+    "summary": "DONE",
+    "clearSession": false
+  },
+  "checkpoints": 4,
+  "hooksStdoutLines": 13,
+  "hooksFirstStdoutMs": 89
+}

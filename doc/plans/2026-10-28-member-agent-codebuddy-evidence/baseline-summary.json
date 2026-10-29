@@ -1,0 +1,9 @@
+{
+  "command": "node member-agent/scripts/build-runtime.mjs；随后在 member-agent 运行 node ..\\node_modules\\vitest\\vitest.mjs run --config vitest.config.ts --cache=false",
+  "filesPassed": 25,
+  "testsPassed": 419,
+  "testsTotal": 419,
+  "durationSeconds": 360.57,
+  "observedStart": "2026-10-28 21:08:53 +08:00",
+  "description": "改前源码已构建runtime后的真实基线，取自本会话命令输出。"
+}
